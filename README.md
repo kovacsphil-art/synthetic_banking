@@ -4,34 +4,15 @@
 
 This repository contains a Databricks-based prototype for profiling banking-style relational data and using those profiles to generate statistically similar synthetic records.
 
-The project is being developed as a controlled synthetic-data pipeline rather than a direct row-copying or record-memorization system. The intended architecture is:
+The workflow starts from a completed SOURCE profile:
 
 ```text
-Source / development data
-        |
-        v
-Statistical profiling
-        |
-        v
-Aggregate metadata and relationships
-        |
-        v
-LLM dependency + rule proposer
-        |
-        v
-Reviewed / approved generation rules
-        |
-        v
-Synthetic-data generator
-        |
-        v
-Generated relational tables
-        |
-        v
-Re-profile and compare against source
+01  SOURCE profile
+    ├─ 03  Synthetic generation → 01  GENERATED profile → SOURCE vs GENERATED comparison
+    └─ 02  LLM proposal batch → Individual review → 03  Controlled balance-rule pilot
 ```
 
-The long-term goal is to turn the work into a reproducible Git project and eventually create an HTML-based portfolio/demo that explains the architecture, methodology, AI component, generation process, and source-vs-generated validation results.
+Notebook 03 uses the selected SOURCE statistics and predefined Python formulas. Reviewed proposals can select two existing balance rules, and generation falls back to the legacy path when a target has no unique eligible approval. See [execution order](#execution-order) for Databricks and [local checks](#local-checks) for the Python pilot.
 
 ---
 
@@ -64,7 +45,7 @@ Builds the statistical profiling layer used by the rest of the project.
 
 ### Current development-data setup
 
-The notebook currently begins by loading development/test Parquet files from:
+In `SOURCE` mode, the notebook loads development/test Parquet files from:
 
 ```text
 /Volumes/workspace/default/scotia/
@@ -98,7 +79,7 @@ workspace.bronze_tsys.KQ_TKQ_ACCOUNT_BALANCE
 workspace.bronze_transunion.tradlines_file
 ```
 
-The purpose of these views is to let the profiling code remain stable when the underlying development source is later replaced.
+The bronze views remain the SOURCE aliases. In `GENERATED` mode, Notebook 01 reads the five generated Delta tables from `workspace.synthetic_generated`. It requires a completed generation record and all five tables before starting a profiling run.
 
 ### Profiling schema
 
@@ -136,14 +117,14 @@ status
 profile_type
 ```
 
-The intended `profile_type` values are:
+The `profile_type` widget requires one of these values:
 
 ```text
 SOURCE
 GENERATED
 ```
 
-This distinction is important because source profiles should be retained while later generated datasets are re-profiled for comparison.
+The notebook records the chosen mode in `profile_runs` and writes each aggregate under a new run ID. `source_config` and `column_inventory` describe the SOURCE inputs. GENERATED profiling uses session-local input and inventory views, so the existing SOURCE metadata and aggregate runs remain available.
 
 ### Column profiling
 
@@ -247,6 +228,8 @@ UTILIZATION_RATE -> PAST_DUE_INDICATO_CD
 
 using utilization buckets and observed delinquency rates.
 
+Both calculations use the account feature view, which joins accounts and balances on `ACCOUNT_ID` and `BUSINESSEFFECTIVEDATE`. The [generated batch validator](#generated-batch-validation) checks one-to-one join coverage on those keys before Notebook 01 can profile the batch.
+
 The profiler also records structural distributions such as:
 
 ```text
@@ -255,7 +238,7 @@ ACCOUNTS_PER_PARTY
 
 ### Published views
 
-Current-run convenience views include:
+The convenience views follow `current_run`, which Notebook 01 publishes after it completes a profile:
 
 ```text
 v_numeric_statistics
@@ -266,19 +249,20 @@ v_dependency_statistics
 
 The notebook also contains a SOURCE-vs-GENERATED numeric comparison using mean, P25, P50, P75, and P95 percentage differences.
 
-### Important run-management note
+### Execution order
 
-At the time this README was created, the notebook cell that starts a profiling run inserts:
+Run these steps serially on Databricks compute with Python and SQL support. The notebooks need access to the development Parquet files and permission to create or write the relevant schemas and tables.
 
-```text
-profile_type = 'GENERATED'
-```
+Run Notebook 03 and GENERATED mode of Notebook 01 from a Databricks Git folder containing `notebooks/` and `src/` in the same checkout. If a notebook cannot discover the Git root, add the absolute path to the checkout's `src/` directory to the Python path before running it. [Databricks workspace module imports](https://docs.databricks.com/aws/en/files/workspace-modules)
 
-This is appropriate when profiling generated output, but the baseline source run must exist separately as `SOURCE`.
+1. **Profile SOURCE.** Run Notebook 01's widget cell, select `SOURCE` in `profile_type`, and run the notebook from the top. For a Databricks job, pass `profile_type=SOURCE`. Confirm that the run is `COMPLETED` in `workspace.synthetic_profile.profile_runs`.
+2. **Generate synthetic data.** Run Notebook 03 through its Delta-save cell. It pins the latest completed SOURCE run, saves a new batch to `workspace.synthetic_generated`, and validates the saved outputs. The batch is ready when `generation_state` reports `COMPLETED` and contains the validated table versions.
+3. **Profile GENERATED.** Rerun Notebook 01 from the top with `profile_type=GENERATED`. It checks the validation record against the current Delta tables, then records aggregates for the five generated tables under a separate run ID. `CUSTOMER_RELATIONSHIP` is only profiled in SOURCE mode.
+4. **Compare.** Review the final numeric comparison in the GENERATED run of Notebook 01. It compares that profile with the exact SOURCE run used by Notebook 03.
 
-Do not assume `current_run` always represents the source dataset.
+To exercise the rule pilot, follow the [controlled pilot runbook](docs/controlled-pilot.md). It pins one SOURCE run, one proposal batch, one or two manually reviewed approvals, and the generated batch that Notebook 01 profiles.
 
-The LLM stage explicitly searches for the most recent completed `SOURCE` run.
+Older run labels are retained as recorded. When migrating from the earlier notebooks, begin with a fresh SOURCE profile and regenerate the output tables in `workspace.synthetic_generated`.
 
 ---
 
@@ -300,7 +284,7 @@ through Databricks `ai_query()`.
 
 The LLM is intentionally given profiler metadata rather than row-level source records.
 
-The current AI context includes:
+The submitted prompt includes:
 
 ```text
 table
@@ -314,7 +298,6 @@ P25
 P50
 P75
 P95
-standard deviation
 top categorical values and proportions
 ```
 
@@ -363,55 +346,17 @@ STATISTICAL_AND_DOMAIN
 
 This distinction is important: an LLM recognizing a likely banking formula from a field name is not the same as the profiler proving that formula statistically.
 
-### Structured output
+### Proposal provenance
 
-The LLM response is constrained using JSON Schema.
+Notebook 02 pins the completed `source_run_id` supplied in its widget, or selects the latest completed SOURCE run when the widget is blank. It assigns a new `batch_id`, builds the prompt from that run's quality, numeric, and categorical profiles, and freezes the prompt and its IDs before calling the model. It requires aggregate column profiles for both account tables. Each run from the top creates a separate batch, even when the SOURCE run is the same.
 
-The JSON response is parsed with `FROM_JSON()` and exploded into individual rules.
+`workspace.synthetic_profile.ai_rule_batches` stores the batch ID, SOURCE run ID, model endpoint, scope, timestamp, SHA-256 of the submitted prompt, and raw JSON response. Previewing or parsing that batch reads the saved response. The notebook uses `FROM_JSON()` and explodes the response into rows in `workspace.synthetic_profile.ai_rule_proposals`, each with its own `proposal_id` and the same batch and SOURCE IDs. Rerunning the model and storage cells for a saved batch reuses its response and preserves its proposal rows.
 
-Rules are stored in:
+### Review workflow
 
-```text
-workspace.synthetic_profile.ai_rule_proposals
-```
+New proposals start as `PENDING`. Review the batch and an individual proposal and complete any required SME review. Run the separate SQL template in the Databricks SQL editor with `batch_id`, `proposal_id`, and a `review_decision` of `APPROVED` or `REJECTED`. The update records the reviewer and review time. The [generator's rule audit](#rule-execution-audit) records whether an approved proposal was applied.
 
-with an additional:
-
-```text
-approval_status
-```
-
-field.
-
-### Current approval behavior
-
-The final active approval cell currently sets all proposals to:
-
-```text
-APPROVED
-```
-
-This is useful for development/testing, but approval should eventually be more selective if the pipeline is used in a governed environment.
-
-### Important current limitation
-
-**These approved LLM rules are not yet used by Notebook 03.**
-
-The rule-proposal stage currently ends after storing/approving proposals.
-
-There is no existing connection from:
-
-```text
-ai_rule_proposals
-```
-
-to:
-
-```text
-03_Synthetic_Gen_v1.ipynb
-```
-
-That is the primary next implementation goal.
+The notebook setup adds provenance columns to an existing proposal table. It resets unbatched `APPROVED` rows to `PENDING` and retains their former status in `legacy_approval_status`. Legacy rows have no verified batch provenance and are ineligible for the review workflow. Generate a fresh batch to review those candidates again.
 
 ---
 
@@ -430,15 +375,15 @@ SEED = 42
 
 ### Current profile loading
 
-The generator currently loads:
+Notebook 03 pins the completed `source_run_id` supplied in its widget. With a blank widget, it selects the latest completion timestamp, breaking ties by start timestamp and then run ID. It prints the selected ID and stops if no eligible run exists. It uses that one `run_id` to load these base profile tables:
 
 ```text
-v_numeric_statistics
-v_category_statistics
+numeric_profile
+category_profile
 date_profile
 column_quality
-v_dependency_statistics
-v_structural_statistics
+relationship_profile
+cardinality_profile
 conditional_profile
 ```
 
@@ -474,13 +419,7 @@ At present, most categorical variables are generated independently unless a rela
 
 ### Null generation
 
-Each generated column receives nulls using the profiler's observed:
-
-```text
-null_pct
-```
-
-except protected identifier/key fields.
+The null-sampling pass uses the selected SOURCE run's `null_pct` where applied. Protected identifiers and account snapshot keys retain their generated values. PERSON dates are generated after its null-sampling pass, and TKQ_ACCOUNT has no generic null-sampling pass.
 
 ### Date generation
 
@@ -525,11 +464,11 @@ and attempts to use:
 TRADELINES_PER_CIF
 ```
 
-with a fallback if no profile is available.
+with a fallback of three tradelines per customer if no profile is available.
 
-### Account-generation logic currently hard-coded
+### Account balance generation
 
-The generator currently includes manually implemented account dependencies.
+The generator uses predefined account dependencies.
 
 For example:
 
@@ -575,7 +514,7 @@ It maps utilization into buckets:
 100%+
 ```
 
-and samples delinquency using the observed outcome rate for the bucket.
+and samples delinquency using the observed outcome rate for the bucket, with a 5% fallback for an absent bucket.
 
 `DELINQUENCY_CNT` is then conditioned on whether the synthetic account was sampled as delinquent.
 
@@ -601,19 +540,21 @@ A `CUSTOMER_RELATIONSHIP` DataFrame is created, but it is currently empty and re
 
 At the time of this README, the Delta save section also does not save `CUSTOMER_RELATIONSHIP`.
 
+Notebook 03 creates one account and one balance row per synthetic `ACCOUNT_ID`. It samples a single non-null `BUSINESSEFFECTIVEDATE` per account from the selected SOURCE run's balance date bounds, with the account date bounds as a fallback. Generation requires usable bounds on at least one side. The date is copied by account ID so both rows share the profiler's composite snapshot key.
+
 ### Schema completion
 
-Before writing results, `add_missing_columns()` checks `column_inventory` and adds missing expected source columns as nulls.
-
-This helps maintain schema compatibility with the profiler/source aliases.
+Before writing results, Notebook 03 takes expected columns from the pinned SOURCE run's quality profile and fills missing fields with typed nulls. This retains optional fields for profiling. The saved tables must independently pass schema, key, count, and invariant checks.
 
 ### Outputs
 
 Generated DataFrames are written to Delta tables under:
 
 ```text
-workspace.default
+workspace.synthetic_generated
 ```
+
+Notebook 03 records the generation ID and its SOURCE profile ID in `generation_state`. It sets the state to `RUNNING` before writing the tables and to `COMPLETED` after the saved data and audit pass validation.
 
 The notebook also contains ZIP logic for CSV outputs expected under:
 
@@ -623,123 +564,67 @@ The notebook also contains ZIP logic for CSV outputs expected under:
 
 The current ZIP cell assumes those CSV files already exist; the notebook itself does not currently contain the CSV export step.
 
----
+### Generated batch validation
 
-# Current End-to-End State
+[`validation.py`](src/synthetic_banking/validation.py) checks the saved Delta tables and rule audit:
 
-The project currently has three functioning conceptual stages:
+- Required columns and compatible types for the pinned SOURCE schema and generated keys and rule fields. Account and balance snapshot dates must have the same type.
+- Saved row counts against the generation plan. Generated person, account, and tradeline keys must match their assigned sequences. Links must reference the corresponding generated parent keys.
+- Full one-to-one account and balance join coverage on `ACCOUNT_ID` and `BUSINESSEFFECTIVEDATE`.
+- Existing derived rules for available credit, overlimit, the balance cap, utilization, delinquency flag and count, and PERSON date order.
+- Saved audit rows for the generation and SOURCE run. Approved proposals without a matching implementation are reported with their proposal and batch IDs. Their skip is informational, and the legacy formula can still supply the target.
 
-```text
-01 Statistical Profiler
-        |
-        v
-02 LLM Rule Proposer
-        |
-        X   <-- connection not implemented yet
-        |
-        v
-03 Synthetic Generator
-```
-
-The highest-priority development task is to connect stages 02 and 03 safely.
+A validation failure leaves the batch `RUNNING`. After validation, Notebook 03 stores the table IDs and Delta versions in `generation_state`. Notebook 01 checks those versions before starting GENERATED profiling and again before marking that profile complete. Rerun Notebook 03 for a batch created before validation was added or for outputs whose Delta versions have changed. [Delta table details](https://docs.databricks.com/aws/en/delta/table-details) [Delta table history](https://docs.databricks.com/aws/en/tables/history)
 
 ---
 
-# Next Development Goal for Codex
+# Controlled Balance-Rule Pilot
 
-## Implement approved AI rules in the synthetic generator
+Notebook 03 snapshots proposal metadata from `workspace.synthetic_profile.ai_rule_proposals` for its pinned SOURCE run. Execution requires `approval_status = 'APPROVED'`, a reviewer and review timestamp, and a matching batch in `ai_rule_batches` for the same SOURCE run. Legacy approvals and pending or rejected proposals are tracked as skips. `proposed_rule` remains reviewer-facing text.
 
-The generator should read:
+The pilot supports `DERIVED` proposals targeting `TKQ_ACCOUNT_BALANCE` with exactly two parents, `TKQ_ACCOUNT.CREDIT_LIMIT_AMT` and `TKQ_ACCOUNT_BALANCE.CURRENT_BALANCE_AMT`. The bare names `CREDIT_LIMIT_AMT` and `CURRENT_BALANCE_AMT` map to those same fixed inputs. Review a proposal against the formula below before approving it for the pilot.
 
-```text
-workspace.synthetic_profile.ai_rule_proposals
+| Target column | Python implementation | Existing formula |
+| --- | --- | --- |
+| `AVAILABLE_TO_BUY_AMT` | `available_to_buy` | `max(credit_limit - current_balance, 0)` |
+| `OVERLIMIT_AMT` | `overlimit_amount` | `max(current_balance - credit_limit, 0)` |
+
+The functions run in the order shown after the generator computes credit limit and bounded current balance and checks account ID alignment. An unsupported target, mismatched parents, missing credit-limit input, or conflicting approvals produces a skip reason. The existing formula supplies each target without a unique eligible approval.
+
+## Rule execution audit
+
+Notebook 03 appends one audit row per considered proposal and a separate row for each legacy formula used to fill a target. Rows in `workspace.synthetic_generated.rule_execution_log` include `generation_id`, `source_run_id`, `seed`, proposal `batch_id` and `proposal_id`, target table and column, rule type, parent columns, and the approval status read for that run.
+
+| Field | Meaning |
+| --- | --- |
+| `proposed` | The row refers to an LLM proposal. |
+| `approved` | The proposal was approved and has valid review and batch provenance. |
+| `implemented` | A predefined implementation matches the rule metadata and parents. |
+| `applied` | The proposal selected an implementation that generated values for at least one row. |
+
+`outcome` distinguishes `APPLIED`, `SKIPPED`, and `LEGACY_FALLBACK`. Common skip reasons include `not_approved` for pending or rejected proposals, `unverified_approval` for an approval without valid provenance, and `no_implementation` for unsupported rule targets or types. The audit also records the implementation name, execution order, and rows processed where applicable. A legacy fallback can supply values for a target while its proposal is recorded as skipped.
+
+New writes add the tracking columns to the existing Delta table. Earlier rows retain their recorded outcomes and have nulls in the new columns.
+
+To see which proposals affected the latest completed dataset, run:
+
+```sql
+SELECT l.generation_id, l.source_run_id, l.seed, l.batch_id, l.proposal_id,
+       l.target_table, l.target_column, l.rule_type, l.parent_columns,
+       l.implementation_name, l.rows_processed
+FROM workspace.synthetic_generated.rule_execution_log l
+JOIN workspace.synthetic_generated.generation_state s USING (generation_id)
+WHERE s.status = 'COMPLETED'
+  AND l.proposal_id IS NOT NULL
+  AND COALESCE(l.applied, l.outcome = 'APPLIED' AND l.rows_processed > 0)
+ORDER BY l.execution_order NULLS LAST, l.proposal_id;
 ```
 
-and use only rules where:
-
-```text
-approval_status = 'APPROVED'
-```
-
-However, **do not directly execute the `proposed_rule` text returned by the LLM.**
-
-In particular:
-
-- Do not use Python `eval()`.
-- Do not use `exec()`.
-- Do not dynamically execute arbitrary SQL or Python written by the model.
-- Do not allow the LLM to directly mutate generated records.
-
-Instead, implement a controlled rule registry.
-
-Conceptually:
-
-```python
-RULE_IMPLEMENTATIONS = {
-    ("TKQ_ACCOUNT_BALANCE", "AVAILABLE_TO_BUY_AMT", "DERIVED"):
-        apply_available_to_buy_rule,
-
-    ("TKQ_ACCOUNT_BALANCE", "OVERLIMIT_AMT", "DERIVED"):
-        apply_overlimit_rule,
-
-    ("TKQ_ACCOUNT", "PAST_DUE_INDICATO_CD", "CONDITIONAL"):
-        apply_delinquency_rule,
-}
-```
-
-The generation process should then:
-
-1. Load approved rules.
-2. Match approved proposals to supported rule implementations.
-3. Generate parent/base variables first.
-4. Apply supported approved rules in a deterministic order.
-5. Log which approved rules were applied.
-6. Log approved rules that do not yet have an implementation.
-7. Never silently execute an unknown LLM rule.
-8. Preserve the ability to generate without an LLM rule if the rule is not approved or not implemented.
-
-A useful status model would be:
-
-```text
-APPROVED + IMPLEMENTED -> apply
-APPROVED + NOT IMPLEMENTED -> log / skip
-PENDING -> do not apply
-REJECTED -> do not apply
-```
+For a full report on a batch, filter the audit table by its `generation_id` and inspect all outcomes.
 
 ---
 
-# Important Profile-Run Issue to Address
-
-Notebook 03 currently gets:
-
-```python
-run_id = spark.table(
-    "workspace.synthetic_profile.current_run"
-)
-```
-
-and loads several convenience views that are also filtered to `current_run`.
-
-This is potentially fragile.
-
-The generator should ideally be based on the **latest completed SOURCE run**, not simply whichever profiling run is currently active.
-
-Codex should consider refactoring profile loading so generation explicitly identifies:
-
-```text
-latest completed SOURCE run_id
-```
-
-and loads all generation profiles for that run.
-
-This prevents the generator from accidentally learning from a previously generated dataset.
-
----
-
-# Desired Generation Architecture
-
-The target flow is:
+# Generation Flow
 
 ```text
 Latest completed SOURCE profile
@@ -751,25 +636,25 @@ Load univariate distributions
 Load structural / conditional statistics
             |
             v
-Load APPROVED AI rule proposals
+Generate base entities, credit limits, and bounded balances
             |
             v
-Generate base entities and parent variables
+Load explicitly reviewed proposals for the pinned SOURCE run
             |
             v
 Controlled rule registry
             |
             v
-Apply supported dependency rules
+Run the balance implementations and collect outcomes
             |
             v
 Complete remaining fields
             |
             v
-Schema validation
+Complete the output schema
             |
             v
-Write generated Delta tables
+Write generated Delta tables and the rule audit, then validate the saved batch
             |
             v
 Run profiler again as GENERATED
@@ -860,7 +745,7 @@ The current implementation is a prototype and intentionally incomplete.
 
 Known limitations include:
 
-- `03_Synthetic_Gen_v1.ipynb` does not yet use `ai_rule_proposals`.
+- The controlled registry covers the two balance formulas. Utilization and delinquency use their existing generation paths, with delinquency rates taken from the selected SOURCE profile.
 - The AI stage currently examines only `TKQ_ACCOUNT` and `TKQ_ACCOUNT_BALANCE`.
 - Most fields are still generated independently from marginal distributions.
 - Numeric inverse-CDF generation is based on a limited set of percentile knots.
@@ -870,8 +755,6 @@ Known limitations include:
 - `CUSTOMER_RELATIONSHIP` generation is not implemented.
 - `CUSTOMER_RELATIONSHIP` is not currently saved in the Delta output section.
 - The ZIP step assumes row-level CSV files already exist.
-- Run selection should be made explicitly SOURCE-aware before further automation.
-- The current blanket `APPROVED` update in Notebook 02 is primarily a development convenience, not a final governance design.
 
 ---
 
@@ -879,16 +762,11 @@ Known limitations include:
 
 Prioritize work in roughly this order:
 
-1. Make Notebook 03 explicitly load the latest completed `SOURCE` run.
-2. Load approved AI rule proposals in Notebook 03.
-3. Create the controlled rule registry.
-4. Convert the existing manually coded balance and delinquency logic into named rule functions.
-5. Apply those functions only when the corresponding rule is approved.
-6. Add logging for applied/skipped/unimplemented rules.
-7. Re-run the profiler on generated data as `GENERATED`.
-8. Expand SOURCE-vs-GENERATED validation beyond numeric quantiles.
-9. Implement `CUSTOMER_RELATIONSHIP`.
-10. Refactor reusable notebook logic into Python modules once behavior is stable.
+1. Exercise the reviewed balance-rule pilot end to end in Databricks and compare its output with a legacy run.
+2. Extend the registry to additional existing dependencies, starting with utilization and delinquency.
+3. Expand SOURCE-vs-GENERATED validation beyond numeric quantiles.
+4. Implement `CUSTOMER_RELATIONSHIP`.
+5. Refactor reusable notebook logic into Python modules once behavior is stable.
 
 ---
 
@@ -933,36 +811,40 @@ When modifying this repository:
 
 ---
 
-# Eventual Repository Direction
-
-As the project stabilizes, reusable code should gradually move out of notebooks.
-
-A possible future structure is:
+# Repository Layout and Local Checks
 
 ```text
-rcar-synthetic-data/
-|
+synthetic_banking/
+|-- AGENTS.md
 |-- README.md
+|-- docs/
+|   `-- controlled-pilot.md
 |-- notebooks/
 |   |-- 01_Stat extraction _v1.ipynb
 |   |-- 02_LLM Rule Generation.ipynb
 |   `-- 03_Synthetic_Gen_v1.ipynb
-|
 |-- src/
-|   |-- profiling/
-|   |-- generation/
-|   |-- rules/
-|   `-- validation/
-|
-|-- tests/
-|
-|-- config/
-|
-`-- docs/
-    `-- eventual HTML project showcase
+|   `-- synthetic_banking/
+|       |-- __init__.py
+|       |-- rules.py
+|       `-- validation.py
+`-- tests/
+    |-- test_rules.py
+    `-- test_validation.py
 ```
 
-The notebooks can remain the Databricks orchestration layer while `src/` becomes the reusable/testable implementation layer.
+[`AGENTS.md`](AGENTS.md) records repository guidance for Codex. Notebook 03 imports the loader, registry, and predefined functions from [`rules.py`](src/synthetic_banking/rules.py).
+
+## Local checks
+
+With Python 3.10 or newer and NumPy installed, run from the repository root in PowerShell:
+
+```powershell
+$env:PYTHONPATH = (Resolve-Path -LiteralPath src).Path
+python -B -m unittest discover -s tests -v
+```
+
+The tests use fabricated inputs to check provenance filtering, rule dispatch, and generated output validation. Verify notebook execution and Delta writes separately in a Databricks test destination.
 
 ---
 
@@ -1003,20 +885,20 @@ The project already has:
 [✓] basic dependency profiling
 [✓] Databricks LLM connection
 [✓] structured LLM rule proposals
-[✓] rule approval table
+[✓] proposal batch and SOURCE-run provenance
+[✓] individual proposal review with reviewer and timestamp
 [✓] row-level synthetic generator
-[✓] source/generated run concept
+[✓] explicit SOURCE and GENERATED profiling modes
+[✓] explicit SOURCE-profile selection in generator
+[✓] generated account/balance snapshot join validation
 [✓] basic source-vs-generated numeric validation
+[✓] reviewed proposals connected to the predefined balance rules
+[✓] per-generation balance-rule audit and local tests
 
-[ ] approved LLM rules connected to generator
-[ ] controlled rule execution registry
-[ ] robust explicit SOURCE-profile selection in generator
-[ ] systematic AI rule application logging
+[ ] controlled implementations for additional dependencies
 [ ] CUSTOMER_RELATIONSHIP generation
 [ ] broader dependency modeling
 [ ] broader validation dashboard/report
 [ ] modular Python package structure
 [ ] HTML portfolio showcase
 ```
-
-The immediate goal is therefore **not to redesign the pipeline**. It is to connect the existing LLM rule-proposal stage to the existing generator in a safe, explicit, auditable way.
