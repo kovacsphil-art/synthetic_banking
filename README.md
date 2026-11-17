@@ -12,7 +12,16 @@ The workflow starts from a completed SOURCE profile:
     └─ 02  LLM proposal batch → Individual review → 03  Controlled balance-rule pilot
 ```
 
-Notebook 03 uses the selected SOURCE statistics and predefined Python formulas. Reviewed proposals can select two existing balance rules, and generation falls back to the legacy path when a target has no unique eligible approval. See [execution order](#execution-order) for Databricks and [local checks](#local-checks) for the Python pilot.
+Notebook 03 uses the selected SOURCE statistics and predefined Python formulas. Reviewed proposals can select two existing balance rules, and generation falls back to the legacy path when a target has no unique eligible approval. See [local checks](#local-checks) for the Python pilot.
+
+## How to Run
+
+1. Open the repo in Databricks and configure compute, permissions, and source paths using the [Notebook 01 prerequisites](notebooks/01_Stat%20extraction%20_v1.ipynb).
+2. Set `profile_type` to `SOURCE` in Notebook 01 and run it from the top. Record the completed SOURCE `run_id` from `workspace.synthetic_profile.profile_runs`.
+3. Set Notebook 02's `source_run_id` to that ID and set `balance_pilot` to `ON` for the controlled pilot. Run the notebook and record the proposal `batch_id`.
+4. Review the batch and approve individual proposals using the [controlled pilot runbook](docs/controlled-pilot.md).
+5. Set Notebook 03's `source_run_id` to the same SOURCE ID. For the pilot, fill in `pilot_batch_id` and `pilot_proposal_ids`. Run through the Delta-save and validation cell and record the `generation_id`.
+6. Rerun Notebook 01 with `profile_type` set to `GENERATED` and the recorded `generation_id`. Review the comparison against the original SOURCE run.
 
 ---
 

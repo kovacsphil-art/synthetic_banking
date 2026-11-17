@@ -1,0 +1,32 @@
+# Local configuration and virtual environments
+.env
+.env.*
+!.env.example
+.databrickscfg
+.venv/
+venv/
+
+# Local data and generated outputs
+*.csv
+*.parquet
+*.zip
+/generated/
+/generated_row_level/
+/output/
+/outputs/
+
+# Python and notebook caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+*.swp
