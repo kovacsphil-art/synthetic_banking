@@ -23,6 +23,12 @@ Notebook 03 uses the selected SOURCE statistics and predefined Python formulas. 
 5. Set Notebook 03's `source_run_id` to the same SOURCE ID. For the pilot, fill in `pilot_batch_id` and `pilot_proposal_ids`. Run through the Delta-save and validation cell and record the `generation_id`.
 6. Rerun Notebook 01 with `profile_type` set to `GENERATED` and the recorded `generation_id`. Review the comparison against the original SOURCE run.
 
+### Optional setup for fake SOURCE inputs
+
+Run [Scotia Fake Records.py](scripts/Scotia%20Fake%20Records.py) as a Databricks notebook before step 2 if you need to create the six input Parquet files. It generates fake records from the column names and types in `RCAR_source_column_list.xlsx`. The workbook is required separately and defaults to `/Volumes/workspace/default/scotia/RCAR_source_column_list.xlsx`.
+
+Set `SCHEMA_XLSX` and `OUTPUT_DIR` for your workspace. The output directory must be writable and should match Notebook 01's `source_dir`. The script replaces existing `RCAR_synthetic_*.parquet` files with the same names, so use a test Volume if those files need to be kept. The generator uses NumPy, pandas, openpyxl, and PyArrow.
+
 ---
 
 ## Primary Goal
