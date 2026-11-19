@@ -95,6 +95,8 @@ ORDER BY condition_bucket, run_id;
 
 This pilot verifies dispatch and traceability. The reviewed implementations use the same formulas as the legacy path. Investigate SOURCE-to-GENERATED differences as properties of the whole generator, including the 1.25× balance cap, marginal sampling, and small utilization buckets.
 
+Notebook 01's final cell refreshes the project showcase with aggregate measurements from this exact comparison. Leave `showcase_output_dir` blank to update `docs/` in the Databricks checkout, or choose an absolute writable output folder for a separate HTML/CSS copy. The exporter checks completion, generation lineage, validated Delta versions, and snapshot join coverage before replacing the page's results block. The public page contains aggregate statistics and rule counts. Keep the run, batch, proposal, and reviewer evidence in the internal pilot report below. Commit and push the refreshed showcase files when publishing through GitHub Pages.
+
 ## Pilot report
 
 | Evidence | Value to capture |

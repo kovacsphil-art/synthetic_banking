@@ -29,6 +29,14 @@ Run [Scotia Fake Records.py](scripts/Scotia%20Fake%20Records.py) as a Databricks
 
 Set `SCHEMA_XLSX` and `OUTPUT_DIR` for your workspace. The output directory must be writable and should match Notebook 01's `source_dir`. The script replaces existing `RCAR_synthetic_*.parquet` files with the same names, so use a test Volume if those files need to be kept. The generator uses NumPy, pandas, openpyxl, and PyArrow.
 
+### Project showcase and GitHub Pages
+
+Open [docs/index.html](docs/index.html) in a browser to view the static showcase. To publish it, push these files to GitHub, open the repository's **Settings → Pages**, choose **Deploy from a branch**, select the branch containing the site and **/docs**, then save. GitHub displays the published URL when deployment completes. [GitHub Pages publishing instructions](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site)
+
+Notebook 01's final cell automatically refreshes the showcase after a completed `GENERATED` profile. It exports means and quantiles for the four pilot fields, balance/limit correlation, past-due rates and sample sizes, table counts, snapshot join coverage, and rule outcome counts. It uses the active GENERATED profile and its pinned SOURCE baseline, checks the saved validation versions, and writes aggregate measurements only. Missing statistics display as `Unavailable`.
+
+Keep `docs/` alongside `src/` in Databricks. Leave the `showcase_output_dir` widget blank to update that checkout's `docs/`, or set an absolute writable folder to export a separate `index.html` and `styles.css`. Refresh the exported page locally, or commit and push the refreshed files for GitHub Pages. When Databricks and your local checkout are separate, download the exported files into local `docs/` first. Remote-Git job tasks need a writable output location such as a Volume. [Databricks workspace file limitations](https://docs.databricks.com/aws/en/files/workspace)
+
 ---
 
 ## Primary Goal

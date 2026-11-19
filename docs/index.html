@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="A Databricks prototype that generates synthetic banking data from source statistics, manually reviewed AI proposals, and predefined Python rules.">
+  <meta name="theme-color" content="#c8102e">
+  <title>RCAR — Synthetic Banking Data</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="#overview" aria-label="RCAR project overview">
+        <span class="brand-name">RCAR<span aria-hidden="true">.</span></span>
+        <span class="brand-description">Synthetic banking data</span>
+      </a>
+      <span class="project-status">Databricks prototype</span>
+    </div>
+    <nav class="desktop-nav container" aria-label="On this page">
+      <a href="#overview">Overview</a>
+      <a href="#architecture">Pipeline</a>
+      <a href="#profiling">Statistical profiling</a>
+      <a href="#rules">AI &amp; review</a>
+      <a href="#pilot">Controlled pilot</a>
+      <a href="#validation">Validation &amp; results</a>
+      <a href="#next-steps">Limitations &amp; next steps</a>
+    </nav>
+    <details class="mobile-nav container">
+      <summary>On this page</summary>
+      <nav aria-label="On this page">
+        <a href="#overview">Overview</a>
+        <a href="#architecture">Pipeline</a>
+        <a href="#profiling">Statistical profiling</a>
+        <a href="#rules">AI &amp; review</a>
+        <a href="#pilot">Controlled pilot</a>
+        <a href="#validation">Validation &amp; results</a>
+        <a href="#next-steps">Limitations &amp; next steps</a>
+      </nav>
+    </details>
+  </header>
+
+  <main id="main" tabindex="-1">
+    <section class="hero container" id="overview" aria-labelledby="overview-title">
+      <div class="hero-copy">
+        <p class="eyebrow">Project overview</p>
+        <h1 id="overview-title">Synthetic banking data.<br><span>Grounded in source statistics.</span></h1>
+        <p class="hero-description">Generate statistically realistic banking records in Databricks using source distributions and relationships. An LLM proposes dependencies. Reviewed proposals select predefined Python rules, followed by output validation.</p>
+        <div class="hero-actions">
+          <a class="button button-primary" href="#architecture">Explore the pipeline</a>
+          <a class="button button-secondary" href="#validation">View validation &amp; results</a>
+        </div>
+        <p class="technology">Databricks <span>·</span> Python <span>·</span> Spark SQL <span>·</span> Delta</p>
+      </div>
+      <aside class="control-model" aria-labelledby="control-title">
+        <p class="eyebrow">How generation is controlled</p>
+        <h2 id="control-title">Measured inputs.<br>Reviewed execution.</h2>
+        <dl>
+          <div><dt>Statistics guide generation</dt><dd>One completed SOURCE profile supplies distributions and measured probabilities.</dd></div>
+          <div><dt>The LLM proposes rules</dt><dd>People review candidates. Approved metadata can select a known Python implementation.</dd></div>
+          <div><dt>Validation checks the output</dt><dd>Saved tables are checked, re-profiled, and compared with the same SOURCE baseline.</dd></div>
+        </dl>
+      </aside>
+    </section>
+
+    <section class="section section-bordered" id="architecture" aria-labelledby="architecture-title">
+      <div class="container">
+        <div class="section-heading">
+          <div><p class="eyebrow">Architecture</p><h2 id="architecture-title">Pipeline</h2></div>
+          <p>Three notebooks connect statistical measurement, AI proposals, and Python generation. Human review controls which supported proposals can run.</p>
+        </div>
+        <figure class="pipeline-figure">
+          <ol class="pipeline" aria-label="Pipeline stages in execution order">
+            <li><span class="stage-context">Input</span><h3>SOURCE data</h3><p>Banking tables and their relationships.</p></li>
+            <li><span class="stage-context">Notebook 01</span><h3>Statistical profiler</h3><p>Distributions, data quality, and dependency statistics.</p></li>
+            <li><span class="stage-context">Notebook 02</span><h3>LLM proposer</h3><p>Candidate dependencies from aggregate metadata.</p></li>
+            <li class="control-stage"><span class="stage-context">Human review</span><h3>Reviewed rules</h3><p>Individual decisions with recorded review provenance.</p></li>
+            <li class="control-stage"><span class="stage-context">Notebook 03</span><h3>Python generator</h3><p>Profile-based sampling and predefined implementations.</p></li>
+            <li><span class="stage-context">Output checks</span><h3>Generated-data validation</h3><p>Saved-table checks, re-profiling, and comparison.</p></li>
+          </ol>
+          <figcaption class="profile-route">Pinned SOURCE statistics also feed the Python generator directly.</figcaption>
+        </figure>
+        <div class="context-note">
+          <strong>One consistent baseline</strong>
+          <p><span class="term">SOURCE</span> is the original profiling baseline. <span class="term">GENERATED</span> is the separate profile of synthetic output. A <em>pinned</em> baseline means every stage uses the same explicitly selected, completed SOURCE run.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section-soft" id="profiling" aria-labelledby="profiling-title">
+      <div class="container">
+        <div class="section-heading">
+          <div><p class="eyebrow">Notebook 01</p><h2 id="profiling-title">Statistical profiling</h2></div>
+          <p>The profiler stores reusable aggregate measurements in Delta. SOURCE and GENERATED runs keep separate histories so their statistics can be compared.</p>
+        </div>
+        <dl class="profile-list">
+          <div><dt>Numeric distributions</dt><dd>Quantiles, mean, spread, and bounds describe how numeric values are distributed.</dd></div>
+          <div><dt>Categorical proportions</dt><dd>Observed category frequencies provide weights for sampling categories.</dd></div>
+          <div><dt>Null rates</dt><dd>Column quality records missing values, row counts, and distinct counts.</dd></div>
+          <div><dt>Date ranges</dt><dd>Earliest and latest observed dates define generation bounds.</dd></div>
+          <div><dt>Cardinalities</dt><dd>Relationship counts describe structure, such as how many accounts belong to a person.</dd></div>
+          <div><dt>Dependency statistics</dt><dd>Selected correlations and delinquency rates by utilization bucket capture relationships.</dd></div>
+        </dl>
+        <details class="disclosure">
+          <summary>How profiles guide sampling</summary>
+          <div class="disclosure-content">
+            <p>Numeric generation approximates an inverse cumulative distribution using profiled quantiles. A quantile is a cutoff in a distribution, such as the median or 95th percentile. Categorical sampling uses observed proportions, and date sampling is uniform within observed bounds.</p>
+            <p>The profiler supplies measured distributions and probabilities. The LLM proposes which dependencies may matter.</p>
+          </div>
+        </details>
+      </div>
+    </section>
+
+    <section class="section container" id="rules" aria-labelledby="rules-title">
+      <div class="section-heading">
+        <div><p class="eyebrow">Notebook 02 + human review</p><h2 id="rules-title">AI &amp; review</h2></div>
+        <p>The Databricks-hosted LLM proposes candidate dependencies and rules. Its input consists of aggregate profiler metadata, with row-level banking records kept outside the prompt.</p>
+      </div>
+      <div class="boundary-note"><strong>LLM-generated text is never executed directly.</strong><p>Approved metadata can select a predefined Python implementation when the target, rule type, parent columns, and review provenance match.</p></div>
+      <div class="rules-layout">
+        <div>
+          <h3 class="subheading">From proposal to execution</h3>
+          <ol class="rule-workflow">
+            <li><h4>Proposed</h4><p>Candidate metadata and evidence are saved in a batch tied to the SOURCE profile shown to the model.</p></li>
+            <li><h4>Manually reviewed</h4><p>A reviewer inspects the candidate and records an individual decision.</p></li>
+            <li><h4>Approved</h4><p>The review state is APPROVED. PENDING and REJECTED proposals are skipped.</p></li>
+            <li><h4>Implemented</h4><p>A fixed registry matches the supported target, type, and input columns to known Python code.</p></li>
+            <li><h4>Applied</h4><p>The execution audit records whether that implementation generated values for at least one row.</p></li>
+          </ol>
+        </div>
+        <aside class="rule-context">
+          <h3>Approval and execution are separate</h3>
+          <p>An approved proposal without a matching implementation is logged and skipped. A target without a unique eligible approval uses the existing generation path.</p>
+          <p>The audit distinguishes applied, skipped, and legacy fallback outcomes. A fallback is an existing formula used to supply a target.</p>
+          <details class="disclosure">
+            <summary>What the LLM receives and proposes</summary>
+            <div class="disclosure-content">
+              <p>Inputs include column roles, numeric quantiles, null rates, and category proportions.</p>
+              <p>Each proposal identifies its target, rule type, parent columns, and supporting evidence. Parent columns are the inputs used by a rule.</p>
+            </div>
+          </details>
+        </aside>
+      </div>
+    </section>
+
+    <section class="section section-soft section-bordered" id="pilot" aria-labelledby="pilot-title">
+      <div class="container">
+        <div class="section-heading">
+          <div><p class="eyebrow">Notebook 03</p><h2 id="pilot-title">Controlled pilot</h2></div>
+          <p>The pilot connects reviewed proposals to two balance formulas already implemented in Python. Both depend on credit limit and current balance.</p>
+        </div>
+        <div class="rule-cards">
+          <article class="rule-card">
+            <p class="rule-category">Derived balance rule</p>
+            <h3>Available credit</h3>
+            <p class="field-name"><code>AVAILABLE_TO_BUY_AMT</code></p>
+            <p>Available credit after the current balance.</p>
+            <pre><code>max(credit_limit - current_balance, 0)</code></pre>
+            <details class="disclosure"><summary>Implementation for available credit</summary><div class="disclosure-content"><p><code>available_to_buy</code> targets <code>TKQ_ACCOUNT_BALANCE</code> with rule type <code>DERIVED</code>.</p></div></details>
+          </article>
+          <article class="rule-card">
+            <p class="rule-category">Derived balance rule</p>
+            <h3>Overlimit amount</h3>
+            <p class="field-name"><code>OVERLIMIT_AMT</code></p>
+            <p>The amount by which balance exceeds the limit.</p>
+            <pre><code>max(current_balance - credit_limit, 0)</code></pre>
+            <details class="disclosure"><summary>Implementation for overlimit amount</summary><div class="disclosure-content"><p><code>overlimit_amount</code> targets <code>TKQ_ACCOUNT_BALANCE</code> with rule type <code>DERIVED</code>.</p></div></details>
+          </article>
+        </div>
+        <p class="section-footnote">Utilization and delinquency currently retain their existing generation paths. Their activation is separate from this two-rule pilot.</p>
+      </div>
+    </section>
+
+    <section class="section container" id="validation" aria-labelledby="validation-title">
+      <div class="section-heading">
+        <div><p class="eyebrow">Saved outputs + Notebook 01</p><h2 id="validation-title">Validation &amp; results</h2></div>
+        <p>Saved outputs pass validation before GENERATED profiling. The same profiler then compares generated statistics directly with the pinned SOURCE baseline.</p>
+      </div>
+      <div class="validation-grid">
+        <div class="validation-checks">
+          <h3>What validation checks</h3>
+          <ul class="check-list">
+            <li>Required columns and compatible types</li>
+            <li>Synthetic identifiers, row counts, and parent keys</li>
+            <li>Full account-to-balance snapshot join coverage</li>
+            <li>Derived-rule invariants and the rule execution audit</li>
+            <li>Successful Delta writes and validated table versions</li>
+          </ul>
+          <details class="disclosure">
+            <summary>Why account-to-balance alignment matters</summary>
+            <div class="disclosure-content"><p>Accounts and balances share <code>ACCOUNT_ID</code> and <code>BUSINESSEFFECTIVEDATE</code>. Matching both fields keeps dependency checks aligned with the generated account population.</p></div>
+          </details>
+        </div>
+        <div class="results-panel" aria-labelledby="comparison-title">
+          <!-- SHOWCASE RESULTS START -->
+          <div class="panel-heading"><h3 id="comparison-title">SOURCE vs GENERATED</h3><span class="status-label status-pending">Results pending</span></div>
+          <div class="results-notice">
+            <p id="results-description">Measured values are awaiting export from a completed, reviewed pilot.</p>
+            <p>The table below identifies the comparisons that will appear here.</p>
+          </div>
+          <div class="table-scroll" role="region" aria-label="Comparison placeholders" tabindex="0">
+            <table aria-describedby="results-description">
+              <caption class="sr-only">Measurements awaiting export</caption>
+              <thead><tr><th scope="col">Comparison</th><th scope="col">SOURCE</th><th scope="col">GENERATED</th></tr></thead>
+              <tbody>
+                <tr><th scope="row">Mean &amp; quantiles</th><td>Pending</td><td>Pending</td></tr>
+                <tr><th scope="row">Balance / limit correlation</th><td>Pending</td><td>Pending</td></tr>
+                <tr><th scope="row">Past-due rates by utilization</th><td>Pending</td><td>Pending</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="panel-footnote">After the Databricks pilot, this panel includes aggregate differences, sample sizes, join coverage, and rule execution outcomes.</p>
+          <!-- SHOWCASE RESULTS END -->
+        </div>
+      </div>
+      <details class="disclosure results-help">
+        <summary>How to read and refresh these results</summary>
+        <div class="disclosure-content">
+          <p>SOURCE is the selected baseline. GENERATED is the synthetic-data profile compared against it. Quantiles show cutoffs in a distribution. Utilization is balance relative to credit limit, and past-due rates are grouped by utilization range.</p>
+          <p>Differences are relative to SOURCE. A zero baseline uses an absolute difference. Unavailable indicates a missing or undefined measurement.</p>
+          <p>Notebook 01's final GENERATED cell refreshes the showcase after checking completion, lineage, and saved validation versions. Refresh the exported HTML file to view it, or commit and push the refreshed files to update GitHub Pages.</p>
+        </div>
+      </details>
+    </section>
+
+    <section class="section section-soft section-bordered" id="next-steps" aria-labelledby="next-title">
+      <div class="container">
+        <div class="section-heading">
+          <div><p class="eyebrow">Prototype scope</p><h2 id="next-title">Limitations &amp; next steps</h2></div>
+          <p>Most fields still use marginal sampling. Numeric distributions use percentile approximations, and dates use uniform sampling within observed bounds.</p>
+        </div>
+        <dl class="next-list">
+          <div><dt>Broader dependencies</dt><dd>Extend measured relationships and the controlled registry beyond two balance rules. The AI stage currently covers the two account tables.</dd></div>
+          <div><dt>Categorical relationships</dt><dd>Model cross-category structure beyond independent marginal proportions.</dd></div>
+          <div><dt>Customer relationships</dt><dd>Implement <code>CUSTOMER_RELATIONSHIP</code> generation and Delta persistence.</dd></div>
+          <div><dt>Stronger validation</dt><dd>Expand comparisons of distributions, null rates, dates, cardinalities, and conditional outcomes.</dd></div>
+          <div><dt>Privacy testing</dt><dd>Evaluate disclosure and re-identification risks alongside statistical utility.</dd></div>
+        </dl>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer container">
+    <p><strong>RCAR.</strong> Synthetic Banking Data</p>
+    <p>Project showcase · Databricks prototype</p>
+    <a href="#overview">Back to overview</a>
+  </footer>
+</body>
+</html>
