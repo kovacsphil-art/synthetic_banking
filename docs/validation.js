@@ -152,7 +152,7 @@
   }
   function renderValidation(doc,view) {
     const {report,v}=view,root=el(doc,"div");
-    const summary=section(doc,"summary","The structure holds. Statistical gaps remain visible.");
+    const summary=section(doc,"summary","Integrity checks pass. Fidelity gaps remain.");
     summary.append(el(doc,"p",state(v.summary.comparison_status),"report-verdict"),el(doc,"p","Completed "+new Date(report.pipeline_completed_at).toLocaleString("en",{timeZone:"UTC"})+" UTC","measurement-note"),executiveSummary(doc,view),el(doc,"p","Saved-output integrity checks passed. Prototype tolerances support investigation; they do not establish business acceptance or privacy clearance.","boundary-note"));
     if(report.rules?.approved_unimplemented?.value)summary.append(el(doc,"p",fmt(report.rules.approved_unimplemented.value)+" approved proposals had no implementation and were skipped.","results-notice"));
     if(report.rules?.skipped?.value)summary.append(el(doc,"p",fmt(report.rules.skipped.value)+" proposals did not affect this dataset.","measurement-note"));

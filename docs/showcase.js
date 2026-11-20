@@ -4,7 +4,7 @@
   function setupPipeline(doc) {
     const stages=[...doc.querySelectorAll(".pipeline-stage")];
     function set(stage,open){stage.dataset.open=String(open);stage.querySelector("button").setAttribute("aria-expanded",String(open));}
-    function closeAll(){stages.forEach(s=>set(s,false));}
+    function closeAll(){stages.forEach(s=>{set(s,false);s.dataset.pinned="false";});}
     for(const stage of stages){const button=stage.querySelector("button");stage.addEventListener("pointerenter",()=>{closeAll();stage.dataset.dismissed="false";set(stage,true);});stage.addEventListener("pointerleave",()=>{if(!stage.contains(doc.activeElement))set(stage,false);});button.addEventListener("focus",()=>{closeAll();stage.dataset.dismissed="false";set(stage,true);});stage.addEventListener("focusout",e=>{if(!stage.contains(e.relatedTarget))set(stage,false);});button.addEventListener("click",()=>{const open=stage.dataset.pinned!=="true";closeAll();stages.forEach(s=>s.dataset.pinned="false");stage.dataset.pinned=String(open);stage.dataset.dismissed=String(!open);set(stage,open);});}
     doc.addEventListener("keydown",e=>{if(e.key==="Escape"){closeAll();stages.forEach(s=>{s.dataset.dismissed="true";s.dataset.pinned="false";});}});
     // Click outside always restores the uncluttered process view.

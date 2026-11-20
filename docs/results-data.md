@@ -1,8 +1,8 @@
 # Showcase results: JSON field reference
 
-The existing static site loads **`latest-pipeline.json` beside `index.html`** using `results.js`. Its layout, architecture, methodology, review workflow and pilot explanations remain static. Only the **Latest pipeline results** panel is populated from JSON. No browser connection to Databricks, credentials, framework or build step is required.
+The SAGE static site loads **`latest-pipeline.json` beside `index.html`** using `showcase.js` and the shared checks in `results.js` / `validation.js`. Hero counts, distribution comparisons and executive findings are measured results; architecture, methodology and review explanations remain static. No browser connection to Databricks, credentials, framework or build step is required.
 
-The short panel accepts versions 1.0 and 2.0. Version 2 adds `validation_report` for [the dedicated validation page](validation.html); see [its complete field and policy reference](validation-report.md). Version 1 continues to display here while the dedicated page shows **Validation results pending**.
+The executive pages require version 2.0, including `validation_report`; see [the field, chart and policy reference](validation-report.md). The legacy summary normalizer and publisher retain version-1 compatibility. Version 1 cannot populate the executive pages and produces an unavailable/pending state.
 
 ## Publish results
 
@@ -11,9 +11,9 @@ For automatic GitHub repository updates and Pages deployment after successful Da
 1. Complete the Databricks workflow through validation and reporting.
 2. Download **only the sanitized** `latest-pipeline.json` from the reporting task's output path and copy it to `docs/latest-pipeline.json`. Automated runs use `report_output_dir/runs/<job-run-id>/latest-pipeline.json`. Do not use the internal `fidelity_report.json` or raw Delta exports.
 3. Preview locally. The GitHub publication workflow handles repository updates and Pages after it is configured.
-4. Refresh the page or choose **Refresh results**. The completion timestamp identifies the validated export being displayed.
+4. Refresh the page or choose **Refresh validation report** on the detailed page. The completion timestamp identifies the validated export being displayed.
 
-No live-results JSON or fabricated live dataset is bundled with this change. The missing-file state is intentional until an actual export is supplied. The [fabricated contract example](reporting/example.json) is documentation; the page never loads it automatically.
+The published report is the sanitized output of a completed validated execution. Missing/invalid files show unavailable states. The [fabricated contract example](reporting/example.json) is documentation; the page never loads it automatically.
 
 For local preview from the repository root:
 
@@ -21,9 +21,9 @@ For local preview from the repository root:
 python -m http.server 8000 --bind 127.0.0.1 --directory docs
 ```
 
-Open `http://127.0.0.1:8000/#validation`. Double-clicking `index.html` still shows the methodology, but browsers generally restrict JSON fetching from `file://`; the page gives local-server instructions in that case.
+Open `http://127.0.0.1:8000/#validation`. Double-clicking `index.html` still shows the methodology, but browsers generally restrict JSON fetching from `file://`; use the server to load results.
 
-The default relative filename also works under a GitHub Pages project subpath. If you need a different same-origin relative location, change `data-report-url` on `#latest-results` in `index.html`. Keep the report public and sanitized; cross-origin URLs, credential-bearing requests and redirects are not used. Responses are requested without cached data or cookies, with a 10-second timeout and a 1 MiB payload limit.
+The default relative filename also works under a GitHub Pages project subpath. For a different same-origin relative location, update `data-report-url` on `#executive-results` in `index.html` and `#validation-report` in `validation.html`. Keep the report public and sanitized; cross-origin URLs, credential-bearing requests and redirects are not used. Responses are requested without cached data or cookies, with a 10-second timeout and a 1 MiB payload limit.
 
 ## Exact fields consumed
 
