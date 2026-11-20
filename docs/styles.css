@@ -72,7 +72,7 @@ button:focus-visible, select:focus-visible { outline: 3px solid var(--red); outl
   box-sizing: border-box;
 }
 html {
-  scroll-padding-top: 10rem;
+  scroll-padding-top: 1.5rem;
 }
 body {
   margin: 0;
