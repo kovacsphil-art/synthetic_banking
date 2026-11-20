@@ -261,7 +261,7 @@ def render_measurements(report):
         f'<p class="measurement-note">Legacy fallback executions {rules["fallback"]}. '
         'Approval, implementation, and application counts describe separate checks.</p></details>',
         '<p class="panel-footnote">Aggregate measurements from one pinned SOURCE baseline and its completed '
-        'GENERATED profile. Privacy testing remains future work.</p>',
+        'GENERATED profile. Separate privacy screening is not anonymization certification.</p>',
     ))
 
 
@@ -282,10 +282,11 @@ def export_showcase(spark, output_dir, *, template_dir=None):
     stylesheet = template_dir / "styles.css"
     if stylesheet.resolve() != output / "styles.css":
         shutil.copyfile(stylesheet, output / "styles.css")
-    # Retain the JSON loader when exporting a copy of the current static template.
-    loader = template_dir / "results.js"
-    if loader.is_file() and loader.resolve() != output / "results.js":
-        shutil.copyfile(loader, output / "results.js")
+    # Retain the static pages and their dependencies; do not copy arbitrary artifacts.
+    for name in ("results.js", "validation-config.js", "executive-viz.js", "validation.js", "showcase.js", "validation.html"):
+        asset = template_dir / name
+        if asset.is_file() and asset.resolve() != output / name:
+            shutil.copyfile(asset, output / name)
     temporary = None
     try:
         with NamedTemporaryFile(mode="w", encoding="utf-8", dir=output, suffix=".html", delete=False) as file:

@@ -1,18 +1,21 @@
-# RCAR Synthetic Data Generation
+# SAGE Synthetic Data Generation
 
 ## Project Overview
 
 This repository contains a Databricks-based prototype for profiling banking-style relational data and using those profiles to generate statistically similar synthetic records.
 
-The workflow starts from a completed SOURCE profile:
+The orchestrated workflow keeps one SOURCE baseline through generation, validation and reporting:
 
 ```text
-01  SOURCE profile
-    ├─ 03  Synthetic generation → 01  GENERATED profile → SOURCE vs GENERATED comparison
-    └─ 02  LLM proposal batch → Individual review → 03  Controlled balance-rule pilot
+01 SOURCE profile → 02 LLM proposal batch → 04 Manual approval check
+  → 03 Synthetic generation → 07 Privacy screening
+  → 01 GENERATED profile → 05 SOURCE-vs-GENERATED validation
+  → 06 Sanitized reporting JSON → GitHub Actions → Static GitHub Pages site
 ```
 
 Notebook 03 uses the selected SOURCE statistics and predefined Python implementations. Reviewed proposals can select two balance formulas and utilization-conditioned delinquency sampling. Generation falls back to the legacy path when a target has no unique eligible approval. See [local checks](#local-checks) for the Python pilot.
+
+**View the published project:** [Showcase](https://kovacsphil-art.github.io/synthetic_banking/) · [Validation Report — Original vs Synthetic Data](https://kovacsphil-art.github.io/synthetic_banking/validation.html#summary) · [Sanitized reporting JSON](https://kovacsphil-art.github.io/synthetic_banking/latest-pipeline.json).
 
 ## How to Run
 
@@ -24,6 +27,19 @@ Notebook 03 uses the selected SOURCE statistics and predefined Python implementa
 6. Rerun Notebook 01 with `profile_type` set to `GENERATED` and the recorded `generation_id`. Review its fidelity report against the original SOURCE run. Optionally set `fidelity_output_dir` to an absolute writable folder for an aggregate JSON copy.
 
 For an orchestrated run, deploy the serial job in [`databricks.yml`](databricks.yml) using the [workflow runbook](docs/workflow.md). It passes exact IDs between the existing notebooks, stops for manual proposal review, and validates the completed profile pair. A separate privacy-screening task runs after generation; unresolved privacy findings block row-level release while aggregate validation/reporting continue. Its final task publishes [sanitized aggregate JSON](docs/reporting/README.md) without modifying the HTML showcase. The runbook covers deployment, task handoffs, repairing the approval stop, and reusing a previously reviewed SOURCE/batch pair.
+
+### Databricks Free Edition and approval stops
+
+Use the `free` bundle target for serverless compute; the default `dev` target expects an existing cluster. The reporting Volume must already exist and be writable by the pipeline identity. From the repository root, after authenticating the Databricks CLI:
+
+```powershell
+$env:BUNDLE_VAR_report_output_dir = "/Volumes/workspace/default/showcase_reports/pipeline_reporting"
+databricks bundle validate -t free -p synthetic-banking
+databricks bundle deploy -t free -p synthetic-banking
+databricks bundle run -t free -p synthetic-banking synthetic_pipeline
+```
+
+`synthetic-banking` is the local CLI authentication profile name; substitute your own if different. A fresh proposal batch normally stops at `approval_check` with `APPROVAL_REQUIRED` and a failed run status. Review each existing proposal in the SQL editor or Notebook 02's separate review statement, recording APPROVED or REJECTED plus reviewer/time. Review every PENDING proposal in that batch, then **Repair run** from `approval_check` through its downstream tasks. Keep the successful SOURCE and LLM tasks unchanged; rerunning Notebook 02 from the top creates a different batch. Approval does not imply implementation or application.
 
 ### Shared code and configuration
 
@@ -44,6 +60,7 @@ The notebooks now coordinate these reusable modules:
 | Persist and validate | `storage.py`, `validation.py`, `temporal.py` | Six Delta tables, audits, validation gates, and completion only after validation |
 | Compare and publish aggregates | `fidelity.py`, `showcase.py` | Pinned SOURCE-vs-GENERATED metrics and optional HTML export |
 | Job handoffs and public report | `workflow.py`, `reporting.py` | Explicit provenance, manual approval gate, generation/version guards, and sanitized versioned JSON |
+| Public validation interpretation | `validation_reporting.py` | Fixed aggregate selection, centralized prototype tolerances, deterministic strengths/weaknesses and availability states |
 | Privacy screening / row-release gate | `privacy.py`, `privacy_checks.py`, `privacy_sources.py` | Aggregate-only disclosure checks, SOURCE Delta snapshots, and fail-closed release clearance |
 
 This refactor retains sampling formulas, RNG call order, rule eligibility and table/view architecture. Row-level release has a separate privacy gate. The legacy arbitrary-CSV ZIP utility in `artifacts.py` is now disabled because its files cannot be bound to an assessed generation; aggregate reporting is unaffected.
@@ -64,13 +81,39 @@ Set `SCHEMA_XLSX` and `OUTPUT_DIR` for your workspace. The output directory must
 
 Open [docs/index.html](docs/index.html) in a browser to view the static showcase. Automated publishing uses [Publish validated showcase](.github/workflows/publish-showcase.yml): GitHub polls for a successful Databricks job every 15 minutes, validates its run-specific sanitized JSON, commits only `docs/latest-pipeline.json`, and deploys an explicit list of static assets using GitHub Pages. Choose **Settings → Pages → GitHub Actions**, then configure the secrets and variables in the [publication runbook](docs/publication.md). Failed runs and invalid reports leave the published site intact. **Actions → Publish validated showcase → Run workflow** provides a manual trigger.
 
-The **Latest pipeline results** panel reads `docs/latest-pipeline.json` using the lightweight `results.js` loader. Architecture, profiling methodology and review explanations remain static. The publication workflow retrieves only the sanitized artifact from the successful reporting task. Manual download/copy remains available for local previews. Missing/invalid files show a professional unavailable state, and missing individual measurements show `Unavailable`. The documentation example is never loaded as live results.
+The SAGE showcase presents the process as an executive overview, with keyboard/touch-accessible stage explanations and measured results separated from static methodology. `showcase.js` loads `docs/latest-pipeline.json`, reusing the existing report checks; `executive-viz.js` draws the published aggregates. Architecture, profiling methodology and review explanations remain static. Missing/invalid files show a professional unavailable state. The documentation example is never loaded as live results.
+
+The distribution visual connects four measured percentiles; it is not a density estimate. The headline percentage is variables within tolerance divided by all selected variables, including incomplete ones. Relationship-check counts cover available correlation, conditional, cardinality and graph comparisons, not all possible dependencies. Detailed tables and screening thresholds remain available on the validation page. No reporting schema, generation logic or tolerance was changed for this presentation update.
 
 The dedicated [Validation Report — Original vs Synthetic Data](docs/validation.html) uses version-2 reporting aggregates for percentile charts, sortable numeric comparisons, categorical/null/date fidelity, measured dependencies, structure and rule outcomes. Strengths and priority gaps are calculated from centralized prototype tolerances, with missing evidence shown as pending. See [metric mappings, thresholds, ranking and limitations](docs/validation-report.md). Generation behavior is unchanged.
 
-For local preview, run `python -m http.server 8000 --bind 127.0.0.1 --directory docs` from the repository root and open `http://127.0.0.1:8000/#validation`. Opening `index.html` directly still shows the project, but browser `file://` restrictions can block JSON loading. See the [exact webpage JSON field reference](docs/results-data.md), [reporting schema](docs/reporting/pipeline-report.schema.json) and [fabricated example](docs/reporting/example.json).
+Reporting is now **schema version 2.0**. The SAGE executive views require version 2; the publisher and legacy summary loader still accept version 1. Numeric fidelity bars use average absolute P25/P50/P75/P95 differences relative to SOURCE IQR, while classifications use the worst percentile difference. Categories/nulls use percentage points; date/cardinality distributions use total variation; correlations use absolute differences. The displayed tolerances are prototype screening settings, not an overall quality score or calibrated release criteria. Integrity PASS and privacy clearance remain separate from statistical similarity.
+
+The reporting task writes `<report_output_dir>/runs/<job-run-id>/latest-pipeline.json`. GitHub retrieves only that exact successful run's report, validates the closed public schema, updates `docs/latest-pipeline.json`, and deploys the explicitly listed static website files. It does not start Databricks jobs or approve rules. Credentials belong in GitHub Actions Secrets (`DATABRICKS_HOST`, `DATABRICKS_CLIENT_ID`, `DATABRICKS_CLIENT_SECRET`); job/path settings are Actions variables (`DATABRICKS_JOB_ID`, `REPORT_OUTPUT_DIR`). The reporting identity has job CAN VIEW and read access to the dedicated report Volume. Rotate its OAuth secret before expiry; the current setup uses a 90-day lifetime. No credential values or row exports belong in Git.
+
+The configured public repository uses GitHub Free for Pages; GitHub Pro is not needed for this public setup. Full configuration and failure/retry behavior are in the [publication runbook](docs/publication.md).
+
+To refresh report calculations or the JSON schema from an existing validated dataset, deploy the updated bundle and repair **only `reporting`** in that successful run. Its original SOURCE/GENERATED lineage and saved output versions must still pass validation. Then trigger **Publish validated showcase**, or wait for the scheduled check. For HTML/CSS/JavaScript-only changes, push the website assets and trigger publication using the existing valid report; no Databricks rerun is needed. Use the existing full workflow when creating a new dataset. Failed exports or deployments preserve the last successful public report/site.
+
+For local preview, run `python -m http.server 8000 --bind 127.0.0.1 --directory docs` from the repository root and open `http://127.0.0.1:8000/` or `http://127.0.0.1:8000/validation.html`. Opening `index.html` directly still shows the project, but browser `file://` restrictions can block JSON loading. See the [exact webpage JSON field reference](docs/results-data.md), [reporting schema](docs/reporting/pipeline-report.schema.json) and [fabricated example](docs/reporting/example.json). Examples are for documentation/tests; never replace the live report with fabricated results.
 
 Notebook 01's older static-HTML export remains available in interactive mode for compatibility; it is not needed to publish JSON-backed results. It also copies `results.js` when present. Workflow mode skips that HTML export. Use the sanitized reporting artifact as the site's results source rather than exporting raw profiler tables or the internal `fidelity_report.json`.
+
+### Published validation snapshot — November 20, 2026
+
+The first completed controlled pilot generated **10,000 customers** and **17,313 accounts**, with both reviewed balance implementations applied. The saved report shows:
+
+| Measurement | Result |
+| --- | --- |
+| Selected variables evaluated | 8 |
+| Variables within prototype tolerance | 4 |
+| Variables needing review | 3 |
+| Variables incomplete | 1 |
+| Checks evaluated | 35 |
+| Account-to-balance / balance-to-account coverage | 100% / 100% |
+| AI-proposed rules actually applied | 2 |
+
+The largest classified gaps are available-credit percentiles, credit-limit/balance correlation, and birth/customer-since date distributions. Overlimit normalization is unavailable because SOURCE IQR is zero; its raw quantiles remain visible. Sparse conditional buckets, unprofiled tradelines-per-customer cardinality and some cross-table reference comparisons also remain pending. These findings do not change generation logic or establish external-release approval. This is a dated snapshot; the [live report](https://kovacsphil-art.github.io/synthetic_banking/validation.html#summary) and its completion timestamp are authoritative for subsequent runs.
 
 ---
 
@@ -918,11 +961,11 @@ Known limitations include:
 
 Prioritize work in roughly this order:
 
-1. Exercise the reviewed balance-rule pilot end to end in Databricks and compare its output with a legacy run.
+1. Investigate the published available-credit, correlation and PERSON-date deviations using the pinned profile pair; compare the controlled pilot with a legacy baseline using the same SOURCE and seed.
 2. Extend the registry to additional measured dependencies after validating the reviewed utilization-to-delinquency path.
-3. Exercise the expanded fidelity report in Databricks and agree on use-case-specific acceptance thresholds.
-4. Exercise customer-relationship fidelity on a Databricks test destination and review degree adjustments.
-5. Smoke-test the orchestrated workflow, its approval repair, and sanitized reporting export in a Databricks test destination.
+3. Calibrate the prototype report tolerances for the intended use case and expand coverage beyond the current public selection.
+4. Investigate missing tradeline cardinality, sparse conditional buckets and unavailable cross-table reference comparisons; review customer-relationship degree adjustments.
+5. Exercise privacy/release failures, expired credentials and report-write failures in a Databricks test destination; retain the successful approval-repair and publication checks as regression coverage.
 
 ---
 
@@ -949,7 +992,7 @@ Notebook 01 uses [`fidelity.py`](src/synthetic_banking/fidelity.py) to save aggr
 
 `workspace.synthetic_profile.fidelity_metrics` stores individual metric rows with `comparison_id`, `source_run_id`, `generated_run_id`, `generation_id`, timestamp, dimensions, values, differences/units, available counts/sample sizes, comparison status/reason, and generated-check status. Both profiles must be completed with the expected types, and the saved GENERATED lineage must reference the selected SOURCE. The report reads aggregate tables only and never substitutes `current_run`, convenience views, or current generated tables. Retrying a report replaces only that GENERATED run's metrics; other reports remain available.
 
-There is **no overall score or statistical acceptance threshold**. `highlight` marks the five largest nonzero deviations within each family and ranking basis. Numeric differences are ranked by `abs(GENERATED - SOURCE) / SOURCE IQR`, where IQR = P75 - P25; a zero/missing IQR leaves the raw difference visible without a normalized rank. Proportions are ranked by absolute percentage-point difference, date bounds by absolute days, correlations/associations by absolute difference, and counts/mean cardinality by absolute relative percent. Rates retain fraction-valued SOURCE/GENERATED values. Every signed difference is GENERATED minus SOURCE. Relative percent is `100 * (GENERATED - SOURCE) / abs(SOURCE)` and is null for a zero SOURCE value. Date bounds use day shifts without an epoch-dependent relative percentage.
+The underlying fidelity report has **no overall score or calibrated statistical acceptance gate**. The public validation page separately classifies selected metrics using documented prototype display tolerances; these do not change pipeline validation. `highlight` marks the five largest nonzero deviations within each family and ranking basis. Numeric differences are ranked by `abs(GENERATED - SOURCE) / SOURCE IQR`, where IQR = P75 - P25; a zero/missing IQR leaves the raw difference visible without a normalized rank. Proportions are ranked by absolute percentage-point difference, date bounds by absolute days, correlations/associations by absolute difference, and counts/mean cardinality by absolute relative percent. Rates retain fraction-valued SOURCE/GENERATED values. Every signed difference is GENERATED minus SOURCE. Relative percent is `100 * (GENERATED - SOURCE) / abs(SOURCE)` and is null for a zero SOURCE value. Date bounds use day shifts without an epoch-dependent relative percentage.
 
 Missing profiles or unsupported fields, empty populations, undefined associations, and non-finite values are marked `NOT_COMPARABLE` with reasons. The currently unprofiled `TRADELINES_PER_CIF` cardinality is explicitly unavailable; the generator's fallback remains unchanged. Missing category/month/cardinality bins become zero only when both complete distributions are available. Missing conditional buckets remain unavailable. Generated integrity statuses are separate: incomplete coverage or nonzero violations produce `ISSUE` even when a SOURCE comparison is unavailable. Statistical deviations are observations for review, not automatic pass/fail judgments.
 
@@ -965,7 +1008,7 @@ report = create_fidelity_report(spark, source_run_id="SOURCE_RUN_ID", generated_
 export_fidelity_report(report, "/Volumes/workspace/default/scotia/fidelity_output")
 ```
 
-The optional `fidelity_report.json` contains aggregate metrics and explicit lineage. It provides a versioned input for later HTML integration and is separate from the existing public showcase export. Keep internal report exports in a writable output folder; public showcase payloads should select appropriate aggregates and omit run IDs.
+The optional `fidelity_report.json` contains aggregate metrics and explicit lineage for internal analysis. The live HTML site consumes the separate sanitized `latest-pipeline.json`, built from the saved fidelity metrics and rule audit by Notebook 06. Keep internal exports in a private writable folder; publish only the closed public reporting contract, which omits internal run IDs and row records.
 
 ---
 
@@ -993,15 +1036,27 @@ synthetic_banking/
 |-- AGENTS.md
 |-- README.md
 |-- databricks.yml
+|-- .github/workflows/
+|   `-- publish-showcase.yml
 |-- resources/
 |   `-- synthetic_pipeline.job.yml
+|-- scripts/
+|   |-- Scotia Fake Records.py
+|   |-- publish_showcase.py
+|   `-- build_validation_schema.py
 |-- docs/
 |   |-- index.html
 |   |-- styles.css
 |   |-- results.js
 |   |-- results-data.md
+|   |-- validation.html
+|   |-- validation.js
+|   |-- validation-config.js
+|   |-- validation-report.md
+|   |-- latest-pipeline.json
 |   |-- controlled-pilot.md
 |   |-- workflow.md
+|   |-- publication.md
 |   |-- privacy.md
 |   `-- reporting/
 |-- notebooks/
@@ -1039,6 +1094,7 @@ synthetic_banking/
 |       |-- storage.py
 |       |-- temporal.py
 |       |-- validation.py
+|       |-- validation_reporting.py
 |       `-- workflow.py
 `-- tests/
     |-- test_categorical_profiling.py
@@ -1048,12 +1104,16 @@ synthetic_banking/
     |-- test_fidelity.py
     |-- test_numeric_dependencies.py
     |-- test_privacy.py
+    |-- test_publication.py
     |-- test_refactor.py
     |-- test_results.cjs
     |-- test_reporting.py
     |-- test_rules.py
     |-- test_showcase.py
     |-- test_validation.py
+    |-- test_validation_page.cjs
+    |-- test_validation_reporting.py
+    |-- test_workflow_wiring.py
     `-- test_workflow.py
 ```
 
@@ -1068,39 +1128,23 @@ $env:PYTHONPATH = (Resolve-Path -LiteralPath src).Path
 python -B -m unittest discover -s tests -v
 ```
 
-The static showcase's dependency-free JavaScript checks run with Node:
-
-Publication tests additionally use `jsonschema==4.23.0` (`python -m pip install jsonschema==4.23.0`); they skip when it is unavailable. GitHub installs the pinned publication dependencies automatically.
+Publication tests additionally use `jsonschema==4.23.0` (`python -m pip install jsonschema==4.23.0`); they skip when it is unavailable. GitHub installs the pinned publication dependencies automatically. The static showcase's dependency-free JavaScript checks run with Node:
 
 ```powershell
 node --check docs/results.js
-node --test tests/test_results.cjs
+node --check docs/validation.js
+node --test tests/test_results.cjs tests/test_validation_page.cjs
 ```
 
 The tests use fabricated inputs to check date distributions/nulls/order/repeatability, categorical statistics and limits, aggregate-only prompt context, provenance filtering, rule dispatch, generated output validation, and fidelity metrics/history. Refactor checks cover SOURCE selection, preflight, proposal batches, unchanged profiler aggregations/SQL/prompts, and generator parity with two pre-refactor fabricated baselines (six tables, audits, graph plan, and RNG state). Workflow/report checks cover approval stops, changed review metadata, strict handoffs, sanitized output and preservation of the last successful export. Privacy checks execute against fabricated rows in an in-memory SQL adapter and exercise overlap, copying, rarity, similarity, snapshot and release-guard behavior. Install pandas alongside NumPy to run all generator integration checks locally; those checks skip when pandas is unavailable. Databricks provides these runtime libraries. Verify bundle deployment, task values/repair, notebook execution and Delta/Volume writes separately in a Databricks test destination.
 
 ---
 
-# Intended Portfolio / HTML Showcase
+# Showcase boundary
 
-The eventual HTML version should explain the project without publishing sensitive source records.
+The implemented static showcase explains methodology in `docs/index.html` and presents measured results in `docs/validation.html`. Both read sanitized aggregate reporting data; neither connects directly to Databricks or offers row-level dataset downloads. Missing evidence remains visible as unavailable/pending, and strengths/weaknesses are computed from measured results rather than editorial claims.
 
-Potential sections:
-
-```text
-Problem / motivation
-System architecture
-Statistical profiler
-AI-assisted dependency discovery
-Controlled rule approval
-Synthetic generation methodology
-Relational structure
-Source-vs-generated validation
-Limitations
-Future work
-```
-
-Public-facing outputs should use aggregate results, diagrams, code excerpts, and fabricated/example records rather than real row-level banking data.
+The Pages deployment includes only explicitly listed public HTML/CSS/JavaScript and `latest-pipeline.json`. Notebook outputs, internal fidelity/privacy reports, source/generated tables, credentials and documentation fixtures are not website assets. See the [public report contract](docs/reporting/README.md) and [publication boundary](docs/publication.md).
 
 ---
 
@@ -1131,8 +1175,10 @@ The project already has:
 [ ] controlled implementations for additional dependencies
 [✓] aggregate-backed CUSTOMER_RELATIONSHIP generation, persistence and referential validation
 [ ] broader dependency modeling
-[ ] broader validation dashboard/report
+[✓] public validation report with calculated strengths/gaps, charts and transparent prototype tolerances
+[ ] broader validation coverage and calibrated acceptance criteria
 [✓] reusable Python modules with notebook orchestration
 [✓] aggregate-only privacy screening with a separate row-level release guard
-[ ] HTML portfolio showcase
+[✓] static HTML showcase and aggregate-only GitHub Pages publication
+[✓] successful controlled pilot, manual approval repair and reporting-only refresh
 ```

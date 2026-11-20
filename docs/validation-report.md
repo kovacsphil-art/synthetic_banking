@@ -1,6 +1,10 @@
 # Validation Report — Original vs Synthetic Data
 
-`validation.html` is the detailed results page; `index.html` retains static methodology and the existing short results panel. Both load the same sanitized `latest-pipeline.json`. Version 1 reports still work in the short panel; the detailed page says **Validation results pending** until a version 2 report is available. Missing/invalid files, unavailable evidence and failed fetches never produce fabricated strengths.
+`index.html` presents SAGE's methodology and executive results; `validation.html` adds four primary visuals and expandable evidence tables. Both read the same sanitized `latest-pipeline.json`. The executive views require version 2; a legacy version-1 artifact remains valid for the publisher and older summary loader but cannot populate these richer views. Missing/invalid files and unavailable evidence never produce fabricated strengths.
+
+The distribution comparison joins only the published P25/P50/P75/P95 values: it is a percentile profile, not an estimated density. Categorical bars share a 0–100% scale. The conditional chart leaves gaps for missing rates and uses hollow markers for insufficient comparison evidence; its accessible values table preserves raw rates. Original series are solid charcoal and synthetic series dashed red in line charts, so colour is not the only signifier.
+
+The headline percentage is `variables_within_tolerance / variables_total × 100`, including incomplete variables in the denominator. It is not a weighted quality score. The relationship fraction counts STRONG or ACCEPTABLE checks among available correlation, conditional, cardinality and graph assessments; unavailable checks are reported separately. These are selected checks, not independent causal dependencies or comprehensive relationship coverage. Join coverage displays the lower of the two account/balance directions. The first three server-ranked strengths and gaps are visible, with remaining findings expandable.
 
 ## Inputs and public boundary
 

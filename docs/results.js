@@ -226,6 +226,7 @@
   }
 
   if (typeof module !== "undefined" && module.exports) module.exports = { normalizeReport, renderResults, readReport, mountResults };
+  if (typeof window !== "undefined") window.SageResults = { normalizeReport, readReport };
   if (typeof document !== "undefined") {
     const root = document.getElementById("latest-results");
     if (root) mountResults(root);

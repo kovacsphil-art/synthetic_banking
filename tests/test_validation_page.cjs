@@ -11,7 +11,7 @@ class Node {
   setAttribute(k,v){this.attributes[k]=v;}
   addEventListener(k,v){this.events[k]=v;}
 }
-function document(){const d={baseURI:"https://example.invalid/project/validation.html"};d.createElement=t=>new Node(d,t);return d;}
+function document(){const d={baseURI:"https://example.invalid/project/validation.html"};d.createElement=t=>new Node(d,t);d.createElementNS=(_,t)=>new Node(d,t);return d;}
 function all(n){return [n,...n.children.flatMap(all)];}
 const clone=()=>structuredClone(fixture);
 const location={origin:"https://example.invalid",protocol:"https:"};
@@ -32,7 +32,7 @@ test("measured classifications, raw percentiles, populations and dependencies ar
 
 test("numeric table sorts independently without losing raw data",()=>{
   const node=renderValidation(document(),normalizeValidation(clone()));
-  const select=all(node).find(n=>n.tagName==="SELECT");
+  const select=all(node).find(n=>n.tagName==="SELECT"&&n.attributes["aria-label"]==="Sort numeric table");
   const numericTable=()=>all(node).find(n=>n.tagName==="TABLE"&&n.children[0].textContent==="Numeric percentile comparison");
   assert.ok(numericTable().textContent.indexOf("Available credit")<numericTable().textContent.indexOf("Credit limit"));
   select.value="best";select.events.change();

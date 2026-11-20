@@ -2,6 +2,7 @@
 (() => {
   "use strict";
   const CONFIG = typeof module!=="undefined" && module.exports ? require("./validation-config.js") : window.ValidationConfig;
+  const VIZ = typeof module!=="undefined" && module.exports ? require("./executive-viz.js") : window.SageViz;
   const LABELS = {
     STRONG: "Strong match", ACCEPTABLE: "Acceptable", NEEDS_REVIEW: "Needs review", UNAVAILABLE: "Pending",
     REVIEW_REQUIRED: "Differences need review", PARTIAL: "Some evidence pending", WITHIN_TOLERANCE: "Within configured tolerances", PENDING: "Validation results pending",
@@ -53,10 +54,15 @@
       for(const name of ["source","generated","difference","source_n","generated_n","source_count","generated_count"]){if(a[name]!==null && (typeof a[name]!=="number"||!Number.isFinite(a[name])))throw new Error("Invalid validation report");}
     }
     if(v.numeric.length!==new Set(v.numeric.map(n=>n.key)).size)throw new Error("Invalid validation report");
+    const finiteOrNull=value=>value===null||(typeof value==="number"&&Number.isFinite(value));
     for(const n of v.numeric){
-      if(!Object.hasOwn(NUMERIC,n.key) || !Array.isArray(n.percentiles) || n.percentiles.length!==4 ||
+      if(!Object.hasOwn(NUMERIC,n.key) || n.label!==NUMERIC[n.key] || !Array.isArray(n.percentiles) || n.percentiles.length!==4 ||
          new Set(n.percentiles.map(p=>p.name)).size!==4 || n.percentiles.some(p=>!["P25","P50","P75","P95"].includes(p.name)))throw new Error("Invalid validation report");
+      if([n.source_iqr,n.average_difference_pct_iqr,n.max_difference_pct_iqr,...n.percentiles.flatMap(p=>[p.source,p.generated,p.difference])].some(value=>!finiteOrNull(value)))throw new Error("Invalid validation report");
+      const a=v.assessments.find(a=>a.key==="numeric."+n.key);if(n.status!==a.status || n.max_difference_pct_iqr!==a.score)throw new Error("Invalid validation report");
     }
+    for(const name of ["variables_total","variables_evaluated","variables_within_tolerance","variables_requiring_review","variables_incomplete","checks_evaluated","strong","acceptable","needs_review","unavailable"])if(!Number.isSafeInteger(v.summary[name])||v.summary[name]<0)throw new Error("Invalid validation report");
+    if(v.summary.variables_total!==8 || v.summary.variables_evaluated>v.summary.variables_total || v.summary.variables_within_tolerance+v.summary.variables_requiring_review+v.summary.variables_incomplete!==v.summary.variables_total || v.summary.checks_evaluated!==v.summary.strong+v.summary.acceptable+v.summary.needs_review)throw new Error("Invalid validation report");
     for(const [name,keys] of [["dates",["birth","customer_since","account_open"]],["cardinality",["accounts_per_customer","relationships_outgoing","relationships_incoming","tradelines_per_customer"]]]){
       if(!Array.isArray(v[name]) || v[name].length!==keys.length || new Set(v[name].map(r=>r.key)).size!==keys.length || v[name].some(r=>!keys.includes(r.key)))throw new Error("Invalid validation report");
       for(const r of v[name]){const a=v.assessments.find(a=>a.key===(name==="dates"?"date.":"cardinality.")+r.key);if(r.label!==a.label||r.status!==a.status)throw new Error("Invalid validation report");}
@@ -74,7 +80,7 @@
     return {report, v};
   }
 
-  function renderValidation(doc, view) {
+  function renderTechnicalValidation(doc, view) {
     const {report,v}=view, content=el(doc,"div"), byKey=new Map(v.assessments.map(a=>[a.key,a]));
     const summary=section(doc,"summary","The comparison at a glance");
     summary.append(el(doc,"p",state(v.summary.comparison_status),"report-verdict"),el(doc,"p","Completed "+new Date(report.pipeline_completed_at).toLocaleString("en",{timeZone:"UTC"})+" UTC","measurement-note"));
@@ -88,7 +94,7 @@
     if(v.summary.unavailable)warnings.append(el(doc,"li",fmt(v.summary.unavailable)+" checks are pending or undefined. Missing evidence is never counted as a strong match."));
     if(report.rules?.approved_unimplemented?.value)warnings.append(el(doc,"li",fmt(report.rules.approved_unimplemented.value)+" approved proposals lacked an implementation and were skipped."));
     if(report.rules?.skipped?.value)warnings.append(el(doc,"li",fmt(report.rules.skipped.value)+" proposals did not affect the dataset."));
-    summary.append(warnings);content.append(summary);
+    summary.append(warnings);
 
     const findings=section(doc,"findings","Where it matches — and where it differs","These selections are calculated from this run’s metrics. They are ranked using the documented tolerances, with at most two findings per metric family.");
     const columns=el(doc,"div",undefined,"findings-grid");
@@ -96,7 +102,7 @@
       const panel=el(doc,"div",undefined,"finding-panel");panel.append(el(doc,"h3",title));const list=el(doc,"ol",undefined,"finding-list");
       for(const id of v[key]){const a=byKey.get(id),li=el(doc,"li");li.append(el(doc,"strong",a.label),el(doc,"p",measure(a.score,UNITS[a.policy]||UNITS.integrity)),badge(doc,a.status));list.append(li);}
       panel.append(v[key].length?list:el(doc,"p",empty));columns.append(panel);
-    }findings.append(columns);content.append(findings);
+    }findings.append(columns);
 
     const numeric=section(doc,"numeric","Numeric distributions","Lower bars mean smaller average percentile differences. The chart compares P25, P50, P75 and P95 using the SOURCE interquartile range (IQR = P75 − P25). The status uses the worst of those four differences, so an average cannot hide a large deviation.");
     const ordered=[...v.numeric].sort((a,b)=>(a.average_difference_pct_iqr??Infinity)-(b.average_difference_pct_iqr??Infinity)||a.key.localeCompare(b.key));
@@ -133,6 +139,37 @@
     return content;
   }
 
+  function executiveSummary(doc,view) {
+    const {report,v}=view,s=VIZ.summary(report,v),root=el(doc,"div");
+    const metrics=el(doc,"dl",undefined,"exec-metrics");
+    const coverage=s.coverage, both=[coverage.accounts_with_balance.value,coverage.balances_with_account.value];
+    for(const [value,label] of [[s.within===null?"Pending":fmt(s.within)+"%","Selected variables within tolerance"],[fmt(v.summary.variables_evaluated),"Variables evaluated"],[both.every(n=>typeof n==="number")?pct(Math.min(...both)):"Pending","Account / balance join coverage"],[s.relationshipCompared?s.relationshipMatched+" / "+s.relationshipCompared:"Pending","Relationship checks within tolerance"],[fmt(s.applied),"Reviewed rules actually applied"]]){const item=el(doc,"div");item.append(el(doc,"dt",label),el(doc,"dd",value));metrics.append(item);}
+    root.append(metrics,el(doc,"p",v.summary.variables_within_tolerance+" of "+v.summary.variables_total+" selected variables within tolerance · "+v.summary.variables_requiring_review+" need review · "+v.summary.variables_incomplete+" incomplete. The percentage includes incomplete variables in its denominator; it is not an overall quality score.","measurement-note"),el(doc,"p",s.relationshipPending+" relationship checks have insufficient or missing evidence. Join coverage reports the lower of the two directions; integrity is assessed separately from statistical similarity.","measurement-note"));return root;
+  }
+  function executiveFindings(doc,view) {
+    const {v}=view,root=el(doc,"div",undefined,"findings-grid"),byKey=new Map(v.assessments.map(a=>[a.key,a]));
+    for(const [key,title] of [["strengths","Strongest measured areas"],["weaknesses","Largest measured deviations"]]){const panel=el(doc,"div",undefined,"finding-panel");panel.append(el(doc,"h3",title));const makeList=ids=>{const list=el(doc,"ol",undefined,"finding-list");for(const id of ids){const a=byKey.get(id),li=el(doc,"li");li.append(el(doc,"strong",a.label),el(doc,"p",measure(a.score,UNITS[a.policy]||UNITS.integrity)),badge(doc,a.status));list.append(li);}return list;};panel.append(v[key].length?makeList(v[key].slice(0,3)):el(doc,"p","No qualifying measured findings yet."));if(v[key].length>3)panel.append(details(doc,"More measured findings",makeList(v[key].slice(3))));root.append(panel);}return root;
+  }
+  function renderValidation(doc,view) {
+    const {report,v}=view,root=el(doc,"div");
+    const summary=section(doc,"summary","The structure holds. Statistical gaps remain visible.");
+    summary.append(el(doc,"p",state(v.summary.comparison_status),"report-verdict"),el(doc,"p","Completed "+new Date(report.pipeline_completed_at).toLocaleString("en",{timeZone:"UTC"})+" UTC","measurement-note"),executiveSummary(doc,view),el(doc,"p","Saved-output integrity checks passed. Prototype tolerances support investigation; they do not establish business acceptance or privacy clearance.","boundary-note"));
+    if(report.rules?.approved_unimplemented?.value)summary.append(el(doc,"p",fmt(report.rules.approved_unimplemented.value)+" approved proposals had no implementation and were skipped.","results-notice"));
+    if(report.rules?.skipped?.value)summary.append(el(doc,"p",fmt(report.rules.skipped.value)+" proposals did not affect this dataset.","measurement-note"));
+    const findings=section(doc,"findings","Where the evidence is strongest — and weakest","Ranked from this run’s measured results using the published prototype tolerances. Missing evidence is never counted as a strong match.");findings.append(executiveFindings(doc,view));
+    const numeric=section(doc,"numeric","Compare the shape, then inspect the gap","Four measured percentiles reveal location and tail differences. Change the variable to inspect another distribution.");numeric.append(VIZ.distribution(doc,v));
+    const bars=el(doc,"ol",undefined,"percentile-chart"),scale=Math.max(15,...v.numeric.map(n=>n.average_difference_pct_iqr||0));
+    bars.setAttribute("aria-label","Fidelity by variable: average percentile difference, lower is closer");
+    for(const n of [...v.numeric].sort((a,b)=>(a.average_difference_pct_iqr??Infinity)-(b.average_difference_pct_iqr??Infinity))){const li=el(doc,"li"),title=el(doc,"div",undefined,"chart-label"),track=el(doc,"div",undefined,"chart-track"),bar=el(doc,"div",undefined,"chart-bar "+(n.status==="NEEDS_REVIEW"?"chart-review":""));title.append(el(doc,"strong",NUMERIC[n.key]),badge(doc,n.status));bar.style.width=Math.max(0,Math.min(100,100*(n.average_difference_pct_iqr||0)/scale))+"%";track.setAttribute("aria-hidden","true");track.append(bar);li.append(title,track,el(doc,"p",measure(n.average_difference_pct_iqr,"% of original interquartile range")+" average gap · worst percentile "+measure(n.max_difference_pct_iqr,"%"),"chart-value"));bars.append(li);}
+    numeric.append(el(doc,"h3","Fidelity by variable · lower is closer"),bars,el(doc,"p","Bars show the average difference across four percentiles, relative to the original middle-50% range. Classifications use the worst percentile. A zero original range makes this normalized score unavailable, even when raw differences exist.","measurement-note"));
+    const categorical=section(doc,"categorical","Does the category mix carry through?","Compare the measured past-due proportions directly.");categorical.append(VIZ.categorical(doc,v));
+    const dependencies=section(doc,"dependencies","Similar marginals can conceal weaker relationships","Past-due rates are compared within utilization groups, alongside the balance / credit-limit relationship.");dependencies.append(VIZ.conditional(doc,v),el(doc,"p","Hollow markers indicate a comparison with fewer than "+v.min_conditional_rows+" records on either side, or missing evidence. Raw rates remain visible; missing original rates are not treated as zero.","measurement-note"));const corr=v.assessments.find(a=>a.key==="correlation.balance_limit");dependencies.append(el(doc,"div",undefined,"correlation-callout"));const callout=dependencies.children[dependencies.children.length-1];callout.append(el(doc,"h3","Balance / credit-limit correlation"),el(doc,"p",fmt(corr.source)+" original → "+fmt(corr.generated)+" synthetic","exec-number"),badge(doc,corr.status),el(doc,"p","Absolute gap: "+fmt(corr.score)+". Correlation describes association, not causation.","measurement-note"));
+    const evidence=section(doc,"structure","The complete evidence stays one click away","Inspect counts, rule outcomes, raw comparisons, missing evidence and the screening policy.");
+    const technical=renderTechnicalValidation(doc,view);for(const child of technical.children)if(child.id)child.id="detail-"+child.id;
+    evidence.append(details(doc,"Open detailed comparisons and methodology",technical));
+    root.append(summary,findings,numeric,categorical,dependencies,evidence);return root;
+  }
+
   function mountValidation(root,{fetcher=globalThis.fetch,location=globalThis.location,timeoutMs=10000}={}){
     const doc=root.ownerDocument,status=el(doc,"p","Validation results pending","results-notice"),body=el(doc,"div"),button=el(doc,"button","Refresh validation report","button button-secondary");button.type="button";status.setAttribute("role","status");status.setAttribute("aria-live","polite");const toolbar=el(doc,"div",undefined,"report-toolbar");toolbar.append(status,button);root.replaceChildren(toolbar,body);let loading=false;
     async function refresh(){if(loading)return;loading=true;button.disabled=true;root.setAttribute("aria-busy","true");status.textContent="Loading validation report";const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),timeoutMs);
@@ -140,6 +177,8 @@
       }catch(_){body.replaceChildren(el(doc,"p","A complete version-2 validation report has not been published here or could not be read. The project methodology and existing summary remain available.","measurement-note"));status.textContent="Validation results pending";}finally{clearTimeout(timer);loading=false;button.disabled=false;root.setAttribute("aria-busy","false");}}
     button.addEventListener("click",refresh);return {ready:refresh(),refresh};
   }
-  if(typeof module!=="undefined"&&module.exports)module.exports={normalizeValidation,renderValidation,mountValidation};
+  const api={normalizeValidation,renderValidation,mountValidation,executiveSummary,executiveFindings};
+  if(typeof module!=="undefined"&&module.exports)module.exports=api;
+  if(typeof window!=="undefined")window.SageValidation=api;
   if(typeof document!=="undefined"){const root=document.getElementById("validation-report");if(root)mountValidation(root);}
 })();

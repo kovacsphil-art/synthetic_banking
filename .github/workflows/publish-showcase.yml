@@ -65,7 +65,7 @@ jobs:
         if: steps.report.outputs.ready == 'true'
         run: |
           mkdir _site
-          cp docs/index.html docs/styles.css docs/results.js docs/validation.html docs/validation.js docs/validation-config.js docs/latest-pipeline.json _site/
+          cp docs/index.html docs/styles.css docs/results.js docs/validation.html docs/validation.js docs/validation-config.js docs/executive-viz.js docs/showcase.js docs/latest-pipeline.json _site/
           touch _site/.nojekyll
       - uses: actions/upload-pages-artifact@v3
         if: steps.report.outputs.ready == 'true'
