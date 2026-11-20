@@ -66,6 +66,19 @@ databricks bundle run -t dev synthetic_pipeline
 
 The bundle has no schedule. Alternatively open **Jobs & Pipelines → synthetic-banking-controlled-pipeline → Run now** after deployment. `rule_scope` defaults to `BALANCE_PILOT`; supported alternatives are `DELINQUENCY_PILOT` and `ACCOUNT_CORE`. Change those through **Run now with different parameters**. To reuse reviewed objects, supply the paired reuse parameters there as well.
 
+### Databricks Free Edition
+
+Use the `free` target for serverless compute. It keeps the same eight tasks and ID handoffs and removes existing-cluster selection; the `dev` target retains its existing cluster configuration. With an authenticated CLI profile, set only the reporting directory:
+
+```powershell
+$env:BUNDLE_VAR_report_output_dir = "/Volumes/workspace/default/showcase_reports/pipeline_reporting"
+databricks bundle validate -t free -p synthetic-banking
+databricks bundle deploy -t free -p synthetic-banking
+databricks bundle run -t free -p synthetic-banking synthetic_pipeline
+```
+
+The example assumes the dedicated `workspace.default.showcase_reports` managed Volume exists. Create it and grant the required reporting permissions before running. `synthetic-banking` is the local CLI authentication profile name. Free Edition quotas and serverless limitations still apply; deployment validation alone does not prove the notebooks have executed successfully.
+
 Job parameters intentionally avoid the handoff keys `source_run_id`, `batch_id`, `generation_id` and `generated_run_id`: Databricks job parameters can override same-named task parameters. Do not add competing job parameters for these IDs. [Job parameter precedence](https://docs.databricks.com/aws/en/jobs/job-parameters)
 
 Run only one writer against these shared staging/generated schemas, including interactive notebook runs and other jobs. `max_concurrent_runs=1` protects this job, not unrelated writers. Version/identity guards stop later stages if another generation replaces the batch. Repair does not make non-idempotent tasks transactional; after a generation failure, inspect its state and rerun generation plus dependents rather than pretending partial outputs completed.

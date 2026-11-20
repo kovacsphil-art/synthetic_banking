@@ -18,6 +18,8 @@ Databricks generation → privacy screen → GENERATED profile → validation PA
 4. Under **Settings → Pages → Build and deployment**, choose **GitHub Actions**. Configure the `github-pages` environment to permit the default branch. Allow the workflow's built-in `GITHUB_TOKEN` to write repository contents. Branch rules must allow its single-file report commits; if policy forbids this, the workflow stops before deploying. No force pushes or protection bypass is implemented.
 5. Run the updated Databricks pipeline successfully. A batch waiting for manual review is intentionally failed and cannot publish. Review and repair it using the existing procedure. No new proposal is automatically approved.
 
+For Databricks Free Edition, use the workflow runbook's `free` serverless bundle target rather than supplying a classic cluster ID. The GitHub repository must be public to use Pages on GitHub Free. The `free` target affects compute configuration only; review, validation and publication gates remain in place.
+
 GitHub uses its short-lived `GITHUB_TOKEN` for the report commit and Pages OIDC for deployment. No personal GitHub token is needed. The reporting SDK and JSON Schema validator are pinned in the workflow. Credential values are scoped to the retrieval step, never passed in shell arguments, committed, or placed in a Pages artifact.
 
 ## Manual trigger

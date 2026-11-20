@@ -13,3 +13,27 @@ variables:
 targets:
   dev:
     default: true
+  free:
+    # Free Edition supports serverless jobs, without an existing cluster.
+    variables:
+      cluster_id: ""
+    resources:
+      jobs:
+        synthetic_pipeline:
+          tasks:
+            - task_key: source_profile
+              existing_cluster_id: ""
+            - task_key: llm_proposal
+              existing_cluster_id: ""
+            - task_key: approval_check
+              existing_cluster_id: ""
+            - task_key: synthetic_generation
+              existing_cluster_id: ""
+            - task_key: privacy_check
+              existing_cluster_id: ""
+            - task_key: generated_profile
+              existing_cluster_id: ""
+            - task_key: validate
+              existing_cluster_id: ""
+            - task_key: reporting
+              existing_cluster_id: ""
