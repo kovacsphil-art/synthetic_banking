@@ -1318,6 +1318,163 @@
           },
           "minItems": 3,
           "maxItems": 3
+        },
+        "dependency_fidelity": {
+          "type": "object",
+          "properties": {
+            "categorical": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "key": {
+                    "enum": [
+                      "account_type_product",
+                      "client_tsys_product"
+                    ]
+                  },
+                  "label": {
+                    "enum": [
+                      "Account type / client product",
+                      "Client / TSYS product"
+                    ]
+                  },
+                  "source_cramers_v": {
+                    "type": [
+                      "number",
+                      "null"
+                    ],
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "generated_cramers_v": {
+                    "type": [
+                      "number",
+                      "null"
+                    ],
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "absolute_association_gap": {
+                    "type": [
+                      "number",
+                      "null"
+                    ],
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "source_n": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "minimum": 0
+                  },
+                  "generated_n": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "minimum": 0
+                  },
+                  "conditional_tvd_pct": {
+                    "type": [
+                      "number",
+                      "null"
+                    ],
+                    "minimum": 0,
+                    "maximum": 100
+                  },
+                  "unsupported_combination_rate": {
+                    "type": [
+                      "number",
+                      "null"
+                    ],
+                    "minimum": 0,
+                    "maximum": 1
+                  }
+                },
+                "required": [
+                  "key",
+                  "label",
+                  "source_cramers_v",
+                  "generated_cramers_v",
+                  "absolute_association_gap",
+                  "source_n",
+                  "generated_n",
+                  "conditional_tvd_pct",
+                  "unsupported_combination_rate"
+                ],
+                "additionalProperties": false
+              },
+              "minItems": 2,
+              "maxItems": 2
+            },
+            "numeric_segments": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "bucket": {
+                    "enum": [
+                      "Q1",
+                      "Q2",
+                      "Q3",
+                      "Q4"
+                    ]
+                  },
+                  "source_mean": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "generated_mean": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "mean_difference": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "source_n": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "minimum": 0
+                  },
+                  "generated_n": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "minimum": 0
+                  }
+                },
+                "required": [
+                  "bucket",
+                  "source_mean",
+                  "generated_mean",
+                  "mean_difference",
+                  "source_n",
+                  "generated_n"
+                ],
+                "additionalProperties": false
+              },
+              "minItems": 4,
+              "maxItems": 4
+            }
+          },
+          "required": [
+            "categorical",
+            "numeric_segments"
+          ],
+          "additionalProperties": false
         }
       },
       "required": [

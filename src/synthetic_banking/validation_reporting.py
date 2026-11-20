@@ -241,7 +241,7 @@ def build_validation_report(metrics, rule_outcomes=()):
                     return selected
         return selected
 
-    return dict(status="AVAILABLE" if evaluated else "PENDING", policy_version=POLICY_VERSION,
+    result = dict(status="AVAILABLE" if evaluated else "PENDING", policy_version=POLICY_VERSION,
                 thresholds={k: dict(v) for k, v in THRESHOLDS.items()}, min_conditional_rows=MIN_CONDITIONAL_ROWS,
                 summary=dict(comparison_status=overall, variables_total=len(variable_checks),
                              variables_evaluated=sum(any(a["status"] != "UNAVAILABLE" for a in c) for c in variable_checks.values()),
@@ -255,3 +255,79 @@ def build_validation_report(metrics, rule_outcomes=()):
                 assessments=assessments, numeric=numeric, categorical=categorical, dates=dates,
                 cardinality=cardinality, populations=populations,
                 accounts_per_person=dict(source=ratios[0], generated=ratios[1]), rule_outcomes=outcomes)
+    supplemental = sampling_fidelity(metrics)
+    if supplemental is not None:
+        result["dependency_fidelity"] = supplemental
+    return result
+
+
+def sampling_fidelity(metrics):
+    """Public-safe supplemental dependencies; never export category values or IDs."""
+    def dimensions(row):
+        try:
+            return json.loads(row.get("dimensions_json") or "{}")
+        except (ValueError, TypeError):
+            return {}
+
+    def find(family, column, metric, **dims):
+        rows = [r for r in metrics if r.get("family") == family and r.get("column_name") == column
+                and r.get("entity_name") == ("ACCOUNT" if family == "NUMERIC_DEPENDENCY" else "TKQ_ACCOUNT")
+                and r.get("metric") == metric and all(dimensions(r).get(k) == v for k, v in dims.items())]
+        if len(rows) > 1:
+            raise ValueError("Duplicate supplemental dependency evidence.")
+        return rows[0] if rows else {}
+
+    pairs = (("account_type_product", "ACCOUNT_TYPE_CD", "CLIENT_PRODUCT_CD", "Account type / client product"),
+             ("client_tsys_product", "CLIENT_PRODUCT_CD", "TSYS_PRODUCT_CD", "Client / TSYS product"))
+    selected = [r for r in metrics if r.get("entity_name") == "TKQ_ACCOUNT"
+                and r.get("family") == "CATEGORICAL_CONDITIONAL" and r.get("column_name") in {p[2] for p in pairs}]
+    numeric_rows = [r for r in metrics if r.get("family") == "NUMERIC_DEPENDENCY"
+                    and r.get("entity_name") == "ACCOUNT" and r.get("column_name") == "TKQ_ACCOUNT_BALANCE.CURRENT_BALANCE_AMT"
+                    and dimensions(r).get("variable_1") == "TKQ_ACCOUNT.CREDIT_LIMIT_AMT"]
+    if not selected and not numeric_rows:
+        return None
+    categorical = []
+    for key, parent, child, label in pairs:
+        association = find("CATEGORICAL_ASSOCIATION", child, "cramers_v", parent_column=parent)
+        unsupported = find("CATEGORICAL_CONDITIONAL", child, "unsupported_combination_rate", parent_column=parent)
+        cells = [r for r in selected if r.get("column_name") == child and r.get("metric") == "conditional_proportion"
+                 and dimensions(r).get("parent_column") == parent]
+        by_parent = {}
+        seen = set()
+        valid = bool(cells)
+        for r in cells:
+            dims = dimensions(r)
+            p, c = dims.get("parent_value"), dims.get("child_value")
+            n = number(r.get("source_sample_size"))
+            valid = valid and r.get("comparison_status") == "COMPARABLE" and n is not None and n > 0
+            group = by_parent.setdefault(p, [n, 0.0, 0.0, 0.0])
+            if group[0] != n or (p, c) in seen:
+                valid = False
+            seen.add((p, c))
+            s, g = number(r.get("source_value")), number(r.get("generated_value"))
+            # Fidelity row differences use pp; raw rate values remain fractions.
+            delta = abs(g-s) if s is not None and g is not None else None
+            if delta is None or not 0 <= s <= 1 or not 0 <= g <= 1:
+                valid = False
+            else:
+                group[1] += 50 * delta
+                group[2] += s
+                group[3] += g
+        valid = valid and all(math.isclose(s, 1., abs_tol=1e-8) and math.isclose(g, 1., abs_tol=1e-8)
+                              for _, _, s, g in by_parent.values())
+        total = sum(g[0] or 0 for g in by_parent.values())
+        s, g = number(association.get("source_value")), number(association.get("generated_value"))
+        categorical.append(dict(key=key, label=label, source_cramers_v=s, generated_cramers_v=g,
+            absolute_association_gap=number(abs(g-s)) if association.get("comparison_status") == "COMPARABLE" and s is not None and g is not None else None,
+            source_n=number(association.get("source_sample_size")), generated_n=number(association.get("generated_sample_size")),
+            conditional_tvd_pct=min(100., sum(n*d for n,d,_,_ in by_parent.values())/total) if valid and total else None,
+            unsupported_combination_rate=number(unsupported.get("generated_value"))))
+    segments = []
+    for bucket in ("Q1", "Q2", "Q3", "Q4"):
+        row = find("NUMERIC_DEPENDENCY", "TKQ_ACCOUNT_BALANCE.CURRENT_BALANCE_AMT", "y_mean",
+                   variable_1="TKQ_ACCOUNT.CREDIT_LIMIT_AMT", scope="X_QUARTILE", segment_value=bucket)
+        valid = row.get("comparison_status") == "COMPARABLE"
+        segments.append(dict(bucket=bucket, source_mean=number(row.get("source_value")),
+            generated_mean=number(row.get("generated_value")), mean_difference=number(row.get("difference")) if valid else None,
+            source_n=number(row.get("source_sample_size")), generated_n=number(row.get("generated_sample_size"))))
+    return dict(categorical=categorical, numeric_segments=segments)

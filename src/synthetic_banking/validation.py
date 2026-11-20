@@ -300,14 +300,35 @@ def validate_generated_batch(
             issues.append(f"{check}: {joined[check]}.")
 
     audit = spark.sql(f"""
-        SELECT source_run_id, proposal_id, batch_id, target_table, target_column,
-               approved, implemented, reason
+        SELECT *
         FROM {GENERATED_SCHEMA}.{AUDIT_TABLE}
         WHERE generation_id = :generation_id
         """, args={"generation_id": generation_id}).collect()
     if len(audit) != expected_audit_rows or any(row["source_run_id"] != source_run_id for row in audit):
         issues.append("The saved rule audit does not match this generation and SOURCE run.")
     unimplemented = [row for row in audit if row["approved"] and not row["implemented"]]
+    # These identifiers come from the fixed registry, never model text.
+    for row in audit:
+        metadata = row.asDict() if hasattr(row, "asDict") else dict(row)
+        if metadata.get("applied") and metadata.get("implementation_name") == "conditional_categorical_v1":
+            target = metadata.get("target_column")
+            parent = {"CLIENT_PRODUCT_CD": "ACCOUNT_TYPE_CD", "TSYS_PRODUCT_CD": "CLIENT_PRODUCT_CD"}.get(target)
+            if metadata.get("target_table") != "TKQ_ACCOUNT" or parent is None:
+                issues.append("Categorical rule audit refers to an unregistered target.")
+                continue
+            unsupported = spark.sql(f"""
+                SELECT COUNT(*) AS n FROM {tables['TKQ_ACCOUNT']} g
+                WHERE g.`{parent}` IS NOT NULL AND g.`{target}` IS NOT NULL AND NOT EXISTS (
+                    SELECT 1 FROM {PROFILE_SCHEMA}.categorical_conditional_profile p
+                    WHERE p.run_id = :source AND p.profile_type = 'SOURCE'
+                      AND p.logical_table_name = 'TKQ_ACCOUNT'
+                      AND p.parent_column = :parent AND p.child_column = :child
+                      AND p.parent_value = CAST(g.`{parent}` AS STRING)
+                      AND p.child_value = CAST(g.`{target}` AS STRING) AND p.record_count > 0
+                )
+            """, args={"source": source_run_id, "parent": parent, "child": target}).first()["n"]
+            if unsupported:
+                issues.append(f"{target}: {unsupported} SOURCE-unsupported conditional combinations.")
     print(f"Approved rules without a matching implementation: {len(unimplemented)}")
     for row in unimplemented:
         print(

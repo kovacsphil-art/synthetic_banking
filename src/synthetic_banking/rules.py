@@ -6,6 +6,9 @@ from dataclasses import dataclass
 import numpy as np
 from numpy.typing import ArrayLike
 from synthetic_banking.config import PROFILE_SCHEMA
+from synthetic_banking.dependency_sampling import (
+    DependencyEvidenceError, conditional_categorical_v1, conditional_numeric_rank_v1,
+)
 
 
 def available_to_buy(credit_limit: ArrayLike, current_balance: ArrayLike):
@@ -53,6 +56,43 @@ class ConditionalRuleError(ValueError):
     """Measured evidence or generated inputs cannot support the conditional rule."""
 
 
+def utilization_buckets(utilization: ArrayLike) -> np.ndarray:
+    """Use the existing profiler/generator boundaries for every delinquency lookup."""
+    values = np.asarray(utilization, dtype=float)
+    return np.select(
+        [values < .30, values < .60, values < .80, values <= 1.00],
+        _UTILIZATION_BUCKETS[:4], default=_UTILIZATION_BUCKETS[4],
+    )
+
+
+def delinquency_probabilities(utilization: ArrayLike, rates: Mapping[str, float]) -> np.ndarray:
+    """Shared measured-rate lookup; preserve the legacy 5% missing-bucket default.
+
+    Reviewed execution validates complete evidence before calling this lookup,
+    so that path never substitutes the default for a missing SOURCE bucket.
+    """
+    buckets = utilization_buckets(utilization)
+    return np.array([rates.get(bucket, .05) for bucket in buckets], dtype=float)
+
+
+def _legacy_delinquency_probabilities(source_run_id, utilization, conditional_profile):
+    # Preserve the original last-row-wins lookup; strict review checks stay separate.
+    rates = {
+        row.get("condition_bucket"): float(row["outcome_rate"])
+        for row in conditional_profile
+        if row.get("run_id") == source_run_id
+        and row.get("entity_name") == "ACCOUNT"
+        and row.get("condition_variable") == "UTILIZATION_RATE"
+        and row.get("outcome_variable") == "PAST_DUE_INDICATO_CD"
+    }
+    return delinquency_probabilities(utilization, rates)
+
+
+def _sample_delinquency(probabilities, uniform_draws):
+    """One predefined sampler; callers own the draws and their RNG ordering."""
+    return np.asarray(uniform_draws, dtype=float) < np.asarray(probabilities, dtype=float)
+
+
 def delinquency_by_utilization(
     source_run_id: str,
     utilization: ArrayLike,
@@ -98,17 +138,20 @@ def delinquency_by_utilization(
             raise ConditionalRuleError("invalid_conditional_profile")
         rates[bucket] = rate
 
-    buckets = np.select(
-        [utilization < .30, utilization < .60, utilization < .80, utilization <= 1.00],
-        _UTILIZATION_BUCKETS[:4], default=_UTILIZATION_BUCKETS[4],
-    )
+    buckets = utilization_buckets(utilization)
     if any(bucket not in rates for bucket in np.unique(buckets)):
         raise ConditionalRuleError("missing_conditional_profile")
-    probabilities = np.array([rates[bucket] for bucket in buckets], dtype=float)
-    return draws < probabilities
+    return _sample_delinquency(delinquency_probabilities(utilization, rates), draws)
 
 
 _CONDITIONAL_IMPLEMENTATIONS = {_DELINQUENCY_TARGET: delinquency_by_utilization}
+
+# Fixed parent-first phase order, before the existing balance (1/2) and delinquency (3) phases.
+_SAMPLING_IMPLEMENTATIONS = {
+    ("TKQ_ACCOUNT", "CLIENT_PRODUCT_CD"): ("CONDITIONAL", "TKQ_ACCOUNT.ACCOUNT_TYPE_CD", -2, conditional_categorical_v1),
+    ("TKQ_ACCOUNT", "TSYS_PRODUCT_CD"): ("CONDITIONAL", "TKQ_ACCOUNT.CLIENT_PRODUCT_CD", -1, conditional_categorical_v1),
+    ("TKQ_ACCOUNT_BALANCE", "CURRENT_BALANCE_AMT"): ("CORRELATED", "TKQ_ACCOUNT.CREDIT_LIMIT_AMT", 0, conditional_numeric_rank_v1),
+}
 
 
 @dataclass(frozen=True)
@@ -149,6 +192,11 @@ class SkippedProposal:
 
 @dataclass(frozen=True)
 class RuleExecution:
+    """Proposal audit: applied means approved-proposal execution, not legacy use.
+
+    LEGACY_FALLBACK with positive rows_processed records a dependency that
+    supplied values without an eligible proposal. Keep it out of AI applied counts.
+    """
     proposal_id: str | None
     batch_id: str | None
     target_table: str
@@ -199,6 +247,95 @@ def partition_rule_proposals(
         else:
             balance.append(proposal)
     return tuple(balance), tuple(conditional)
+
+
+def partition_sampling_proposals(proposals):
+    """Route the three new fixed targets once; retain the existing rule dispatcher."""
+    categorical, numeric, remaining = [], [], []
+    for proposal in proposals:
+        spec = _SAMPLING_IMPLEMENTATIONS.get((proposal.target_table, proposal.target_column))
+        (remaining if spec is None else categorical if spec[0] == "CONDITIONAL" else numeric).append(proposal)
+    return tuple(categorical), tuple(numeric), tuple(remaining)
+
+
+def _select_sampling(source, proposals, target):
+    if not source:
+        raise ValueError("A pinned SOURCE run ID is required.")
+    kind, parent, _, implementation = _SAMPLING_IMPLEMENTATIONS[target]
+    events, candidates = [], []
+    for p in proposals:
+        if (p.target_table, p.target_column) != target:
+            continue
+        known = p.rule_type == kind
+        reason = None if known else "no_implementation"
+        if known and (len(p.parent_columns) != 1 or p.parent_columns[0] not in (parent, parent.rsplit(".", 1)[1])):
+            known, reason = False, "parent_mismatch"
+        if p.source_run_id != source:
+            reason = "source_run_mismatch"
+        elif p.approval_status != "APPROVED":
+            reason = "not_approved"
+        elif not p.approved:
+            reason = "unverified_approval"
+        if reason:
+            events.append(_skipped_execution(p, reason, implementation.__name__ if known else None))
+        else:
+            candidates.append(p)
+    if len(candidates) > 1:
+        events.extend(_skipped_execution(p, "conflicting_approvals", implementation.__name__) for p in candidates)
+    return candidates[0] if len(candidates) == 1 else None, events
+
+
+def _sampling_execution(proposal, target, rows):
+    kind, _, order, implementation = _SAMPLING_IMPLEMENTATIONS[target]
+    return RuleExecution(proposal.proposal_id, proposal.batch_id, *target, kind,
+                         "APPLIED" if rows else "SKIPPED", None if rows else "no_rows",
+                         implementation.__name__, order, rows, proposal.parent_columns,
+                         proposal.approval_status, True, True, True, bool(rows))
+
+
+def apply_categorical_dependency_rules(source, proposals, data, profiles, seed):
+    """Condition only the two registered account fields, in parent-first order."""
+    events = []
+    for target, (kind, parent, _, implementation) in _SAMPLING_IMPLEMENTATIONS.items():
+        if kind != "CONDITIONAL":
+            continue
+        selected, skipped = _select_sampling(source, proposals, target)
+        events.extend(skipped)
+        if selected is None:
+            continue
+        parent_column = parent.rsplit(".", 1)[1]
+        if parent_column not in data or target[1] not in data:
+            events.append(_skipped_execution(selected, "missing_generated_input", implementation.__name__))
+            continue
+        try:
+            values, rows = implementation(source, target[0], parent_column, target[1],
+                data[parent_column], data[target[1]], getattr(profiles, "categorical_relationship_stats", ()),
+                getattr(profiles, "categorical_conditional_stats", ()), seed)
+        except DependencyEvidenceError as error:
+            events.append(_skipped_execution(selected, str(error), implementation.__name__))
+        else:
+            data[target[1]] = values
+            events.append(_sampling_execution(selected, target, rows))
+    return tuple(events)
+
+
+def apply_numeric_dependency_rule(source, proposals, parent_values, child_values, profiles, seed):
+    """Couple one measured numeric group before unchanged deterministic constraints."""
+    target = ("TKQ_ACCOUNT_BALANCE", "CURRENT_BALANCE_AMT")
+    selected, events = _select_sampling(source, proposals, target)
+    implementation = _SAMPLING_IMPLEMENTATIONS[target][3]
+    if selected is not None:
+        try:
+            if parent_values is None:
+                raise DependencyEvidenceError("missing_generated_input")
+            values, rows = implementation(source, parent_values, child_values,
+                                          getattr(profiles, "numeric_dependency_stats", ()), seed)
+        except DependencyEvidenceError as error:
+            events.append(_skipped_execution(selected, str(error), implementation.__name__))
+        else:
+            events.append(_sampling_execution(selected, target, rows))
+            return values, tuple(events)
+    return child_values, tuple(events)
 
 
 def load_rule_proposals(spark, source_run_id: str, batch_id: str = "") -> tuple[RuleProposal, ...]:
@@ -377,16 +514,23 @@ def apply_delinquency_rule(
     utilization: ArrayLike,
     conditional_profile: Iterable[Mapping[str, object]] | None,
     uniform_draws: ArrayLike,
-    legacy_probabilities: ArrayLike,
+    legacy_probabilities: ArrayLike | None = None,
 ) -> tuple[np.ndarray, tuple[RuleExecution, ...]]:
-    """Apply one reviewed conditional rule, or preserve the caller's legacy sampling path."""
+    """Select and audit the dependency once, using shared predefined sampling.
+
+    Normal generation supplies only the pinned profile and one set of draws.
+    The optional probability array retains compatibility with existing callers.
+    """
     if not source_run_id:
         raise ValueError("A pinned SOURCE run ID is required.")
     utilization = np.asarray(utilization, dtype=float)
     draws = np.asarray(uniform_draws, dtype=float)
-    legacy = np.asarray(legacy_probabilities, dtype=float)
-    if utilization.ndim != 1 or utilization.shape != draws.shape or draws.shape != legacy.shape:
+    legacy = None if legacy_probabilities is None else np.asarray(legacy_probabilities, dtype=float)
+    if (utilization.ndim != 1 or utilization.shape != draws.shape
+            or (legacy is not None and draws.shape != legacy.shape)):
         raise ValueError("Utilization, random draws, and legacy probabilities must be aligned arrays.")
+    # Both evidence validation and fallback may need the same rows, including iterators.
+    conditional_profile = tuple(conditional_profile) if conditional_profile is not None else ()
     events, candidates = [], []
     for proposal in proposals:
         implementation = _CONDITIONAL_IMPLEMENTATIONS.get((proposal.target_table, proposal.target_column))
@@ -435,7 +579,9 @@ def apply_delinquency_rule(
             ))
             return sampled, tuple(events)
 
-    sampled = draws < legacy
+    if legacy is None:
+        legacy = _legacy_delinquency_probabilities(source_run_id, utilization, conditional_profile)
+    sampled = _sample_delinquency(legacy, draws)
     events.append(RuleExecution(
         proposal_id=None, batch_id=None, target_table=_DELINQUENCY_TARGET[0],
         target_column=_DELINQUENCY_TARGET[1], rule_type="CONDITIONAL", outcome="LEGACY_FALLBACK",

@@ -54,6 +54,19 @@ def build_schema():
         accounts_per_person=obj(dict(source=number, generated=number)),
         rule_outcomes=array(obj(dict(implementation=enum(r[0] for r in RULES), target=enum(r[1] for r in RULES),
             proposed=integer, approved=integer, applied=integer, skipped=integer)), len(RULES))))
+    # Optional, aggregate-only addition: historical v2 artifacts remain valid.
+    count = {"type": ["integer", "null"], "minimum": 0}
+    rate = {"type": ["number", "null"], "minimum": 0, "maximum": 1}
+    report["properties"]["dependency_fidelity"] = obj(dict(
+        categorical=array(obj(dict(
+            key=enum(("account_type_product", "client_tsys_product")),
+            label=enum(("Account type / client product", "Client / TSYS product")),
+            source_cramers_v=rate, generated_cramers_v=rate, absolute_association_gap=rate,
+            source_n=count, generated_n=count, conditional_tvd_pct={"type": ["number", "null"], "minimum": 0, "maximum": 100},
+            unsupported_combination_rate=rate)), 2),
+        numeric_segments=array(obj(dict(bucket=enum(("Q1", "Q2", "Q3", "Q4")),
+            source_mean=number, generated_mean=number, mean_difference=number,
+            source_n=count, generated_n=count)), 4)))
     schema = json.loads((FOLDER / "pipeline-report-v1.schema.json").read_text())
     schema["title"] = "Synthetic banking public pipeline report, version 2.0"
     schema["description"] = "Sanitized aggregates and prototype validation screening; no execution IDs or row records."

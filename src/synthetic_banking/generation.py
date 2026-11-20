@@ -9,7 +9,10 @@ from synthetic_banking.config import GenerationSettings
 from synthetic_banking.generators import ProfileGenerators
 from synthetic_banking.dates import load_date_sampler
 from synthetic_banking.customer_relationships import generate_customer_relationships
-from synthetic_banking.rules import (load_rule_proposals, partition_rule_proposals, apply_balance_rules, apply_delinquency_rule)
+from synthetic_banking.rules import (
+    load_rule_proposals, partition_rule_proposals, apply_balance_rules, apply_delinquency_rule,
+    partition_sampling_proposals, apply_categorical_dependency_rules, apply_numeric_dependency_rule,
+)
 from synthetic_banking.validation import expected_generated_schema
 
 
@@ -54,6 +57,16 @@ def generate_dataset(spark, profiles, settings=GenerationSettings(), *, date_sam
 
     SEED = settings.seed
 
+    rule_proposals = load_rule_proposals(spark, source_run_id, batch_id=settings.proposal_batch_id or pilot_batch_id)
+    if pilot_batch_id:
+        approved_ids = {proposal.proposal_id for proposal in rule_proposals if proposal.approved}
+        if approved_ids != set(pilot_proposal_ids):
+            raise ValueError(f"Pilot batch {pilot_batch_id} must contain exactly the selected reviewed approvals "
+                             f"for SOURCE {source_run_id}. Found: {sorted(approved_ids)}.")
+    print(f"Considering {len(rule_proposals)} proposals ({sum(p.approved for p in rule_proposals)} approved) for SOURCE run {source_run_id}.")
+    categorical_proposals, numeric_proposals, existing_proposals = partition_sampling_proposals(rule_proposals)
+    balance_proposals, delinquency_proposals = partition_rule_proposals(existing_proposals)
+
     rng = np.random.default_rng(SEED)
 
     print(f"Generating {N_CUSTOMERS:,} customers")
@@ -63,7 +76,6 @@ def generate_dataset(spark, profiles, settings=GenerationSettings(), *, date_sam
     generate_cardinality = samplers.generate_cardinality
     generate_categorical = samplers.generate_categorical
     generate_numeric = samplers.generate_numeric
-    get_delinquency_probability = samplers.get_delinquency_probability
 
     person_ids = [
         f"P{i:08d}"
@@ -209,6 +221,10 @@ def generate_dataset(spark, profiles, settings=GenerationSettings(), *, date_sam
             )
         )
 
+    categorical_events = apply_categorical_dependency_rules(
+        source_run_id, categorical_proposals, account_df, profiles, SEED,
+    )
+
     account_balance_df = pd.DataFrame({
         "ACCOUNT_ID": account_ids
     })
@@ -235,6 +251,10 @@ def generate_dataset(spark, profiles, settings=GenerationSettings(), *, date_sam
             .to_numpy()
         )
 
+        raw_balance, numeric_events = apply_numeric_dependency_rule(
+            source_run_id, numeric_proposals, credit_limit, raw_balance, profiles, SEED,
+        )
+
         # Allow some over-limit accounts,
         # but prevent absurd combinations
         current_balance = np.minimum(
@@ -243,6 +263,10 @@ def generate_dataset(spark, profiles, settings=GenerationSettings(), *, date_sam
         )
 
     else:
+
+        raw_balance, numeric_events = apply_numeric_dependency_rule(
+            source_run_id, numeric_proposals, None, raw_balance, profiles, SEED,
+        )
 
         credit_limit = np.zeros(
             total_accounts
@@ -257,22 +281,11 @@ def generate_dataset(spark, profiles, settings=GenerationSettings(), *, date_sam
     if not account_df["ACCOUNT_ID"].equals(account_balance_df["ACCOUNT_ID"]):
         raise ValueError("Account and balance rows must align by ACCOUNT_ID before applying balance rules.")
 
-    rule_proposals = load_rule_proposals(spark, source_run_id, batch_id=settings.proposal_batch_id or pilot_batch_id)
-    if pilot_batch_id:
-        approved_ids = {proposal.proposal_id for proposal in rule_proposals if proposal.approved}
-        if approved_ids != set(pilot_proposal_ids):
-            raise ValueError(
-                f"Pilot batch {pilot_batch_id} must contain exactly the selected reviewed approvals "
-                f"for SOURCE {source_run_id}. Found: {sorted(approved_ids)}."
-            )
-    approved_count = sum(proposal.approved for proposal in rule_proposals)
-    print(f"Considering {len(rule_proposals)} proposals ({approved_count} approved) for SOURCE run {source_run_id}.")
-
-    balance_proposals, delinquency_proposals = partition_rule_proposals(rule_proposals)
-    balance_amounts, rule_events = apply_balance_rules(
+    balance_amounts, balance_events = apply_balance_rules(
         source_run_id, balance_proposals, credit_limit, current_balance,
         has_credit_limit="CREDIT_LIMIT_AMT" in account_df.columns,
     )
+    rule_events = (*categorical_events, *numeric_events, *balance_events)
     for target_column, values in balance_amounts.items():
         account_balance_df[target_column] = values
 
@@ -284,52 +297,14 @@ def generate_dataset(spark, profiles, settings=GenerationSettings(), *, date_sam
         0
     )
 
-    utilization_profile = conditional_stats[
-        (
-            conditional_stats["entity_name"]
-            == "ACCOUNT"
-        )
-        &
-        (
-            conditional_stats["condition_variable"]
-            == "UTILIZATION_RATE"
-        )
-        &
-        (
-            conditional_stats["outcome_variable"]
-            == "PAST_DUE_INDICATO_CD"
-        )
-    ].copy()
-
-    delinquency_rates = {}
-
-    for _, row in utilization_profile.iterrows():
-
-        delinquency_rates[
-            row["condition_bucket"]
-        ] = float(
-            row["outcome_rate"]
-        )
-
-    delinquency_rates
-    samplers.delinquency_rates = delinquency_rates
-
-    delinquency_probability = (
-        account_df["_UTILIZATION_RATE"]
-        .apply(
-            get_delinquency_probability
-        )
-        .to_numpy()
-    )
-
-    # Draw once at the same point as the legacy generator so downstream RNG state is preserved.
+    # The rule framework owns measured-rate lookup and preserved legacy fallback.
+    # Draw once at the same point as before so downstream RNG state is preserved.
     is_delinquent, delinquency_events = apply_delinquency_rule(
         source_run_id,
         delinquency_proposals,
         account_df["_UTILIZATION_RATE"].to_numpy(),
         conditional_stats.to_dict("records"),
         rng.random(total_accounts),
-        delinquency_probability,
     )
     rule_events = (*rule_events, *delinquency_events)
 

@@ -55,6 +55,23 @@ Only allowlisted field names, Y/N categories, fixed utilization buckets, aggrega
 
 The exporter builds and serializes the payload before replacing the previous file. A validation/build/write failure preserves the existing successful artifact. An older validation completion timestamp cannot replace a newer report. Keep one workflow writer per destination and smoke-test file replacement on the intended Databricks Volume. The schema version changes when the public contract changes incompatibly. No website files or rendering logic are changed by this task.
 
+## Optional dependency-fidelity extension
+
+Version 2.0 additionally permits `validation_report.dependency_fidelity`. Historical version-2 artifacts without it remain valid. It uses fixed relationship labels, never raw category values or run IDs:
+
+| JSON member | Shape / units |
+| --- | --- |
+| `categorical[]` | Exactly two entries: `key` = `account_type_product` or `client_tsys_product`; fixed corresponding `label` |
+| `categorical[].source_cramers_v`, `generated_cramers_v`, `absolute_association_gap` | Number in [0,1] or null |
+| `categorical[].source_n`, `generated_n` | Nonnegative complete-case integer count or null |
+| `categorical[].conditional_tvd_pct` | Number in [0,100] or null; per-parent total variation weighted by SOURCE parent counts |
+| `categorical[].unsupported_combination_rate` | Fraction in [0,1] or null; generated complete cases with no positive SOURCE cross-tab count |
+| `numeric_segments[]` | Exactly four entries with `bucket` = Q1/Q2/Q3/Q4, using the pinned SOURCE credit-limit intervals |
+| `numeric_segments[].source_mean`, `generated_mean`, `mean_difference` | Balance means and GENERATED-minus-SOURCE difference in native units, or null; mismatched interval boundaries leave the difference null |
+| `numeric_segments[].source_n`, `generated_n` | Nonnegative finite-pair integer count or null |
+
+The object is omitted when neither selected evidence family is present. Unavailable measurements are null, not fabricated zeroes. The existing Validation Report renders the extension inside its dependencies disclosure; it does not add these observations to its legacy headline assessment counts or assign new thresholds. Top-level `rules` totals include new proposal applications; the existing three-entry `rule_outcomes` selection remains unchanged, and full per-target execution detail stays in the internal audit. Raw per-cell conditional comparisons and all numeric segment quantiles remain available internally in `fidelity_metrics`. See [method details and before/after limitations](../statistical-fidelity-phase1.md).
+
 ## Locate the result
 
 Set bundle variable `report_output_dir` to an absolute writable Volume directory, for example `/Volumes/workspace/default/scotia/pipeline_reporting`. After the workflow's `reporting` task succeeds, the artifact is:

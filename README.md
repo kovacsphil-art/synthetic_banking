@@ -13,7 +13,7 @@ The orchestrated workflow keeps one SOURCE baseline through generation, validati
   → 06 Sanitized reporting JSON → GitHub Actions → Static GitHub Pages site
 ```
 
-Notebook 03 uses the selected SOURCE statistics and predefined Python implementations. Reviewed proposals can select two balance formulas and utilization-conditioned delinquency sampling. Generation falls back to the legacy path when a target has no unique eligible approval. See [local checks](#local-checks) for the Python pilot.
+Notebook 03 uses the selected SOURCE statistics and predefined Python implementations. Reviewed proposals can select two balance formulas, utilization-conditioned delinquency, two account-product categorical dependencies and credit-limit/balance rank coupling. Generation retains the previous path when a target has no unique eligible, sufficiently evidenced approval. See [phase-one methods and results](docs/statistical-fidelity-phase1.md) and [local checks](#local-checks).
 
 **View the published project:** [Showcase](https://kovacsphil-art.github.io/synthetic_banking/) · [Validation Report — Original vs Synthetic Data](https://kovacsphil-art.github.io/synthetic_banking/validation.html#summary) · [Sanitized reporting JSON](https://kovacsphil-art.github.io/synthetic_banking/latest-pipeline.json).
 
@@ -56,14 +56,22 @@ The notebooks now coordinate these reusable modules:
 | Select and load SOURCE | `profiles.py` | One completed SOURCE run and run-filtered aggregate profiles; shared by proposal and generation stages |
 | Propose rules | `proposals.py` | Aggregate context, unchanged prompts, identifiable model batches, fixed-schema parsing, and PENDING proposal storage |
 | Generate records | `generation.py`, `generators.py`, `dates.py`, `customer_relationships.py` | Existing entity assembly, numeric/categorical/null/cardinality sampling, dates, and relationship graph |
-| Select/apply reviewed rules | `rules.py` | Provenance checks, predefined implementations, legacy fallbacks, and application/skip events |
+| Select/apply reviewed rules | `rules.py`, `dependency_sampling.py` | Provenance checks, predefined implementations, measured conditional sampling, legacy fallbacks, and application/skip events |
 | Persist and validate | `storage.py`, `validation.py`, `temporal.py` | Six Delta tables, audits, validation gates, and completion only after validation |
 | Compare and publish aggregates | `fidelity.py`, `showcase.py` | Pinned SOURCE-vs-GENERATED metrics and optional HTML export |
 | Job handoffs and public report | `workflow.py`, `reporting.py` | Explicit provenance, manual approval gate, generation/version guards, and sanitized versioned JSON |
 | Public validation interpretation | `validation_reporting.py` | Fixed aggregate selection, centralized prototype tolerances, deterministic strengths/weaknesses and availability states |
 | Privacy screening / row-release gate | `privacy.py`, `privacy_checks.py`, `privacy_sources.py` | Aggregate-only disclosure checks, SOURCE Delta snapshots, and fail-closed release clearance |
 
-This refactor retains sampling formulas, RNG call order, rule eligibility and table/view architecture. Row-level release has a separate privacy gate. The legacy arbitrary-CSV ZIP utility in `artifacts.py` is now disabled because its files cannot be bound to an assessed generation; aggregate reporting is unaffected.
+The orchestration refactor retains sampling formulas, RNG call order and table/view architecture. The subsequent [phase-one fidelity update](docs/statistical-fidelity-phase1.md) adds three approval-gated samplers; without eligible new approvals the existing cohort path and RNG state remain unchanged. Row-level release has a separate privacy gate. The legacy arbitrary-CSV ZIP utility in `artifacts.py` is now disabled because its files cannot be bound to an assessed generation; aggregate reporting is unaffected.
+
+### Conditional sampling: first phase
+
+Two measured categorical relationships are now supported: `ACCOUNT_TYPE_CD → CLIENT_PRODUCT_CD → TSYS_PRODUCT_CD`. A numeric implementation couples existing balance draws to measured SOURCE credit-limit quartile distributions before the unchanged caps and formulas. All three require individually reviewed same-SOURCE proposals; sparse, missing or unsupported evidence produces an audited skip. No new generation mode or AI/control comparison is added.
+
+Use Notebook 02's `ACCOUNT_CORE` scope (both interactive pilot toggles OFF, or workflow `rule_scope=ACCOUNT_CORE`) to propose these candidates. The existing default `BALANCE_PILOT` remains narrowly scoped to its original formulas. The [phase-one runbook](docs/statistical-fidelity-phase1.md) documents matching metadata, support thresholds, ordering, local before/after previews, regressions and the remaining Databricks pilot. Preview results have not replaced published measurements.
+
+The fidelity report now includes categorical conditional proportions and unsupported-combination rates. Sanitized optional dependency fields feed supplemental tables within the existing Validation Report, without changing its design or headline check counts. Numeric means and downstream delinquency can regress even when correlations and percentiles improve; review individual metrics before accepting a cohort.
 
 ### Privacy screening before row-level sharing
 
@@ -386,7 +394,7 @@ Account evidence uses `active_account_features`, including its existing left sna
 
 To propose broader numeric dependencies, run a fresh SOURCE profile, then run Notebook 02 against that completed SOURCE ID with both pilot widgets OFF. The default loader selects at most three pairs by their strongest supported absolute global **or segmented** Pearson coefficient, requiring at least 50 finite pairs globally and in each segment whose statistics are shown. Smaller segments retain counts/statuses but withhold their descriptive statistics. This is a bounded selection heuristic, not a significance test or confidence guarantee. A weak global association can still be included when a supported segment is strong. Missing evidence from older SOURCE runs produces an empty list.
 
-Notebook 02 receives aggregate evidence only, frozen into the same SOURCE/batch prompt as the marginal and categorical context. It must cite support/coverage, compare global and segmented evidence, distinguish mathematical coupling and domain inference, and avoid claiming causation or inventing probabilities/formulas. Numeric proposals remain advisory and follow individual review; application still requires a predefined Python implementation. Numeric dependency profiling does not alter the registry or numeric/categorical generation algorithms.
+Notebook 02 receives aggregate evidence only, frozen into the same SOURCE/batch prompt as the marginal and categorical context. It must cite support/coverage, compare global and segmented evidence, distinguish mathematical coupling and domain inference, and avoid claiming causation or inventing probabilities/formulas. Numeric proposals remain advisory and follow individual review; application still requires a predefined Python implementation. Profiling alone does not change generation. The later [phase-one implementation](docs/statistical-fidelity-phase1.md) keeps the selected credit-limit/balance global and quartile evidence visible in ACCOUNT_CORE context even when stronger unrelated pairs occupy the bounded advisory selection.
 
 The profiler also records structural distributions such as:
 
@@ -791,6 +799,21 @@ The functions run in the order shown after the generator computes credit limit a
 
 The conditional registry adds `TKQ_ACCOUNT.PAST_DUE_INDICATO_CD` with rule type `CONDITIONAL` and one utilization parent. Its predefined `delinquency_by_utilization` implementation runs at execution order 3, after the balance rules and utilization calculation. Each proposal is routed to one phase and receives one proposal audit row. Missing or invalid evidence is recorded as `missing_conditional_profile` or `invalid_conditional_profile`, with `implemented = true` and `applied = false`. Existing legacy fallback executions are recorded separately.
 
+### Shared dependency execution
+
+There is one generation path. Reviewed proposal metadata selects an eligible predefined implementation; when none is eligible, the existing dependency still supplies its legacy values. No LLM-versus-no-LLM generation mode is needed.
+
+| Dependency | Implementation ownership |
+| --- | --- |
+| Available credit and overlimit amounts | The existing functions in `rules.py` already serve approved proposals and legacy execution; their formulas are unchanged. |
+| Utilization → past-due indicator | `rules.py` now owns bucket boundaries, measured-rate lookup, sampling and approval/skip decisions. Notebook 03's generator supplies the pinned profile and one set of random draws. The older scalar sampler delegates to the same lookup for compatibility. |
+| Balance cap, utilization calculation and delinquency counts | Existing generation logic remains in place, in its original order. |
+| Date constraints, entity references and snapshot alignment | Existing date/entity implementations and validation remain in place. |
+
+Approved delinquency execution still requires valid, unique measured SOURCE probabilities and positive sample counts for every encountered bucket. It does not fill a missing bucket with an invented probability. If that proposal cannot apply, the preserved legacy lookup supplies the same SOURCE rates and existing 5% missing-bucket fallback. Legacy duplicate-rate handling remains last-row-wins; an approved proposal encountering duplicate evidence is skipped. Both use the same bucket lookup and outcome sampler, without drawing additional random numbers. The approved path avoids computing an unused legacy probability array.
+
+Regression evidence was captured before this change from fabricated profiles only. `tests/test_dependency_regression.py` checks all six table hashes, numeric means/quantiles, utilization-bucket outcome counts and downstream RNG state against two fixed 512-customer baselines, including missing-bucket fallback. It also verifies approval states, conflicts, unsupported rules, exact bucket boundaries and one execution per dependency target. The earlier pre-refactor generation/audit snapshots remain unchanged.
+
 ## Rule execution audit
 
 Notebook 03 appends one audit row per considered proposal and a separate row for each legacy formula used to fill a target. Rows in `workspace.synthetic_generated.rule_execution_log` include `generation_id`, `source_run_id`, `seed`, proposal `batch_id` and `proposal_id`, target table and column, rule type, parent columns, and the approval status read for that run.
@@ -803,6 +826,8 @@ Notebook 03 appends one audit row per considered proposal and a separate row for
 | `applied` | The proposal selected an implementation that generated values for at least one row. |
 
 `outcome` distinguishes `APPLIED`, `SKIPPED`, and `LEGACY_FALLBACK`. Common skip reasons include `not_approved` for pending or rejected proposals, `unverified_approval` for an approval without valid provenance, and `no_implementation` for unsupported rule targets or types. The audit also records the implementation name, execution order, and rows processed where applicable. A legacy fallback can supply values for a target while its proposal is recorded as skipped.
+
+`applied` specifically tracks approved-proposal application. A `LEGACY_FALLBACK` event with positive `rows_processed` means the dependency supplied values through existing behaviour; it intentionally has `applied = false` and is excluded from AI-applied counts. Historical implementation labels and the persisted audit schema are retained.
 
 New writes add the tracking columns to the existing Delta table. Earlier rows retain their recorded outcomes and have nulls in the new columns.
 
@@ -945,13 +970,13 @@ The current implementation is a prototype and intentionally incomplete.
 
 Known limitations include:
 
-- The controlled registry covers two balance formulas and one conditional utilization-to-delinquency implementation. Other dependencies still use their existing generation paths.
+- The controlled registry covers two balance formulas, utilization-to-delinquency, two account-product conditionals and one credit-limit/balance rank coupling. Other dependencies still use their existing generation paths; new implementations require individual same-SOURCE approvals and adequate measured support.
 - The AI stage uses marginal profiles for the two account tables, bounded categorical evidence, and selected global/segmented numeric dependency evidence from the same completed SOURCE run.
 - Most fields are still generated independently from marginal distributions.
 - Numeric inverse-CDF generation is based on a limited set of percentile knots.
 - Date generation preserves measured calendar-month shape within feasible ordering bounds, with uniform days inside each supported month. Detailed day-of-month/time-of-day patterns and measured joint date-lag models are not yet reproduced.
-- Categorical-to-categorical dependencies are not yet systematically modeled.
-- Numeric dependency profiling covers selected account/tradeline pairs, product/type segments, and four SOURCE X-quantile intervals. Pearson and these coarse segments can still miss nonlinear structure; they do not constitute a conditional generative model. Categorical profiling also covers a curated, bounded set of pairs.
+- Categorical-to-categorical generation is limited to two approved account-product relationships, with complete-case sampling and retained generated null masks. Missingness dependence and wider category networks are not modeled.
+- Numeric dependency profiling covers selected account/tradeline pairs, product/type segments, and four SOURCE X-quantile intervals. The first numeric sampler uses those quartiles for approximate rank coupling, preserving raw marginal draws before existing caps. It does not exactly fit Pearson, nonlinear dependence or a copula, and final means/tails can still differ. Categorical profiling also covers a curated, bounded set of pairs.
 - Customer relationships preserve measured degree/direction/type/null patterns approximately, with bounded logged reconciliation. Demographic compatibility, full reciprocal histories and ownership-total constraints are not modeled.
 - Basic privacy screens are heuristic and limited to configured fields; no formal anonymity or disclosure guarantee is established. Row-level distribution remains gated, and the arbitrary-CSV ZIP helper is disabled.
 
@@ -961,8 +986,8 @@ Known limitations include:
 
 Prioritize work in roughly this order:
 
-1. Investigate the published available-credit, correlation and PERSON-date deviations using the pinned profile pair; compare the controlled pilot with a legacy baseline using the same SOURCE and seed.
-2. Extend the registry to additional measured dependencies after validating the reviewed utilization-to-delinquency path.
+1. Run the [phase-one samplers](docs/statistical-fidelity-phase1.md) through individual review and a Databricks test destination; inspect balance means, product marginals and utilization/delinquency regressions alongside improved correlations/percentiles.
+2. Investigate remaining available-credit, tail and PERSON-date deviations using pinned SOURCE/GENERATED pairs before extending the registry further.
 3. Calibrate the prototype report tolerances for the intended use case and expand coverage beyond the current public selection.
 4. Investigate missing tradeline cardinality, sparse conditional buckets and unavailable cross-table reference comparisons; review customer-relationship degree adjustments.
 5. Exercise privacy/release failures, expired credentials and report-write failures in a Databricks test destination; retain the successful approval-repair and publication checks as regression coverage.
@@ -981,6 +1006,7 @@ Notebook 01 uses [`fidelity.py`](src/synthetic_banking/fidelity.py) to save aggr
 | Dates | Earliest/latest shifts in days and calendar-month proportion differences |
 | Cardinality | Each profiled cardinality's proportion, entity counts, and mean children per entity |
 | Correlation / association | Pearson correlation and profiled categorical Cramér's V differences |
+| Categorical dependencies | Per-parent conditional-proportion differences, parent sample counts and SOURCE-unsupported complete-case combination rates |
 | Numeric dependencies | Selected global/segmented Pearson differences, paired counts, conditional Y means/quantiles, and explicit segmentation statuses; mismatched X-bin boundaries are unavailable |
 | Conditional outcomes | Measured outcome rates and sample counts per utilization bucket; differences in percentage points |
 | Snapshot joins / keys | Account and balance row coverage separately, duplicate composite-key excess rows, and null snapshot keys |
@@ -1074,6 +1100,7 @@ synthetic_banking/
 |       |-- config.py
 |       |-- customer_relationships.py
 |       |-- dates.py
+|       |-- dependency_sampling.py
 |       |-- fidelity.py
 |       |-- generation.py
 |       |-- generators.py
@@ -1101,6 +1128,7 @@ synthetic_banking/
     |-- test_customer_relationships.py
     |-- test_dates.py
     |-- test_delinquency.py
+    |-- test_dependency_regression.py
     |-- test_fidelity.py
     |-- test_numeric_dependencies.py
     |-- test_privacy.py
@@ -1172,7 +1200,7 @@ The project already has:
 [✓] reviewed proposals connected to the predefined balance rules
 [✓] per-generation balance-rule audit and local tests
 
-[ ] controlled implementations for additional dependencies
+[✓] first approval-gated categorical and multivariate numeric sampling implementations (live pilot pending)
 [✓] aggregate-backed CUSTOMER_RELATIONSHIP generation, persistence and referential validation
 [ ] broader dependency modeling
 [✓] public validation report with calculated strengths/gaps, charts and transparent prototype tolerances

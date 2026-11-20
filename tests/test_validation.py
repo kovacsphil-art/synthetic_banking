@@ -113,6 +113,7 @@ class GeneratedValidationTests(unittest.TestCase):
             name = sql.split()[2]
             return SimpleNamespace(first=lambda: {"version": self.versions[name]})
         sql = re.sub(r"CAST\((`[^`]+`) AS DATE\)", r"DATE(\1)", sql)
+        sql = sql.replace(" AS STRING)", " AS TEXT)")
         result = self.db.execute(sql.replace("TRY_CAST(", "CAST("), args or {})
         return SimpleNamespace(first=result.fetchone, collect=result.fetchall)
 
@@ -130,6 +131,29 @@ class GeneratedValidationTests(unittest.TestCase):
         self.assertIn("2/2 accounts, 2/2 balances", output.getvalue())
         self.assertIn("Approved rules without a matching implementation: 1", output.getvalue())
         self.assertIn("proposal-example, batch batch-example", output.getvalue())
+
+    def test_applied_conditional_rule_rejects_unsupported_saved_combinations(self):
+        for column in ("ACCOUNT_TYPE_CD", "CLIENT_PRODUCT_CD"):
+            self.db.execute(f"ALTER TABLE TKQ_ACCOUNT ADD COLUMN {column}")
+            self.schemas["TKQ_ACCOUNT"][column] = "string"
+        self.db.execute("UPDATE TKQ_ACCOUNT SET ACCOUNT_TYPE_CD='TYPE', CLIENT_PRODUCT_CD='PRODUCT'")
+        self.db.executescript("""
+            ALTER TABLE rule_execution_log ADD COLUMN applied;
+            ALTER TABLE rule_execution_log ADD COLUMN implementation_name;
+            UPDATE rule_execution_log SET target_table='TKQ_ACCOUNT', target_column='CLIENT_PRODUCT_CD',
+                approved=TRUE, implemented=TRUE, applied=TRUE, implementation_name='conditional_categorical_v1';
+            CREATE TABLE categorical_conditional_profile
+                (run_id, profile_type, logical_table_name, parent_column, child_column, parent_value, child_value, record_count);
+            INSERT INTO categorical_conditional_profile VALUES
+                ('source','SOURCE','TKQ_ACCOUNT','ACCOUNT_TYPE_CD','CLIENT_PRODUCT_CD','TYPE','PRODUCT',100),
+                ('other','SOURCE','TKQ_ACCOUNT','ACCOUNT_TYPE_CD','CLIENT_PRODUCT_CD','TYPE','UNSUPPORTED',100),
+                ('source','GENERATED','TKQ_ACCOUNT','ACCOUNT_TYPE_CD','CLIENT_PRODUCT_CD','TYPE','UNSUPPORTED',100);
+        """)
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.validate()
+            self.db.execute("UPDATE TKQ_ACCOUNT SET CLIENT_PRODUCT_CD='UNSUPPORTED' WHERE ACCOUNT_ID='A000000001'")
+            with self.assertRaisesRegex(GeneratedValidationError, "1 SOURCE-unsupported conditional combinations"):
+                self.validate()
 
     def test_incomplete_and_changed_outputs_are_rejected(self):
         with contextlib.redirect_stdout(io.StringIO()):

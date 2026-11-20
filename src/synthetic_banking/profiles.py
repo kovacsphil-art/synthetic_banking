@@ -43,6 +43,9 @@ class GenerationProfiles:
     structural_stats: object
     conditional_stats: object
     customer_relationship_profile: dict
+    categorical_relationship_stats: tuple = ()
+    categorical_conditional_stats: tuple = ()
+    numeric_dependency_stats: tuple = ()
 
 
 def load_generation_profiles(spark, requested_source_run_id="", *, pilot_batch_id="", pilot_proposal_ids=()):
@@ -66,6 +69,12 @@ def load_generation_profiles(spark, requested_source_run_id="", *, pilot_batch_i
     structural = load("cardinality_profile").select("relationship_name", "cardinality", "entity_count", "proportion").toPandas()
     conditional = load("conditional_profile").toPandas()
     result = GenerationProfiles(source_run_id, column_quality, numeric, categories, dates, dependencies, structural, conditional, relationships)
+    for field, table in (("categorical_relationship_stats", "categorical_relationship_profile"),
+                         ("categorical_conditional_stats", "categorical_conditional_profile"),
+                         ("numeric_dependency_stats", "numeric_dependency_profile")):
+        if spark.catalog.tableExists(f"{PROFILE_SCHEMA}.{table}"):
+            rows = load(table).filter(F.col("profile_type") == "SOURCE").toPandas().to_dict("records")
+            setattr(result, field, tuple(rows))
     print(f"Profiles loaded for SOURCE run {source_run_id}.")
     for label, value in (("Numeric", numeric), ("Categorical", categories), ("Dates", dates), ("Quality", result.column_quality),
                          ("Dependencies", dependencies), ("Structural", structural), ("Conditional", conditional)):

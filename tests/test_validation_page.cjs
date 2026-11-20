@@ -17,6 +17,27 @@ const clone=()=>structuredClone(fixture);
 const location={origin:"https://example.invalid",protocol:"https:"};
 const response=r=>({ok:true,text:async()=>JSON.stringify(r)});
 
+function dependencyEvidence(){return {
+  categorical:[{key:"account_type_product",label:"Account type / client product"},{key:"client_tsys_product",label:"Client / TSYS product"}].map(r=>({...r,source_cramers_v:1,generated_cramers_v:.99,absolute_association_gap:.01,source_n:1000,generated_n:10000,conditional_tvd_pct:.5,unsupported_combination_rate:0})),
+  numeric_segments:["Q1","Q2","Q3","Q4"].map(bucket=>({bucket,source_mean:100,generated_mean:101,mean_difference:1,source_n:250,generated_n:2500}))
+};}
+
+test("optional sampling fidelity renders safely without changing headline classifications",()=>{
+  const r=clone();r.validation_report.dependency_fidelity=dependencyEvidence();
+  const node=renderValidation(document(),normalizeValidation(r));
+  assert.match(node.textContent,/Conditional account-product fidelity/);
+  assert.match(node.textContent,/Balance means by SOURCE credit-limit quartile/);
+  assert.match(node.textContent,/outside the headline check counts/);
+  for(const mutate of [d=>d.categorical[0].label="PRIVATE_LABEL",d=>d.categorical[0].conditional_tvd_pct=101,
+    d=>d.categorical[0].unsupported_combination_rate=-1,d=>d.categorical[0].source_n=.5,
+    d=>d.numeric_segments[1].bucket="Q1",d=>d.numeric_segments[0].generated_mean="PRIVATE"]){
+    const r=clone(),d=dependencyEvidence();mutate(d);r.validation_report.dependency_fidelity=d;
+    assert.throws(()=>normalizeValidation(r),/Invalid dependency evidence/);
+  }
+  r.validation_report.dependency_fidelity.numeric_segments[0].mean_difference=null;
+  assert.ok(renderValidation(document(),normalizeValidation(r)).textContent.includes("Unavailable"));
+});
+
 test("measured classifications, raw percentiles, populations and dependencies are displayed",()=>{
   const view=normalizeValidation(clone()),node=renderValidation(document(),view),text=node.textContent;
   assert.match(text,/Differences need review/);assert.match(text,/30% total variation/);

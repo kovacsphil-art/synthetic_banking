@@ -45,6 +45,19 @@ class PublicationTests(unittest.TestCase):
         task = next(t for t in self.run["tasks"] if t["task_key"] == "reporting")
         self.assertEqual(self.outputs, [dict(run_id=task["run_id"])])
 
+    def test_optional_dependency_projection_is_bounded_and_closed(self):
+        from synthetic_banking.validation_reporting import build_validation_report
+        from test_sampling_fidelity import paired_profiles
+        from synthetic_banking.fidelity import compare_profiles
+        data = build_validation_report(compare_profiles("source", "generated", "generation", paired_profiles())["metrics"])
+        self.report["validation_report"]["dependency_fidelity"] = data["dependency_fidelity"]
+        validate_report(json.dumps(self.report).encode())
+        for key, value in (("source_n", .5), ("conditional_tvd_pct", 101), ("unsupported_combination_rate", -1), ("PRIVATE_CATEGORY", "SECRET")):
+            bad = deepcopy(self.report)
+            bad["validation_report"]["dependency_fidelity"]["categorical"][0][key] = value
+            with self.assertRaises(ValueError):
+                validate_report(json.dumps(bad).encode())
+
     def test_no_successful_run_leaves_existing_publication_alone(self):
         self.run["state"]["result_state"] = "FAILED"
         self.assertIsNone(retrieve(self.client(), 10, "/Volumes/public/reports/showcase"))

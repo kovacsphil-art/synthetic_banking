@@ -171,6 +171,26 @@ class LifecycleTests(unittest.TestCase):
 
 
 class ProposalExtractionTests(unittest.TestCase):
+    def test_selected_numeric_sampling_evidence_is_pinned_aggregate_context(self):
+        request = dict(source_run_id="source-A", batch_id="batch-A", scope_name="ACCOUNT_CORE", profile_summary="aggregate summary")
+        saved, queries = [], []
+        def query(sql, args):
+            queries.append((sql, args))
+            values = [dict(scope="GLOBAL", pair_count=1000, pearson_correlation=.5)] if "SELECT p.scope" in sql else []
+            return SimpleNamespace(collect=lambda: [SimpleNamespace(asDict=lambda value=value: value) for value in values])
+        spark = SimpleNamespace(table=lambda _: SimpleNamespace(first=lambda: request), sql=query,
+            createDataFrame=lambda rows, schema: (saved.extend(rows) or SimpleNamespace(createOrReplaceTempView=lambda _: None)))
+        with patch("synthetic_banking.profiling.load_categorical_evidence", return_value=[]), patch(
+                "synthetic_banking.numeric_dependencies.load_numeric_evidence", return_value=[dict(pair_count=1000)]), redirect_stdout(StringIO()):
+            build_model_request(spark)
+        self.assertEqual(saved[0][:3], ("source-A", "batch-A", "ACCOUNT_CORE"))
+        self.assertIn("conditional_numeric_rank_v1", saved[0][3])
+        sql, args = next((q,a) for q,a in queries if "SELECT p.scope" in q)
+        self.assertEqual(args, {"source_run_id": "source-A"})
+        self.assertIn("p.profile_type = 'SOURCE'", sql)
+        self.assertIn("r.status = 'COMPLETED'", sql)
+        self.assertIn("LIMIT 6", sql)
+
     def test_all_prompt_variants_match_original_prompt_bytes(self):
         reference = json.loads((FIXTURES / "refactor_sql_reference.json").read_text())
         for scope, expected in reference["prompts"].items():
@@ -289,6 +309,7 @@ class ExtractedGenerationTests(unittest.TestCase):
     def test_profile_loader_filters_every_profile_to_the_selected_source(self):
         from synthetic_banking.profiles import load_generation_profiles
         spark = RunSpark()
+        spark.catalog = SimpleNamespace(tableExists=lambda _: True)
         self.addCleanup(spark.db.close)
         reads = []
         class Column:
@@ -299,8 +320,10 @@ class ExtractedGenerationTests(unittest.TestCase):
             def __init__(self, name):
                 self.name = name
                 self.where = None
+                self.filters = []
             def filter(self, expr):
                 self.where = expr
+                self.filters.append(expr)
                 return self
             def join(self, other, **kwargs):
                 self.assert_same_run(other)
@@ -324,8 +347,12 @@ class ExtractedGenerationTests(unittest.TestCase):
         self.assertEqual({frame.name.rsplit(".", 1)[1] for frame in reads}, {
             "column_quality", "numeric_profile", "category_profile", "date_profile",
             "relationship_profile", "cardinality_profile", "conditional_profile",
+            "categorical_relationship_profile", "categorical_conditional_profile", "numeric_dependency_profile",
         })
-        self.assertTrue(all(frame.where == ("run_id", "source-old") for frame in reads))
+        self.assertTrue(all(frame.filters[0] == ("run_id", "source-old") for frame in reads))
+        extra = {"categorical_relationship_profile", "categorical_conditional_profile", "numeric_dependency_profile"}
+        self.assertTrue(all(frame.filters == [("run_id", "source-old"), ("profile_type", "SOURCE")]
+                            for frame in reads if frame.name.rsplit(".", 1)[1] in extra))
 
     def generate(self, n, seed, proposals=()):
         from generation_fixtures import fabricated_profiles

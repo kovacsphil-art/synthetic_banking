@@ -272,6 +272,32 @@ def build_model_request(spark):
     categorical_context = json.dumps(categorical_evidence, allow_nan=False)
 
     numeric_evidence = load_numeric_evidence(spark, request["source_run_id"])
+    # Keep the first implemented numeric group visible even when stronger unrelated
+    # correlations occupy the default bounded advisory selection. All rows are aggregates.
+    if request["scope_name"] == "ACCOUNT_CORE" and numeric_evidence:
+        sampling_rows = spark.sql(configured_sql("""
+            SELECT p.scope, p.segment_value, p.lower_bound, p.upper_bound,
+                   p.pair_count, p.pair_fraction, p.profile_status, p.pearson_correlation,
+                   p.x_min, p.x_max, p.x_p25, p.x_p50, p.x_p75,
+                   p.y_min, p.y_p25, p.y_p50, p.y_p75, p.y_max, p.y_mean
+            FROM workspace.synthetic_profile.numeric_dependency_profile p
+            JOIN workspace.synthetic_profile.profile_runs r ON p.run_id = r.run_id
+            WHERE p.run_id = :source_run_id AND p.profile_type = 'SOURCE'
+              AND r.profile_type = 'SOURCE' AND r.status = 'COMPLETED' AND r.completed_at IS NOT NULL
+              AND p.entity_name = 'ACCOUNT'
+              AND p.variable_1 = 'TKQ_ACCOUNT.CREDIT_LIMIT_AMT'
+              AND p.variable_2 = 'TKQ_ACCOUNT_BALANCE.CURRENT_BALANCE_AMT'
+              AND p.scope IN ('GLOBAL', 'X_QUARTILE')
+            ORDER BY p.scope, p.segment_value LIMIT 6
+        """), args={"source_run_id": request["source_run_id"]}).collect()
+        if len(sampling_rows) > 5:
+            raise ValueError("Duplicate numeric sampling evidence; re-profile SOURCE.")
+        if sampling_rows:
+            numeric_evidence.append({"generation_candidate": "TKQ_ACCOUNT_BALANCE.CURRENT_BALANCE_AMT",
+                "parent": "TKQ_ACCOUNT.CREDIT_LIMIT_AMT", "candidate_rule_type": "CORRELATED",
+                "implementation": "conditional_numeric_rank_v1",
+                "note": "Measured conditional quantiles guide rank ordering of existing marginal draws. Review is required.",
+                "measured_profiles": [row.asDict() for row in sampling_rows]})
     print(f"Including {len(numeric_evidence)} measured numeric relationships from the selected SOURCE run.")
     numeric_context = json.dumps(numeric_evidence, allow_nan=False)
 

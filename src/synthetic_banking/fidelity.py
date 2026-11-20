@@ -39,7 +39,7 @@ METRIC_SCHEMA = """
 PROFILE_TABLES = (
     "column_quality", "numeric_profile", "category_profile", "date_profile",
     "date_distribution_profile", "cardinality_profile", "relationship_profile",
-    "conditional_profile", "categorical_relationship_profile", "integrity_profile",
+    "conditional_profile", "categorical_relationship_profile", "categorical_conditional_profile", "integrity_profile",
     "numeric_dependency_profile",
     "customer_relationship_summary",
 )
@@ -411,6 +411,51 @@ def compare_profiles(source_run_id, generated_run_id, generation_id, profiles):
             dims={"parent_column": parent, "condition_bucket": bucket}, unit="proportion",
             sn=s.get("record_count"), gn=g.get("record_count"), reason=None if all(valid) else "missing_empty_or_invalid_conditional_bucket")
     associations = indexed("categorical_relationship_profile", ("logical_table_name", "parent_column", "child_column"))
+    # Complete-case categorical conditionals use their measured parent denominators.
+    cat_cells = indexed("categorical_conditional_profile", (
+        "logical_table_name", "parent_column", "child_column", "parent_value", "child_value"))
+    cat_groups = defaultdict(dict)
+    for (run, table, parent, child, p, c), row in cat_cells.items():
+        cat_groups[run, table, parent, child][p, c] = row
+    for table, parent, child in sorted({key[1:] for key in cat_groups}, key=repr):
+        sides = [cat_groups.get((run, table, parent, child), {}) for run in (source, generated)]
+        summaries = [associations.get((run, table, parent, child), {}) for run in (source, generated)]
+        totals = []
+        complete = []
+        for side, summary in zip(sides, summaries):
+            by_parent = defaultdict(int)
+            for (p, _), row in side.items():
+                count = row.get("record_count")
+                if _number(count) is None or count < 0 or count != int(count):
+                    raise ValueError("Categorical conditional counts must be finite nonnegative integers.")
+                by_parent[p] += count
+            totals.append(by_parent)
+            parents = set(p for p, _ in side)
+            children = set(c for _, c in side)
+            complete.append(bool(side) and summary.get("profile_status") in ("PROFILED", "CONSTANT")
+                            and len(side) == summary.get("cell_count") == len(parents)*len(children)
+                            and len(parents) == summary.get("parent_cardinality")
+                            and len(children) == summary.get("child_cardinality")
+                            and sum(by_parent.values()) == summary.get("sample_size"))
+        keys = sorted(set(sides[0]) | set(sides[1]), key=repr)
+        unsupported = 0
+        for p, c in keys:
+            ns, ng = (total.get(p, 0) for total in totals)
+            counts = [side.get((p, c), {}).get("record_count", 0) for side in sides]
+            valid = all(complete) and ns > 0 and ng > 0
+            add("CATEGORICAL_CONDITIONAL", table, child, "conditional_proportion",
+                counts[0]/ns if valid else None, counts[1]/ng if valid else None,
+                dims={"parent_column": parent, "parent_value": p, "child_value": c},
+                unit="proportion", sn=ns, gn=ng, sc=counts[0], gc=counts[1],
+                reason=None if valid else "missing_or_empty_categorical_parent")
+            if counts[0] == 0:
+                unsupported += counts[1]
+        n_generated = sum(totals[1].values())
+        add("CATEGORICAL_CONDITIONAL", table, child, "unsupported_combination_rate",
+            0.0 if complete[0] else None,
+            unsupported/n_generated if all(complete) and n_generated else None,
+            dims={"parent_column": parent}, unit="proportion",
+            sn=sum(totals[0].values()), gn=n_generated, sc=0, gc=unsupported)
     for table, parent, child in pairs(associations):
         s, g = (associations.get((run, table, parent, child), {}) for run in (source, generated))
         valid = all(row.get("profile_status") == "PROFILED" for row in (s, g))
@@ -452,7 +497,7 @@ def compare_profiles(source_run_id, generated_run_id, generation_id, profiles):
             add("CUSTOMER_RELATIONSHIP", "CUSTOMER_RELATIONSHIP", None, field + "_proportion", *values,
                 unit="proportion", sn=totals[0], gn=totals[1], sc=s.get(field), gc=g.get(field))
 
-    for family in ("NUMERIC", "CATEGORICAL", "NULL_RATE", "DATE_RANGE", "DATE_DISTRIBUTION", "CARDINALITY", "CORRELATION", "NUMERIC_DEPENDENCY", "CONDITIONAL", "JOIN_COVERAGE", "BUSINESS_RULE", "TEMPORAL_RULE"):
+    for family in ("NUMERIC", "CATEGORICAL", "CATEGORICAL_CONDITIONAL", "NULL_RATE", "DATE_RANGE", "DATE_DISTRIBUTION", "CARDINALITY", "CORRELATION", "NUMERIC_DEPENDENCY", "CONDITIONAL", "JOIN_COVERAGE", "BUSINESS_RULE", "TEMPORAL_RULE"):
         if not any(row["family"] == family for row in metrics):
             add(family, "ALL", None, "profile_available", None, None, reason="neither_run_has_profile_evidence")
     ranking = defaultdict(list)

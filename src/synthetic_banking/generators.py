@@ -3,6 +3,8 @@
 import numpy as np
 import pandas as pd
 
+from synthetic_banking.rules import delinquency_probabilities
+
 
 class ProfileGenerators:
     def __init__(self, profiles, rng):
@@ -72,19 +74,8 @@ class ProfileGenerators:
         return self.rng.choice(values, size=n, p=probabilities)
 
     def get_delinquency_probability(self, utilization):
-        if utilization < 0.3:
-            bucket = '0-30%'
-        elif utilization < 0.6:
-            bucket = '30-60%'
-        elif utilization < 0.8:
-            bucket = '60-80%'
-        elif utilization <= 1.0:
-            bucket = '80-100%'
-        else:
-            bucket = '100%+'
-        if bucket in self.delinquency_rates:
-            return self.delinquency_rates[bucket]
-        return 0.05
+        """Compatibility wrapper; dependency bucketing/lookup belongs to rules.py."""
+        return float(delinquency_probabilities([utilization], self.delinquency_rates)[0])
 
     def fill_profiled_fields(self, dataframe, table_name, protected_columns=None):
         if protected_columns is None:

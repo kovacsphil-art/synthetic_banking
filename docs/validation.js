@@ -76,6 +76,18 @@
       if(v[key].some(k=>!v.assessments.some(a=>a.key===k && a.status===(key==="strengths"?"STRONG":"NEEDS_REVIEW"))))throw new Error("Invalid validation report");
     }
     // Ignore IDs and any arbitrary extra metadata; only the public report is hosted.
+    if(v.dependency_fidelity!==undefined){
+      const d=v.dependency_fidelity, labels={account_type_product:"Account type / client product",client_tsys_product:"Client / TSYS product"};
+      const bounded=(value,max)=>value===null||(typeof value==="number"&&Number.isFinite(value)&&value>=0&&value<=max);
+      const count=value=>value===null||(Number.isSafeInteger(value)&&value>=0);
+      if(!d || !Array.isArray(d.categorical)||d.categorical.length!==2||new Set(d.categorical.map(r=>r.key)).size!==2||
+         !Array.isArray(d.numeric_segments)||d.numeric_segments.length!==4||new Set(d.numeric_segments.map(r=>r.bucket)).size!==4)throw new Error("Invalid dependency evidence");
+      for(const r of d.categorical){
+        if(!Object.hasOwn(labels,r.key)||r.label!==labels[r.key]||![r.source_cramers_v,r.generated_cramers_v,r.absolute_association_gap,r.unsupported_combination_rate].every(x=>bounded(x,1))||
+           !bounded(r.conditional_tvd_pct,100)||!count(r.source_n)||!count(r.generated_n))throw new Error("Invalid dependency evidence");
+      }
+      for(const r of d.numeric_segments)if(!["Q1","Q2","Q3","Q4"].includes(r.bucket)||![r.source_mean,r.generated_mean,r.mean_difference].every(finiteOrNull)||!count(r.source_n)||!count(r.generated_n))throw new Error("Invalid dependency evidence");
+    }
     return {report, v};
   }
 
@@ -145,6 +157,13 @@
     const corr=byKey.get("correlation.balance_limit"),callout=el(doc,"div",undefined,"correlation-callout");callout.append(el(doc,"h3","Credit limit / balance correlation"),el(doc,"p",fmt(corr.source)+" SOURCE · "+fmt(corr.generated)+" synthetic","exec-number"),badge(doc,corr.status));
     dependencies.append(callout,table(doc,"Credit-limit / balance Pearson correlation",["Relationship","SOURCE","Synthetic","Absolute gap","SOURCE pairs","Synthetic pairs","Status"],[[corr.label,fmt(corr.source),fmt(corr.generated),fmt(corr.score),fmt(corr.source_n),fmt(corr.generated_n),badge(doc,corr.status)]]),el(doc,"p","Paired counts are unavailable when the saved correlation did not record them. No confidence interval or significance claim is inferred.","measurement-note"),VIZ.conditional(doc,v),table(doc,"Past-due rates by utilization bucket",["Utilization","SOURCE rate","Synthetic rate","Absolute gap","SOURCE n","Synthetic n","Status"],v.assessments.filter(a=>a.family==="conditional").map(a=>[a.label.replace("Past due · utilization ",""),pct(a.source),pct(a.generated),measure(a.difference===null?null:Math.abs(a.difference)*100,"pp"),fmt(a.source_n),fmt(a.generated_n),badge(doc,a.status)])),el(doc,"p","Conditional classifications require at least "+v.min_conditional_rows+" records per bucket in each population. Hollow points retain raw rates but lack sufficient comparison evidence. Missing SOURCE rates are not treated as zero.","measurement-note"));
 
+    if(v.dependency_fidelity){
+      const d=v.dependency_fidelity;
+      dependencies.append(details(doc,"Additional measured account dependencies",
+        table(doc,"Conditional account-product fidelity",["Relationship","SOURCE V","Synthetic V","Absolute V gap","Conditional total variation","Unsupported combinations","SOURCE n","Synthetic n"],d.categorical.map(r=>[r.label,fmt(r.source_cramers_v),fmt(r.generated_cramers_v),fmt(r.absolute_association_gap),measure(r.conditional_tvd_pct,"%"),pct(r.unsupported_combination_rate),fmt(r.source_n),fmt(r.generated_n)])),
+        table(doc,"Balance means by SOURCE credit-limit quartile",["SOURCE interval","SOURCE mean","Synthetic mean","Mean difference","SOURCE pairs","Synthetic pairs"],d.numeric_segments.map(r=>[r.bucket,fmt(r.source_mean),fmt(r.generated_mean),signed(r.mean_difference),fmt(r.source_n),fmt(r.generated_n)])),
+        el(doc,"p","Conditional total variation weights each parent group by its SOURCE share. Unsupported combinations had zero observed SOURCE support; this does not establish impossibility. Numeric differences require identical SOURCE interval boundaries. These supplemental observations are outside the headline check counts and have no separate acceptance classification.","measurement-note")));
+    }
     const structure=section(doc,"structure","Preserve the population’s links and record counts","Compare relationship-count distributions and directionality. Structural constraints are evaluated separately from statistical resemblance.");
     structure.append(VIZ.cardinality(doc,v),table(doc,"Relationship cardinality fidelity",["Relationship","SOURCE mean","Synthetic mean","Full-distribution total variation","Status"],v.cardinality.map(r=>[r.label,fmt(r.source_mean),fmt(r.generated_mean),measure(r.total_variation_pct,"%"),badge(doc,r.status)])),el(doc,"p","Accounts per customer profiles parties represented in the customer–account link table, including only that profiled population. It does not establish how many of all customers have zero accounts.","measurement-note"),el(doc,"p","Accounts per person (all account rows ÷ all PERSON rows): SOURCE "+fmt(v.accounts_per_person.source)+"; synthetic "+fmt(v.accounts_per_person.generated)+". This population ratio can differ even when the linked-customer cardinality distribution is close.","measurement-note"));
     structure.append(table(doc,"Customer-relationship directionality",["Pattern","SOURCE","Synthetic","Absolute gap","Status"],v.assessments.filter(a=>a.family==="graph").map(a=>[a.label,pct(a.source),pct(a.generated),measure(a.score,"pp"),badge(doc,a.status)])));
