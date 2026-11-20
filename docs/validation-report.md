@@ -1,10 +1,16 @@
 # Validation Report — Original vs Synthetic Data
 
-`index.html` presents SAGE's methodology and executive results; `validation.html` adds four primary visuals and expandable evidence tables. Both read the same sanitized `latest-pipeline.json`. The executive views require version 2; a legacy version-1 artifact remains valid for the publisher and older summary loader but cannot populate these richer views. Missing/invalid files and unavailable evidence never produce fabricated strengths.
+`index.html` presents SAGE's methodology; `validation.html` assesses the statistical and structural similarity of the **final synthetic cohort** to its pinned SOURCE baseline. Both read the same sanitized `latest-pipeline.json`. The validation page does not assess the isolated contribution of AI, display rule-application counts, or introduce control groups. Pipeline review/application auditing remains unchanged and separate.
+
+The current SOURCE reference is the repository's **fake development baseline**, not real production banking data. Reproducing that baseline does not establish production representativeness. The public JSON does not independently certify the origin of a future replacement baseline; the page's baseline disclosure must be reviewed before changing the reference population.
+
+The executive views require version 2; a legacy version-1 artifact remains valid for the publisher and older summary loader but cannot populate these richer views. Missing/invalid files and unavailable evidence never produce fabricated strengths. This presentation update changes neither the reporting schema nor generation logic.
 
 The distribution comparison joins only the published P25/P50/P75/P95 values: it is a percentile profile, not an estimated density. Categorical bars share a 0–100% scale. The conditional chart leaves gaps for missing rates and uses hollow markers for insufficient comparison evidence; its accessible values table preserves raw rates. Original series are solid charcoal and synthetic series dashed red in line charts, so colour is not the only signifier.
 
-The headline percentage is `variables_within_tolerance / variables_total × 100`, including incomplete variables in the denominator. It is not a weighted quality score. The relationship fraction counts STRONG or ACCEPTABLE checks among available correlation, conditional, cardinality and graph assessments; unavailable checks are reported separately. These are selected checks, not independent causal dependencies or comprehensive relationship coverage. Join coverage displays the lower of the two account/balance directions. The first three server-ranked strengths and gaps are visible, with remaining findings expandable.
+There is **no headline accuracy percentage or combined score**. Executive metrics show selected variables evaluated, checks with evidence, checks needing review and checks not comparable. A dimension table separates numeric, categorical, missingness, date, correlation, conditional, cardinality, graph and integrity results. Variable completeness counts remain contextual; unavailable checks are not counted as matches. Structural join coverage is shown in both directions in the evidence table, rather than presented as an accuracy score. The first three server-ranked strengths and gaps are visible, with remaining findings expandable.
+
+Missingness and dates are primary sections. Calendar-month distance bars and date-boundary shifts expose temporal differences without inventing monthly bins. Relationship cardinalities include a selector for the six published display bins; unprofiled relationships show an explicit unavailable state without a substitute chart. All comparison tables have labelled horizontal scroll regions for smaller screens.
 
 ## Inputs and public boundary
 
@@ -14,14 +20,15 @@ No PARTY_ID, ACCOUNT_ID, proposal IDs, internal run IDs, row records, raw catego
 
 ## Metrics and JSON mapping
 
-All paths below are under `validation_report`, except the existing `rules` and `validation` fields.
+All paths below are under `validation_report`, except the existing completion timestamp and validation envelope. Rule metadata remains in the version-2 contract for compatibility and pipeline reporting; it is not consumed by the final-cohort validation renderer.
 
 | Report area | Saved evidence | Public JSON fields |
 | --- | --- | --- |
 | Executive summary | Deterministic classifications of the selected comparisons | `summary.comparison_status`, `variables_total`, `variables_evaluated`, `variables_within_tolerance`, `variables_requiring_review`, `variables_incomplete`, `checks_evaluated`, `strong`, `acceptable`, `needs_review`, `unavailable` |
-| Join coverage / applied count | Generated snapshot join coverage and generation-time audit | Existing `validation.account_balance_join_coverage.*.{status,value}` and `rules.applied.value` |
+| Structural join coverage | Saved paired SOURCE/generated join coverage and row counts | `assessments[]` keys `integrity.account_coverage` and `integrity.balance_coverage` |
 | Numeric chart | NUMERIC P25/P50/P75/P95 | `numeric[].{key,label,average_difference_pct_iqr,max_difference_pct_iqr,status}` |
 | Numeric table | The same paired quantiles and SOURCE IQR | `numeric[].source_iqr`, `percentiles[].{name,source,generated,difference}` plus chart fields |
+| Upper-tail comparison | Published P50/P95, without new model estimates | Raw P95 values and signed difference; each population's upper spread is derived as `P95 - P50` |
 | Categorical proportions | CATEGORICAL TKQ_ACCOUNT.PAST_DUE_INDICATO_CD, fixed Y/N only | `categorical[].{category,source,generated,absolute_difference_pp,status}` |
 | Null-rate detail | NULL_RATE for the four numeric fields, past-due indicator and three date fields | `assessments[]` where `family = nulls`: paired rates, absolute pp score and status |
 | Date distributions | Complete DATE_DISTRIBUTION calendar-month proportions and DATE_RANGE bounds | `dates[].{total_variation_pct,earliest_shift_days,latest_shift_days,status}` |
@@ -32,11 +39,12 @@ All paths below are under `validation_report`, except the existing `rules` and `
 | Structural populations | ROW_COUNT across all six tables | `populations[].{table,source,generated,difference}` |
 | Population ratio | Account row count / PERSON row count, separately for each population | `accounts_per_person.{source,generated}`; distinct from profiled relationships per customer |
 | Integrity / business rules | JOIN_COVERAGE, BUSINESS_RULE, TEMPORAL_RULE and invalid CUSTOMER_RELATIONSHIP endpoints | `assessments[]` family `integrity`: raw rates, `source_count`, `generated_count` (matched rows for coverage; violations otherwise), eligible `source_n`/`generated_n`, generated error score, status |
-| Implemented rule outcomes | Known implementation names in generation-time audit, excluding legacy fallback rows with no proposal ID | `rule_outcomes[].{implementation,target,proposed,approved,applied,skipped}` |
 | Strengths / weaknesses | Classified comparisons, ranked deterministically | `strengths[]` / `weaknesses[]` reference fixed keys in `assessments[]` |
 | Policy and availability notes | Fixed configuration and reason codes | `policy_version`, `thresholds`, `min_conditional_rows`; per-assessment `reason` |
 
 The numeric allowlist is CREDIT_LIMIT_AMT, CURRENT_BALANCE_AMT, AVAILABLE_TO_BUY_AMT and OVERLIMIT_AMT. Date selections are PERSON.BIRTH_DT, PERSON.SINCE_DT and TKQ_ACCOUNT.OPEN_DT. The full selection and labels live in `src/synthetic_banking/validation_reporting.py`.
+
+P01, P05, P99, minima/maxima and full numeric histogram bins are not present in this public extension. P95 comparisons describe the observed upper percentile and P95-minus-median spread; they do not establish extreme-tail fidelity beyond P95. A zero SOURCE IQR leaves normalization undefined, while raw upper-tail gaps remain visible. Calendar-month bin proportions are also not published: their saved total-variation distances are shown instead of fabricated paired monthly curves.
 
 ## Formulas and centralized tolerances
 
@@ -78,12 +86,12 @@ Weaknesses use only NEEDS_REVIEW checks, sorted by descending `score / acceptabl
 - Full cross-table referential-integrity counts are checked during generation but not all are retained in `fidelity_metrics`; the public comparison explicitly marks other references pending. CUSTOMER_RELATIONSHIP endpoint evidence is included when saved.
 - Empty relationship populations, missing legacy monthly profiles, missing/zero SOURCE IQR and small conditional buckets remain pending.
 - Calendar-month fidelity does not measure day-of-month or time-of-day similarity. No inferential confidence intervals, general nearest-neighbour quality test or privacy result is inferred.
-- Application of an approved implementation is reported independently from measured relationship fidelity.
+- Rule application is audited independently in the pipeline; it is not a quality metric on this page.
 
 ## Update and publication
 
 The version-1 schema/example are preserved as `pipeline-report-v1.schema.json` and `example-v1.json`; the primary schema/example now document version 2. Examples are fabricated and are never loaded as production results. The publication script accepts both contract versions, validates the closed schema, and stages the new HTML/JS/config files explicitly. No source code, internal reports or row exports are included in the Pages artifact.
 
-Deploy the updated bundle and rerun **only the reporting task** of a previously successful, still-current validated execution to populate version 2 from its saved evidence; or run the existing full workflow normally. Do not regenerate or re-profile merely to change this presentation. Existing lineage/version checks must still pass. Then run **Publish validated showcase** or wait for its scheduled check. Invalid exports preserve the previous report and site.
+When a version-2 report already exists, deploy only the updated static assets using **Publish validated showcase**; no Databricks rerun or reporting repair is needed for this change. To migrate an older artifact, deploy the reporting bundle and repair **only reporting** in a still-current validated execution, or run the full workflow normally. Existing lineage/version checks must still pass. Invalid exports preserve the previous report and site.
 
-Local checks: run the Python suite with NumPy, pandas and jsonschema installed, then `node --test tests/test_results.cjs tests/test_validation_page.cjs`. Preview the static site with an HTTP server. Browser review should confirm keyboard navigation, sort controls, scrolling tables, missing-data states and mobile layout.
+Local checks: run the Python suite with NumPy, pandas and jsonschema installed, then `node --test tests/test_results.cjs tests/test_validation_page.cjs tests/test_executive_showcase.cjs`. Browser review should confirm navigation, percentile/cardinality selectors, sort controls, scrolling tables, unavailable states and mobile layout. Tests also confirm that removing/changing rule-execution metadata does not change the quality report.

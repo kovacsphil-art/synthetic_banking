@@ -22,7 +22,7 @@ test("measured classifications, raw percentiles, populations and dependencies ar
   assert.match(text,/Differences need review/);assert.match(text,/30% total variation/);
   assert.match(text,/SOURCE P25/);assert.match(text,/Strong match/);assert.match(text,/Needs review/);
   assert.match(text,/Credit limit \/ balance correlation/);assert.match(text,/Accounts per person/);
-  assert.match(text,/Other cross-table referential integrity/);assert.match(text,/Pending/);
+  assert.match(text,/Other cross-table referential integrity/);assert.match(text,/Unavailable/);
   assert.ok(!text.includes("high quality"));
   const conditional=all(node).find(n=>n.tagName==="TABLE"&&n.children[0].textContent==="Past-due rates by utilization bucket");
   assert.match(conditional.textContent,/Strong match/);assert.doesNotMatch(conditional.textContent,/Passed/);
@@ -71,4 +71,51 @@ test("refresh failures clear previous figures and recover; fetch is public same-
 test("a stalled request times out with the accessible pending state",async()=>{
   const root=new Node(document(),"div");const loader=mountValidation(root,{location,timeoutMs:5,fetcher:async(_,o)=>new Promise((_,reject)=>o.signal.addEventListener("abort",()=>reject(new Error("aborted"))))});
   await loader.ready;assert.match(root.textContent,/Validation results pending/);assert.equal(root.attributes["aria-busy"],"false");
+});
+
+test("final-cohort report is independent of rule approvals and application metadata",()=>{
+  const original=renderValidation(document(),normalizeValidation(clone())).textContent;
+  const report=clone();delete report.rules;delete report.validation_report.rule_outcomes;
+  const rendered=renderValidation(document(),normalizeValidation(report)).textContent;
+  assert.equal(rendered,original);
+  assert.doesNotMatch(rendered,/\bLLM\b|\bAI\b|approved|rule outcomes|rules actually applied|control group|attribution/i);
+  assert.match(rendered,/fake development SOURCE baseline/);
+  assert.match(rendered,/real production banking data/);
+  const summary=all(renderValidation(document(),normalizeValidation(report))).find(n=>n.id==="summary");
+  const headlines=all(summary).filter(n=>n.tagName==="DD").map(n=>n.textContent);
+  assert.ok(headlines.length>0);assert.ok(headlines.every(text=>!text.includes("%")));
+});
+
+test("raw upper-tail gaps remain visible when a zero SOURCE IQR prevents grading",()=>{
+  const report=clone(),r=report.validation_report.numeric.find(r=>r.key==="overlimit");
+  r.percentiles.forEach(p=>{p.source=0;p.generated=p.name==="P95"?656.46:0;p.difference=p.generated;});
+  const node=renderValidation(document(),normalizeValidation(report));
+  const tail=all(node).find(n=>n.tagName==="TABLE"&&n.children[0].textContent==="Upper-tail comparison");
+  assert.match(tail.textContent,/Overlimit amount 0 656.46 \+656.46 0 656.46/);
+  assert.match(node.textContent,/behaviour beyond P95 is not assessed/);
+  assert.match(node.textContent,/zero or missing IQR prevents normalization/);
+  assert.match(node.textContent,/Not comparable/);
+});
+
+test("missingness, dates, cardinalities and structural evidence are primary sections",()=>{
+  const root=renderValidation(document(),normalizeValidation(clone()));
+  for(const id of ["completeness","dependencies","structure","methodology"])
+    assert.ok(root.children.some(n=>n.id===id));
+  const captions=all(root).filter(n=>n.tagName==="CAPTION").map(n=>n.textContent);
+  for(const caption of ["Null rates","Calendar-month distributions","Relationship cardinality fidelity","Customer-relationship directionality","Generated structural and business-rule checks","Prototype tolerance policy prototype_v1"])
+    assert.ok(captions.includes(caption));
+  assert.match(root.textContent,/It does not establish how many of all customers have zero accounts/);
+  assert.match(root.textContent,/not equality with SOURCE/);
+});
+
+test("sparse conditional evidence keeps rates and counts without a passing label",()=>{
+  const report=clone(),v=report.validation_report,a=v.assessments.find(a=>a.key==="conditional.0");
+  a.source_n=29;a.score=null;a.status="UNAVAILABLE";a.reason="insufficient_conditional_rows";
+  v.strengths=v.strengths.filter(key=>key!==a.key);
+  for(const [field,status] of [["strong","STRONG"],["acceptable","ACCEPTABLE"],["needs_review","NEEDS_REVIEW"],["unavailable","UNAVAILABLE"]])v.summary[field]=v.assessments.filter(a=>a.status===status).length;
+  v.summary.checks_evaluated=v.summary.strong+v.summary.acceptable+v.summary.needs_review;
+  const root=renderValidation(document(),normalizeValidation(report));
+  const t=all(root).find(n=>n.tagName==="TABLE"&&n.children[0].textContent==="Past-due rates by utilization bucket");
+  assert.match(t.textContent,/0-30% 10% 11% 1 pp 29 200 Not comparable/);
+  assert.match(root.textContent,/at least 30 records per bucket/);
 });

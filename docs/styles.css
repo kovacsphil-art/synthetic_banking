@@ -1182,3 +1182,19 @@ td {
  .exec-footer p { width: 100%; }
 }
 @media (prefers-reduced-motion: reduce) { .exec-page *, .exec-page *::before, .exec-page *::after { scroll-behavior: auto; transition: none; animation: none; } }
+/* Final-cohort fidelity: maintain executive hierarchy without an overall score. */
+.exec-page .quality-metrics { grid-template-columns: repeat(4,minmax(0,1fr)); }
+.exec-page .baseline-notice { border-left: 3px solid var(--red); padding: .75rem 0 .75rem 1.1rem; margin-top: 1.5rem; font-size: .9rem; max-width: 900px; color: var(--ink); }
+.exec-page .quality-limitations { padding-left: 1.2rem; max-width: 900px; color: var(--muted); }
+.exec-page .quality-limitations li { margin-top: 1rem; }
+.exec-page .cardinality-chart { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: .8rem 2.5rem; }
+.exec-page .cardinality-chart .viz-legend { grid-column: 1 / -1; }
+.exec-page .cardinality-chart .category-group { margin: .75rem 0; }
+.exec-page .cardinality-chart h4 { font-size: .9rem; }
+.exec-page .cardinality-chart .category-line { grid-template-columns: 68px 1fr 70px; gap: .6rem; }
+.exec-page .report-intro .baseline-notice { font-size: .9rem; }
+@media (max-width:650px) {
+  .exec-page .quality-metrics { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .exec-page .cardinality-chart { grid-template-columns: 1fr; gap: .5rem; }
+  .exec-page .baseline-notice { font-size: .875rem; }
+}

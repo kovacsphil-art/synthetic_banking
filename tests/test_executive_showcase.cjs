@@ -30,14 +30,23 @@ test("missing conditional points make gaps; sparse comparisons have hollow marke
   assert.equal(nodes.filter(n=>n.tagName==="CIRCLE"&&n.attributes.class.includes("viz-original")).length,4);
   assert.equal(nodes.filter(n=>n.tagName==="LINE"&&n.attributes.class==="viz-line viz-original").length,2);
   assert.ok(nodes.some(n=>n.tagName==="CIRCLE"&&n.attributes.class.includes("viz-sparse")));
-  assert.match(root.textContent,/Pending/);assert.match(root.textContent,/comparison pending/);
+  assert.match(root.textContent,/Unavailable/);assert.match(root.textContent,/comparison pending/);
 });
-test("headline percent includes incomplete variables; relationship denominator excludes unavailable checks",()=>{
+test("executive summary uses measured counts without an overall percentage or AI execution metric",()=>{
   const report=clone(),v=validation.normalizeValidation(report).v,s=viz.summary(report,v);
-  assert.equal(s.within,100*v.summary.variables_within_tolerance/v.summary.variables_total);
+  assert.equal(Object.hasOwn(s,"within"),false);assert.equal(Object.hasOwn(s,"applied"),false);
   assert.equal(s.relationshipCompared+s.relationshipPending,v.assessments.filter(a=>["correlation","conditional","cardinality","graph"].includes(a.family)).length);
   assert.ok(s.relationshipMatched<=s.relationshipCompared);
-  assert.match(validation.executiveSummary(document(),{report,v}).textContent,/not an overall quality score/);
+  assert.match(validation.executiveSummary(document(),{report,v}).textContent,/not an overall accuracy score/);
+});
+
+test("cardinality selector draws only published bins and leaves missing distributions unavailable",()=>{
+  const v=validation.normalizeValidation(clone()).v,root=viz.cardinality(document(),v);
+  assert.match(root.textContent,/0 related records/);assert.match(root.textContent,/5\+ related records/);
+  assert.match(root.textContent,/full saved distribution/);
+  const select=all(root).find(n=>n.tagName==="SELECT");select.value="tradelines_per_customer";select.events.change();
+  assert.match(root.textContent,/No paired cardinality distribution/);
+  assert.equal(all(root).filter(n=>n.className?.includes("category-fill")).length,0);
 });
 test("malformed chart values, public labels and headline counts are rejected",()=>{
   for(const mutate of [r=>r.validation_report.numeric[0].label="PRIVATE_VALUE",r=>r.validation_report.numeric[0].percentiles[0].source="PRIVATE_VALUE",r=>r.validation_report.summary.variables_total=999,r=>r.validation_report.numeric[0].status="UNAVAILABLE"]){const r=clone();mutate(r);assert.throws(()=>validation.normalizeValidation(r),/Invalid/);}
