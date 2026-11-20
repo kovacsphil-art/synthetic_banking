@@ -1,11 +1,11 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Synthetic banking public pipeline report",
-  "description": "Version 1.0: sanitized, aggregate-only latest-success output. No execution IDs or row records.",
+  "title": "Synthetic banking public pipeline report, version 2.0",
+  "description": "Sanitized aggregates and prototype validation screening; no execution IDs or row records.",
   "type": "object",
   "properties": {
     "schema_version": {
-      "const": "1.0"
+      "const": "2.0"
     },
     "pipeline_completed_at": {
       "type": "string",
@@ -404,6 +404,940 @@
         ],
         "additionalProperties": false
       }
+    },
+    "validation_report": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "enum": [
+            "AVAILABLE",
+            "PENDING"
+          ]
+        },
+        "policy_version": {
+          "const": "prototype_v1"
+        },
+        "thresholds": {
+          "type": "object",
+          "properties": {
+            "numeric_iqr_pct": {
+              "type": "object",
+              "properties": {
+                "strong": {
+                  "const": 5.0
+                },
+                "acceptable": {
+                  "const": 15.0
+                }
+              },
+              "required": [
+                "strong",
+                "acceptable"
+              ],
+              "additionalProperties": false
+            },
+            "proportion_pp": {
+              "type": "object",
+              "properties": {
+                "strong": {
+                  "const": 1.0
+                },
+                "acceptable": {
+                  "const": 3.0
+                }
+              },
+              "required": [
+                "strong",
+                "acceptable"
+              ],
+              "additionalProperties": false
+            },
+            "conditional_pp": {
+              "type": "object",
+              "properties": {
+                "strong": {
+                  "const": 2.0
+                },
+                "acceptable": {
+                  "const": 5.0
+                }
+              },
+              "required": [
+                "strong",
+                "acceptable"
+              ],
+              "additionalProperties": false
+            },
+            "correlation": {
+              "type": "object",
+              "properties": {
+                "strong": {
+                  "const": 0.05
+                },
+                "acceptable": {
+                  "const": 0.15
+                }
+              },
+              "required": [
+                "strong",
+                "acceptable"
+              ],
+              "additionalProperties": false
+            },
+            "distribution_tvd_pct": {
+              "type": "object",
+              "properties": {
+                "strong": {
+                  "const": 2.0
+                },
+                "acceptable": {
+                  "const": 5.0
+                }
+              },
+              "required": [
+                "strong",
+                "acceptable"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "numeric_iqr_pct",
+            "proportion_pp",
+            "conditional_pp",
+            "correlation",
+            "distribution_tvd_pct"
+          ],
+          "additionalProperties": false
+        },
+        "min_conditional_rows": {
+          "const": 30
+        },
+        "summary": {
+          "type": "object",
+          "properties": {
+            "comparison_status": {
+              "enum": [
+                "PENDING",
+                "REVIEW_REQUIRED",
+                "PARTIAL",
+                "WITHIN_TOLERANCE"
+              ]
+            },
+            "variables_total": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "variables_evaluated": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "variables_within_tolerance": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "variables_requiring_review": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "variables_incomplete": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "checks_evaluated": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "strong": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "acceptable": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "needs_review": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "unavailable": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "comparison_status",
+            "variables_total",
+            "variables_evaluated",
+            "variables_within_tolerance",
+            "variables_requiring_review",
+            "variables_incomplete",
+            "checks_evaluated",
+            "strong",
+            "acceptable",
+            "needs_review",
+            "unavailable"
+          ],
+          "additionalProperties": false
+        },
+        "strengths": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "numeric.credit_limit",
+              "numeric.current_balance",
+              "numeric.available_credit",
+              "numeric.overlimit",
+              "categorical.past_due",
+              "null.credit_limit",
+              "null.current_balance",
+              "null.available_credit",
+              "null.overlimit",
+              "null.past_due",
+              "null.birth",
+              "null.customer_since",
+              "null.account_open",
+              "date.birth",
+              "date.customer_since",
+              "date.account_open",
+              "cardinality.accounts_per_customer",
+              "cardinality.relationships_outgoing",
+              "cardinality.relationships_incoming",
+              "cardinality.tradelines_per_customer",
+              "correlation.balance_limit",
+              "conditional.0",
+              "conditional.1",
+              "conditional.2",
+              "conditional.3",
+              "conditional.4",
+              "integrity.account_coverage",
+              "integrity.balance_coverage",
+              "integrity.available_formula",
+              "integrity.overlimit_formula",
+              "integrity.balance_cap",
+              "integrity.negative_balance",
+              "integrity.delinquency_flag",
+              "integrity.birth_order",
+              "integrity.account_date_order",
+              "integrity.relationship_endpoints",
+              "graph.directed_dyads_proportion",
+              "graph.reciprocal_dyads_proportion",
+              "graph.self_dyads_proportion",
+              "integrity.other_references"
+            ]
+          },
+          "maxItems": 6,
+          "uniqueItems": true
+        },
+        "weaknesses": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "numeric.credit_limit",
+              "numeric.current_balance",
+              "numeric.available_credit",
+              "numeric.overlimit",
+              "categorical.past_due",
+              "null.credit_limit",
+              "null.current_balance",
+              "null.available_credit",
+              "null.overlimit",
+              "null.past_due",
+              "null.birth",
+              "null.customer_since",
+              "null.account_open",
+              "date.birth",
+              "date.customer_since",
+              "date.account_open",
+              "cardinality.accounts_per_customer",
+              "cardinality.relationships_outgoing",
+              "cardinality.relationships_incoming",
+              "cardinality.tradelines_per_customer",
+              "correlation.balance_limit",
+              "conditional.0",
+              "conditional.1",
+              "conditional.2",
+              "conditional.3",
+              "conditional.4",
+              "integrity.account_coverage",
+              "integrity.balance_coverage",
+              "integrity.available_formula",
+              "integrity.overlimit_formula",
+              "integrity.balance_cap",
+              "integrity.negative_balance",
+              "integrity.delinquency_flag",
+              "integrity.birth_order",
+              "integrity.account_date_order",
+              "integrity.relationship_endpoints",
+              "graph.directed_dyads_proportion",
+              "graph.reciprocal_dyads_proportion",
+              "graph.self_dyads_proportion",
+              "integrity.other_references"
+            ]
+          },
+          "maxItems": 6,
+          "uniqueItems": true
+        },
+        "assessments": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "key": {
+                "enum": [
+                  "numeric.credit_limit",
+                  "numeric.current_balance",
+                  "numeric.available_credit",
+                  "numeric.overlimit",
+                  "categorical.past_due",
+                  "null.credit_limit",
+                  "null.current_balance",
+                  "null.available_credit",
+                  "null.overlimit",
+                  "null.past_due",
+                  "null.birth",
+                  "null.customer_since",
+                  "null.account_open",
+                  "date.birth",
+                  "date.customer_since",
+                  "date.account_open",
+                  "cardinality.accounts_per_customer",
+                  "cardinality.relationships_outgoing",
+                  "cardinality.relationships_incoming",
+                  "cardinality.tradelines_per_customer",
+                  "correlation.balance_limit",
+                  "conditional.0",
+                  "conditional.1",
+                  "conditional.2",
+                  "conditional.3",
+                  "conditional.4",
+                  "integrity.account_coverage",
+                  "integrity.balance_coverage",
+                  "integrity.available_formula",
+                  "integrity.overlimit_formula",
+                  "integrity.balance_cap",
+                  "integrity.negative_balance",
+                  "integrity.delinquency_flag",
+                  "integrity.birth_order",
+                  "integrity.account_date_order",
+                  "integrity.relationship_endpoints",
+                  "graph.directed_dyads_proportion",
+                  "graph.reciprocal_dyads_proportion",
+                  "graph.self_dyads_proportion",
+                  "integrity.other_references"
+                ]
+              },
+              "label": {
+                "enum": [
+                  "Credit limit",
+                  "Current balance",
+                  "Available credit",
+                  "Overlimit amount",
+                  "Past-due category proportions",
+                  "Credit limit \u00b7 null rate",
+                  "Current balance \u00b7 null rate",
+                  "Available credit \u00b7 null rate",
+                  "Overlimit amount \u00b7 null rate",
+                  "Past-due indicator \u00b7 null rate",
+                  "Birth-date distribution \u00b7 null rate",
+                  "Customer-since distribution \u00b7 null rate",
+                  "Account-open distribution \u00b7 null rate",
+                  "Birth-date distribution",
+                  "Customer-since distribution",
+                  "Account-open distribution",
+                  "Accounts per customer",
+                  "Outgoing relationships per person",
+                  "Incoming relationships per person",
+                  "Tradelines per customer",
+                  "Credit limit / balance correlation",
+                  "Past due \u00b7 utilization 0-30%",
+                  "Past due \u00b7 utilization 30-60%",
+                  "Past due \u00b7 utilization 60-80%",
+                  "Past due \u00b7 utilization 80-100%",
+                  "Past due \u00b7 utilization 100%+",
+                  "Accounts with a balance",
+                  "Balances with an account",
+                  "Available-credit formula violations",
+                  "Overlimit formula violations",
+                  "Balance-cap violations",
+                  "Negative balance violations",
+                  "Delinquency flag/count violations",
+                  "Birth/customer-since ordering violations",
+                  "Account open/close ordering violations",
+                  "Customer-relationship invalid endpoints",
+                  "Customer relationships \u00b7 directed dyads",
+                  "Customer relationships \u00b7 reciprocal dyads",
+                  "Customer relationships \u00b7 self dyads",
+                  "Other cross-table referential integrity"
+                ]
+              },
+              "family": {
+                "enum": [
+                  "cardinality",
+                  "categorical",
+                  "conditional",
+                  "correlation",
+                  "dates",
+                  "graph",
+                  "integrity",
+                  "nulls",
+                  "numeric"
+                ]
+              },
+              "status": {
+                "enum": [
+                  "STRONG",
+                  "ACCEPTABLE",
+                  "NEEDS_REVIEW",
+                  "UNAVAILABLE"
+                ]
+              },
+              "source": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "generated": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "difference": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "score": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "policy": {
+                "enum": [
+                  "numeric_iqr_pct",
+                  "proportion_pp",
+                  "conditional_pp",
+                  "correlation",
+                  "distribution_tvd_pct",
+                  null
+                ]
+              },
+              "source_n": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "generated_n": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "source_count": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "generated_count": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "reason": {
+                "enum": [
+                  null,
+                  "metric_unavailable",
+                  "zero_or_missing_source_iqr",
+                  "insufficient_conditional_rows",
+                  "source_comparison_unavailable",
+                  "not_in_saved_fidelity_report"
+                ]
+              }
+            },
+            "required": [
+              "key",
+              "label",
+              "family",
+              "status",
+              "source",
+              "generated",
+              "difference",
+              "score",
+              "policy",
+              "source_n",
+              "generated_n",
+              "source_count",
+              "generated_count",
+              "reason"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 40,
+          "maxItems": 40
+        },
+        "numeric": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "key": {
+                "enum": [
+                  "credit_limit",
+                  "current_balance",
+                  "available_credit",
+                  "overlimit"
+                ]
+              },
+              "label": {
+                "enum": [
+                  "Credit limit",
+                  "Current balance",
+                  "Available credit",
+                  "Overlimit amount"
+                ]
+              },
+              "source_iqr": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "percentiles": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "enum": [
+                        "P25",
+                        "P50",
+                        "P75",
+                        "P95"
+                      ]
+                    },
+                    "source": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "generated": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "difference": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "source",
+                    "generated",
+                    "difference"
+                  ],
+                  "additionalProperties": false
+                },
+                "minItems": 4,
+                "maxItems": 4
+              },
+              "average_difference_pct_iqr": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "max_difference_pct_iqr": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "status": {
+                "enum": [
+                  "STRONG",
+                  "ACCEPTABLE",
+                  "NEEDS_REVIEW",
+                  "UNAVAILABLE"
+                ]
+              }
+            },
+            "required": [
+              "key",
+              "label",
+              "source_iqr",
+              "percentiles",
+              "average_difference_pct_iqr",
+              "max_difference_pct_iqr",
+              "status"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 4,
+          "maxItems": 4
+        },
+        "categorical": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "category": {
+                "enum": [
+                  "Y",
+                  "N"
+                ]
+              },
+              "source": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "generated": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "absolute_difference_pp": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "status": {
+                "enum": [
+                  "STRONG",
+                  "ACCEPTABLE",
+                  "NEEDS_REVIEW",
+                  "UNAVAILABLE"
+                ]
+              }
+            },
+            "required": [
+              "category",
+              "source",
+              "generated",
+              "absolute_difference_pp",
+              "status"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "dates": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "key": {
+                "enum": [
+                  "birth",
+                  "customer_since",
+                  "account_open"
+                ]
+              },
+              "label": {
+                "enum": [
+                  "Birth-date distribution",
+                  "Customer-since distribution",
+                  "Account-open distribution"
+                ]
+              },
+              "total_variation_pct": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "earliest_shift_days": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "latest_shift_days": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "status": {
+                "enum": [
+                  "STRONG",
+                  "ACCEPTABLE",
+                  "NEEDS_REVIEW",
+                  "UNAVAILABLE"
+                ]
+              }
+            },
+            "required": [
+              "key",
+              "label",
+              "total_variation_pct",
+              "earliest_shift_days",
+              "latest_shift_days",
+              "status"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 3,
+          "maxItems": 3
+        },
+        "cardinality": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "key": {
+                "enum": [
+                  "accounts_per_customer",
+                  "relationships_outgoing",
+                  "relationships_incoming",
+                  "tradelines_per_customer"
+                ]
+              },
+              "label": {
+                "enum": [
+                  "Accounts per customer",
+                  "Outgoing relationships per person",
+                  "Incoming relationships per person",
+                  "Tradelines per customer"
+                ]
+              },
+              "total_variation_pct": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "source_mean": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "generated_mean": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "status": {
+                "enum": [
+                  "STRONG",
+                  "ACCEPTABLE",
+                  "NEEDS_REVIEW",
+                  "UNAVAILABLE"
+                ]
+              },
+              "bins": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "bucket": {
+                      "enum": [
+                        "0",
+                        "1",
+                        "2",
+                        "3",
+                        "4",
+                        "5+"
+                      ]
+                    },
+                    "source": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "generated": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "absolute_difference_pp": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "bucket",
+                    "source",
+                    "generated",
+                    "absolute_difference_pp"
+                  ],
+                  "additionalProperties": false
+                },
+                "minItems": 6,
+                "maxItems": 6
+              }
+            },
+            "required": [
+              "key",
+              "label",
+              "total_variation_pct",
+              "source_mean",
+              "generated_mean",
+              "status",
+              "bins"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 4,
+          "maxItems": 4
+        },
+        "populations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "table": {
+                "enum": [
+                  "PERSON",
+                  "CUSTOMER_ACCOUNT_REL",
+                  "TKQ_ACCOUNT",
+                  "TKQ_ACCOUNT_BALANCE",
+                  "TRADELINES",
+                  "CUSTOMER_RELATIONSHIP"
+                ]
+              },
+              "source": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "generated": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "difference": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "table",
+              "source",
+              "generated",
+              "difference"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 6,
+          "maxItems": 6
+        },
+        "accounts_per_person": {
+          "type": "object",
+          "properties": {
+            "source": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "generated": {
+              "type": [
+                "number",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "source",
+            "generated"
+          ],
+          "additionalProperties": false
+        },
+        "rule_outcomes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "implementation": {
+                "enum": [
+                  "available_to_buy",
+                  "overlimit_amount",
+                  "delinquency_by_utilization"
+                ]
+              },
+              "target": {
+                "enum": [
+                  "AVAILABLE_TO_BUY_AMT",
+                  "OVERLIMIT_AMT",
+                  "PAST_DUE_INDICATO_CD"
+                ]
+              },
+              "proposed": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "approved": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "applied": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "skipped": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "implementation",
+              "target",
+              "proposed",
+              "approved",
+              "applied",
+              "skipped"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 3,
+          "maxItems": 3
+        }
+      },
+      "required": [
+        "status",
+        "policy_version",
+        "thresholds",
+        "min_conditional_rows",
+        "summary",
+        "strengths",
+        "weaknesses",
+        "assessments",
+        "numeric",
+        "categorical",
+        "dates",
+        "cardinality",
+        "populations",
+        "accounts_per_person",
+        "rule_outcomes"
+      ],
+      "additionalProperties": false
     }
   },
   "required": [
@@ -415,7 +1349,8 @@
     "numeric_differences",
     "categorical_differences",
     "dependency_results",
-    "warnings"
+    "warnings",
+    "validation_report"
   ],
   "additionalProperties": false,
   "$defs": {

@@ -62,12 +62,12 @@ class ReportingTests(unittest.TestCase):
         spark.db.execute("CREATE TABLE fidelity_metrics (source_run_id, generated_run_id, generation_id, family, entity_name, column_name, metric, generated_value)")
         spark.db.execute("INSERT INTO fidelity_metrics VALUES ('source-A','generated-B','generation-C','ROW_COUNT','PERSON',NULL,'row_count',100)")
         spark.db.executescript("""
-            CREATE TABLE rule_execution_log (generation_id, source_run_id, batch_id, proposal_id, approved, implemented, applied, outcome);
+            CREATE TABLE rule_execution_log (generation_id, source_run_id, batch_id, proposal_id, approved, implemented, applied, outcome, implementation_name);
             INSERT INTO rule_execution_log VALUES
-              ('generation-C','source-A','batch-A','p1',TRUE,TRUE,TRUE,'APPLIED'),
-              ('generation-C','source-A','batch-A','p2',TRUE,FALSE,FALSE,'SKIPPED'),
-              ('generation-C','source-A',NULL,NULL,FALSE,TRUE,FALSE,'LEGACY_FALLBACK'),
-              ('other-generation','other-source','other-batch','p3',TRUE,TRUE,TRUE,'APPLIED');
+              ('generation-C','source-A','batch-A','p1',TRUE,TRUE,TRUE,'APPLIED','available_to_buy'),
+              ('generation-C','source-A','batch-A','p2',TRUE,FALSE,FALSE,'SKIPPED',NULL),
+              ('generation-C','source-A',NULL,NULL,FALSE,TRUE,FALSE,'LEGACY_FALLBACK','overlimit_amount'),
+              ('other-generation','other-source','other-batch','p3',TRUE,TRUE,TRUE,'APPLIED','available_to_buy');
         """)
         # SQLite encodes boolean columns as integers; adapt them like Spark BooleanType.
         original_sql = spark.sql
@@ -102,15 +102,15 @@ class ReportingTests(unittest.TestCase):
             target.write_text("previous-success", encoding="utf-8")
             with patch("synthetic_banking.reporting.load_public_report", side_effect=ValueError("not validated")):
                 with self.assertRaises(ValueError): export_public_report(None, folder)
-            self.assertEqual(target.read_text(), "previous-success")
+            self.assertEqual(target.read_text(encoding="utf-8"), "previous-success")
             with patch("synthetic_banking.reporting.load_public_report", return_value=report), patch(
                     "synthetic_banking.reporting.os.replace", side_effect=OSError("fabricated write failure")):
                 with self.assertRaises(OSError): export_public_report(None, folder)
-            self.assertEqual(target.read_text(), "previous-success")
+            self.assertEqual(target.read_text(encoding="utf-8"), "previous-success")
             self.assertEqual(list(Path(folder).glob("*.tmp")), [])
             with patch("synthetic_banking.reporting.load_public_report", return_value=report):
                 self.assertEqual(export_public_report(None, folder), target)
-            self.assertEqual(json.loads(target.read_text()), report)
+            self.assertEqual(json.loads(target.read_text(encoding="utf-8")), report)
 
     def test_complete_example_and_formal_schema_match_contract_keys(self):
         folder = Path(__file__).resolve().parents[1] / "docs" / "reporting"
@@ -120,7 +120,7 @@ class ReportingTests(unittest.TestCase):
         self.assertEqual(set(example), set(schema["required"]))
         self.assertEqual(set(actual), set(schema["properties"]))
         self.assertEqual(set(example["generation"]), set(actual["generation"]))
-        self.assertEqual(example["schema_version"], "1.0")
+        self.assertEqual(example["schema_version"], "2.0")
         for field in ("numeric_differences", "categorical_differences"):
             self.assertEqual(len(example[field]), len(actual[field]))
             self.assertEqual(set(example[field][0]), set(actual[field][0]))

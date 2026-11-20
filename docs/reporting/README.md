@@ -1,4 +1,6 @@
-# Public reporting contract, version 1.0
+# Public reporting contract, version 2.0
+
+Version 2 preserves the original summary fields and adds `validation_report`, a fixed aggregate-only projection for the dedicated [Validation Report](../validation.html). Its numeric chart, detailed tables, prototype tolerances, calculated strengths and ranked weaknesses are documented in [validation-report.md](../validation-report.md). Version-1 reports remain supported by the short showcase panel and publication workflow; the detailed page displays pending until version 2 is supplied. The old schema/example are retained with a `-v1` suffix.
 
 The final `reporting` workflow task writes **one** `latest-pipeline.json` in `report_output_dir/runs/<job-run-id>/`. It runs only after `validate` succeeds. This per-execution path lets GitHub retrieve the exact successful run's artifact without racing a later run. Interactive calls without `workflow_run_id` retain the original root location. The exporter rechecks saved generation versions, the exact SOURCE/batch/generation/GENERATED correspondence, the saved fidelity metrics and the generation-time rule audit. It does not pick a latest profiling run or use `current_run`.
 
@@ -10,7 +12,7 @@ An abbreviated shape is:
 
 ```json
 {
-  "schema_version": "1.0",
+  "schema_version": "2.0",
   "pipeline_completed_at": "2026-01-01T12:00:00Z",
   "generation": {
     "total_rows": {"status": "AVAILABLE", "value": 8200, "reason": null},
@@ -23,7 +25,8 @@ An abbreviated shape is:
   "numeric_differences": [],
   "categorical_differences": [],
   "dependency_results": {},
-  "warnings": []
+  "warnings": [],
+  "validation_report": {}
 }
 ```
 

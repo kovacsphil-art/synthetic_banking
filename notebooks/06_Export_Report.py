@@ -13,7 +13,7 @@ else:
     raise RuntimeError("Keep notebooks/ and src/ together in the deployed project.")
 
 # COMMAND ----------
-from synthetic_banking.reporting import export_public_report
+from synthetic_banking.reporting import export_public_report, SCHEMA_VERSION
 from synthetic_banking.workflow import required_id, publish_values
 from pathlib import PurePosixPath
 import json
@@ -31,5 +31,5 @@ if workflow_run_id:
     # Bind the downloaded artifact to this job execution, including repaired runs.
     output_dir = str(PurePosixPath(output_dir) / "runs" / workflow_run_id)
 report_path = export_public_report(spark, output_dir, **execution)
-publish_values(dbutils, report_path=str(report_path), report_schema_version="1.0", pipeline_status="COMPLETED")
-dbutils.notebook.exit(json.dumps({"report_path": str(report_path), "schema_version": "1.0"}))
+publish_values(dbutils, report_path=str(report_path), report_schema_version=SCHEMA_VERSION, pipeline_status="COMPLETED")
+dbutils.notebook.exit(json.dumps({"report_path": str(report_path), "schema_version": SCHEMA_VERSION}))

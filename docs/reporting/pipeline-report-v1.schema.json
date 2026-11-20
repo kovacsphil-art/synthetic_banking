@@ -1,0 +1,539 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Synthetic banking public pipeline report",
+  "description": "Version 1.0: sanitized, aggregate-only latest-success output. No execution IDs or row records.",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "pipeline_completed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "generation": {
+      "type": "object",
+      "properties": {
+        "total_rows": {
+          "$ref": "#/$defs/count"
+        },
+        "customers": {
+          "$ref": "#/$defs/count"
+        },
+        "accounts": {
+          "$ref": "#/$defs/count"
+        },
+        "table_rows": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "table": {
+                "enum": [
+                  "PERSON",
+                  "CUSTOMER_ACCOUNT_REL",
+                  "TKQ_ACCOUNT",
+                  "TKQ_ACCOUNT_BALANCE",
+                  "TRADELINES",
+                  "CUSTOMER_RELATIONSHIP"
+                ]
+              },
+              "status": {
+                "enum": [
+                  "AVAILABLE",
+                  "UNAVAILABLE"
+                ]
+              },
+              "value": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 0
+              },
+              "reason": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "enum": [
+                  null,
+                  "missing_aggregate"
+                ]
+              }
+            },
+            "required": [
+              "table",
+              "status",
+              "value",
+              "reason"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 6,
+          "maxItems": 6
+        }
+      },
+      "required": [
+        "total_rows",
+        "customers",
+        "accounts",
+        "table_rows"
+      ],
+      "additionalProperties": false
+    },
+    "rules": {
+      "type": "object",
+      "properties": {
+        "proposed": {
+          "$ref": "#/$defs/count"
+        },
+        "approved": {
+          "$ref": "#/$defs/count"
+        },
+        "applied": {
+          "$ref": "#/$defs/count"
+        },
+        "skipped": {
+          "$ref": "#/$defs/count"
+        },
+        "approved_unimplemented": {
+          "$ref": "#/$defs/count"
+        }
+      },
+      "required": [
+        "proposed",
+        "approved",
+        "applied",
+        "skipped",
+        "approved_unimplemented"
+      ],
+      "additionalProperties": false
+    },
+    "validation": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "const": "PASS"
+        },
+        "fidelity_acceptance": {
+          "const": "NOT_CONFIGURED"
+        },
+        "account_balance_join_coverage": {
+          "type": "object",
+          "properties": {
+            "accounts_with_balance": {
+              "$ref": "#/$defs/coverage"
+            },
+            "balances_with_account": {
+              "$ref": "#/$defs/coverage"
+            }
+          },
+          "required": [
+            "accounts_with_balance",
+            "balances_with_account"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "status",
+        "fidelity_acceptance",
+        "account_balance_join_coverage"
+      ],
+      "additionalProperties": false
+    },
+    "numeric_differences": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "table": {
+            "enum": [
+              "TKQ_ACCOUNT",
+              "TKQ_ACCOUNT_BALANCE"
+            ]
+          },
+          "column": {
+            "enum": [
+              "CREDIT_LIMIT_AMT",
+              "CURRENT_BALANCE_AMT",
+              "AVAILABLE_TO_BUY_AMT",
+              "OVERLIMIT_AMT"
+            ]
+          },
+          "metric": {
+            "enum": [
+              "mean_value",
+              "p50",
+              "p95"
+            ]
+          },
+          "status": {
+            "enum": [
+              "AVAILABLE",
+              "UNAVAILABLE"
+            ]
+          },
+          "source": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "generated": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "difference": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "difference_unit": {
+            "enum": [
+              "value",
+              "percentage_points",
+              "correlation"
+            ]
+          },
+          "reason": {
+            "enum": [
+              null,
+              "metric_unavailable"
+            ]
+          }
+        },
+        "required": [
+          "table",
+          "column",
+          "metric",
+          "status",
+          "source",
+          "generated",
+          "difference",
+          "difference_unit",
+          "reason"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 12,
+      "maxItems": 12
+    },
+    "categorical_differences": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "table": {
+            "const": "TKQ_ACCOUNT"
+          },
+          "column": {
+            "const": "PAST_DUE_INDICATO_CD"
+          },
+          "category": {
+            "enum": [
+              "Y",
+              "N"
+            ]
+          },
+          "status": {
+            "enum": [
+              "AVAILABLE",
+              "UNAVAILABLE"
+            ]
+          },
+          "source": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "generated": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "difference": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "difference_unit": {
+            "enum": [
+              "value",
+              "percentage_points",
+              "correlation"
+            ]
+          },
+          "reason": {
+            "enum": [
+              null,
+              "metric_unavailable"
+            ]
+          }
+        },
+        "required": [
+          "table",
+          "column",
+          "category",
+          "status",
+          "source",
+          "generated",
+          "difference",
+          "difference_unit",
+          "reason"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "dependency_results": {
+      "type": "object",
+      "properties": {
+        "credit_limit_balance_pearson": {
+          "$ref": "#/$defs/comparison"
+        },
+        "delinquency_by_utilization": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "utilization_bucket": {
+                "enum": [
+                  "0-30%",
+                  "30-60%",
+                  "60-80%",
+                  "80-100%",
+                  "100%+"
+                ]
+              },
+              "status": {
+                "enum": [
+                  "AVAILABLE",
+                  "UNAVAILABLE"
+                ]
+              },
+              "source": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "generated": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "difference": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "difference_unit": {
+                "enum": [
+                  "value",
+                  "percentage_points",
+                  "correlation"
+                ]
+              },
+              "reason": {
+                "enum": [
+                  null,
+                  "metric_unavailable"
+                ]
+              }
+            },
+            "required": [
+              "utilization_bucket",
+              "status",
+              "source",
+              "generated",
+              "difference",
+              "difference_unit",
+              "reason"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 5,
+          "maxItems": 5
+        }
+      },
+      "required": [
+        "credit_limit_balance_pearson",
+        "delinquency_by_utilization"
+      ],
+      "additionalProperties": false
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "enum": [
+              "FIDELITY_THRESHOLDS_NOT_CONFIGURED",
+              "APPROVED_RULES_NOT_IMPLEMENTED",
+              "SKIPPED_PROPOSALS",
+              "UNAVAILABLE_METRICS"
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "count": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "count"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "schema_version",
+    "pipeline_completed_at",
+    "generation",
+    "rules",
+    "validation",
+    "numeric_differences",
+    "categorical_differences",
+    "dependency_results",
+    "warnings"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "count": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "enum": [
+            "AVAILABLE",
+            "UNAVAILABLE"
+          ]
+        },
+        "value": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "reason": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            null,
+            "missing_aggregate"
+          ]
+        }
+      },
+      "required": [
+        "status",
+        "value",
+        "reason"
+      ],
+      "additionalProperties": false
+    },
+    "comparison": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "enum": [
+            "AVAILABLE",
+            "UNAVAILABLE"
+          ]
+        },
+        "source": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "generated": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "difference": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "difference_unit": {
+          "enum": [
+            "value",
+            "percentage_points",
+            "correlation"
+          ]
+        },
+        "reason": {
+          "enum": [
+            null,
+            "metric_unavailable"
+          ]
+        }
+      },
+      "required": [
+        "status",
+        "source",
+        "generated",
+        "difference",
+        "difference_unit",
+        "reason"
+      ],
+      "additionalProperties": false
+    },
+    "coverage": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "enum": [
+            "AVAILABLE",
+            "UNAVAILABLE"
+          ]
+        },
+        "value": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 1
+        },
+        "reason": {
+          "enum": [
+            null,
+            "metric_unavailable"
+          ]
+        }
+      },
+      "required": [
+        "status",
+        "value",
+        "reason"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

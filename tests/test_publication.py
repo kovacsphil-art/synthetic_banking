@@ -24,7 +24,7 @@ class PublicationTests(unittest.TestCase):
         self.run = dict(job_id=10, run_id=20, state=state, tasks=[
             dict(task_key=name, run_id=index + 100, state=state.copy()) for index, name in enumerate(sorted(TASKS))])
         self.path = "/Volumes/public/reports/showcase/runs/20/latest-pipeline.json"
-        self.output = dict(notebook_output=dict(result=json.dumps(dict(report_path=self.path, schema_version="1.0"))))
+        self.output = dict(notebook_output=dict(result=json.dumps(dict(report_path=self.path, schema_version="2.0"))))
 
     def client(self):
         self.downloads = []
@@ -103,7 +103,7 @@ class PublicationTests(unittest.TestCase):
 
     def test_unknown_private_fields_invalid_schema_and_oversize_are_rejected(self):
         for report in ({**self.report, "source_record": "PRIVATE"},
-                       {**self.report, "schema_version": "2.0"},
+                       {**self.report, "schema_version": "3.0"},
                        {**self.report, "pipeline_completed_at": "invalid"}):
             with self.assertRaises(ValueError): validate_report(json.dumps(report).encode())
         with self.assertRaises(ValueError): validate_report(b"x" * (1024 * 1024 + 1))
@@ -113,6 +113,18 @@ class PublicationTests(unittest.TestCase):
         self.report["warnings"][0]["message"] = "PRIVATE_VALUE"
         report = validate_report(json.dumps(self.report).encode())
         self.assertNotIn("PRIVATE_VALUE", json.dumps(report))
+
+    def test_legacy_reports_remain_valid_and_receipt_version_must_match(self):
+        legacy=json.loads((ROOT / "docs/reporting/example-v1.json").read_text())
+        self.assertEqual(validate_report(json.dumps(legacy).encode())["schema_version"], "1.0")
+        self.output["notebook_output"]["result"]=json.dumps(dict(report_path=self.path,schema_version="1.0"))
+        with self.assertRaises(ValueError): retrieve(self.client(),10,"/Volumes/public/reports/showcase",20)
+
+    def test_private_nested_validation_fields_and_labels_cannot_be_published(self):
+        for field in ("secret", "label"):
+            report=deepcopy(self.report)
+            report["validation_report"]["assessments"][0][field]="PRIVATE_PARTY"
+            with self.assertRaises(ValueError): validate_report(json.dumps(report).encode())
 
     def test_older_report_and_invalid_existing_report_cannot_be_overwritten(self):
         with TemporaryDirectory() as folder:

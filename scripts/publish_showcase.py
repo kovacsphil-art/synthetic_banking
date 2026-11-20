@@ -33,7 +33,11 @@ def validate_report(raw):
             result[key] = value
         return result
     report = json.loads(raw, parse_constant=reject_constant, object_pairs_hook=unique_object)
-    schema = json.loads((ROOT / "docs/reporting/pipeline-report.schema.json").read_text())
+    version = report.get("schema_version") if isinstance(report, dict) else None
+    schemas = {"1.0": "pipeline-report-v1.schema.json", "2.0": "pipeline-report.schema.json"}
+    if version not in schemas:
+        raise ValueError("Unsupported public reporting version.")
+    schema = json.loads((ROOT / "docs/reporting" / schemas[version]).read_text())
     # Do not include validator errors: they may contain rejected private values.
     if not Draft202012Validator(schema, format_checker=FormatChecker()).is_valid(report):
         raise ValueError("Report does not match the public schema.")
@@ -89,7 +93,7 @@ def report_path(run, output, job_id, base_dir):
     receipt = json.loads(output["notebook_output"]["result"])
     base = PurePosixPath(base_dir)
     if (not str(base).startswith("/Volumes/") or ".." in base.parts
-            or len(base.parts) < 5 or receipt.get("schema_version") != "1.0"):
+            or len(base.parts) < 5 or receipt.get("schema_version") not in ("1.0", "2.0")):
         raise ValueError("Configure an absolute Unity Catalog reporting Volume directory.")
     expected = str(base / "runs" / str(run["run_id"]) / "latest-pipeline.json")
     if receipt.get("report_path") != expected:
@@ -119,7 +123,10 @@ def retrieve(client, job_id, base_dir, run_id=None):
         raw = response.contents.read(MAX_BYTES + 1)
     finally:
         response.contents.close()
-    return validate_report(raw)
+    report = validate_report(raw)
+    if report["schema_version"] != json.loads(output["notebook_output"]["result"])["schema_version"]:
+        raise ValueError("Report and execution receipt versions differ.")
+    return report
 
 
 def save_report(report, target):

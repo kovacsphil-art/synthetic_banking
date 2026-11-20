@@ -2,6 +2,8 @@
 
 The existing static site loads **`latest-pipeline.json` beside `index.html`** using `results.js`. Its layout, architecture, methodology, review workflow and pilot explanations remain static. Only the **Latest pipeline results** panel is populated from JSON. No browser connection to Databricks, credentials, framework or build step is required.
 
+The short panel accepts versions 1.0 and 2.0. Version 2 adds `validation_report` for [the dedicated validation page](validation.html); see [its complete field and policy reference](validation-report.md). Version 1 continues to display here while the dedicated page shows **Validation results pending**.
+
 ## Publish results
 
 For automatic GitHub repository updates and Pages deployment after successful Databricks runs, configure the [publication workflow](publication.md). Manual copying remains available for local previews:
@@ -25,13 +27,13 @@ The default relative filename also works under a GitHub Pages project subpath. I
 
 ## Exact fields consumed
 
-The accepted contract is [JSON Schema version 1.0](reporting/pipeline-report.schema.json). The required envelope is `schema_version = "1.0"`, a valid timezone-aware ISO timestamp in `pipeline_completed_at`, objects `generation`, `rules`, `validation`, and `validation.status = "PASS"`, `validation.fidelity_acceptance = "NOT_CONFIGURED"`. Unknown schema versions, failed validation, malformed envelopes/timestamps, duplicate selected measurements, and contradictory rule counts produce **Latest results unavailable**.
+The summary fields below are shared by [version 1](reporting/pipeline-report-v1.schema.json) and [version 2](reporting/pipeline-report.schema.json). The required envelope is `schema_version = "1.0"` or `"2.0"`, a valid timezone-aware ISO timestamp in `pipeline_completed_at`, objects `generation`, `rules`, `validation`, and `validation.status = "PASS"`, `validation.fidelity_acceptance = "NOT_CONFIGURED"`. Version 2 additionally requires the documented `validation_report` extension. Unknown schema versions, failed validation, malformed envelopes/timestamps, duplicate selected measurements, and contradictory rule counts produce **Latest results unavailable**.
 
 Individual missing or unusable metrics show **Unavailable**. Count/coverage objects use `status` and `value`. An AVAILABLE count must be a nonnegative safe integer; coverage must be a finite fraction between 0 and 1. The count objects' `reason` field is not displayed.
 
 | JSON field | Display |
 | --- | --- |
-| `schema_version` | Compatibility check; only `"1.0"` is supported |
+| `schema_version` | Compatibility check; `"1.0"` and `"2.0"` are supported |
 | `pipeline_completed_at` | Validated completion date/time, formatted in UTC |
 | `generation.customers.{status,value}` | Customers metric |
 | `generation.accounts.{status,value}` | Accounts metric |

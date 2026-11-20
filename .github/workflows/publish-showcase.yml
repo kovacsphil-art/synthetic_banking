@@ -50,6 +50,7 @@ jobs:
         if: steps.report.outputs.ready == 'true'
         run: |
           node -e "require('./docs/results.js').normalizeReport(require('./docs/latest-pipeline.json'))"
+          node -e "const r=require('./docs/latest-pipeline.json'); const v=require('./docs/validation.js').normalizeValidation(r); if(r.schema_version==='2.0' && r.validation_report.status==='AVAILABLE' && !v) process.exit(1)"
       - name: Commit only the sanitized report
         if: steps.report.outputs.ready == 'true'
         run: |
@@ -64,7 +65,7 @@ jobs:
         if: steps.report.outputs.ready == 'true'
         run: |
           mkdir _site
-          cp docs/index.html docs/styles.css docs/results.js docs/latest-pipeline.json _site/
+          cp docs/index.html docs/styles.css docs/results.js docs/validation.html docs/validation.js docs/validation-config.js docs/latest-pipeline.json _site/
           touch _site/.nojekyll
       - uses: actions/upload-pages-artifact@v3
         if: steps.report.outputs.ready == 'true'

@@ -58,7 +58,7 @@
   }
 
   function normalizeReport(report) {
-    if (!isObject(report) || report.schema_version !== "1.0" ||
+    if (!isObject(report) || !["1.0", "2.0"].includes(report.schema_version) ||
         !isObject(report.generation) || !isObject(report.rules) || !isObject(report.validation) ||
         report.validation.status !== "PASS" || report.validation.fidelity_acceptance !== "NOT_CONFIGURED") throw new Error("Invalid report");
     const completedAt = completionDate(report.pipeline_completed_at);

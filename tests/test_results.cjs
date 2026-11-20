@@ -5,7 +5,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const { normalizeReport, readReport, renderResults, mountResults } = require("../docs/results.js");
-const example = JSON.parse(fs.readFileSync(path.join(__dirname, "../docs/reporting/example.json"), "utf8"));
+const example = JSON.parse(fs.readFileSync(path.join(__dirname, "../docs/reporting/example-v1.json"), "utf8"));
 const clone = () => structuredClone(example);
 
 // A small DOM adapter tests the renderer's text-only boundary without a framework.
@@ -49,7 +49,7 @@ test("missing individual metrics and null counts remain unavailable, including z
 
 test("unsupported versions, failed validations, malformed timestamps and contradictions are rejected", () => {
   for (const change of [
-    (r) => { r.schema_version = "2.0"; }, (r) => { r.validation.status = "FAIL"; },
+    (r) => { r.schema_version = "3.0"; }, (r) => { r.validation.status = "FAIL"; },
     (r) => { r.pipeline_completed_at = "INTERNAL_TOKEN"; },
     (r) => { r.pipeline_completed_at = "2026-02-30T12:00:00Z"; },
     (r) => { r.rules.applied.value = 3; }, (r) => { r.generation = null; },

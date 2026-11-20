@@ -10,8 +10,9 @@ from tempfile import NamedTemporaryFile
 from synthetic_banking.config import PROFILE_SCHEMA, GENERATED_SCHEMA
 from synthetic_banking.validation import GENERATED_TABLES
 from synthetic_banking.workflow import require_profile_pair, utc_now
+from synthetic_banking.validation_reporting import build_validation_report
 
-SCHEMA_VERSION = "1.0"
+SCHEMA_VERSION = "2.0"
 REPORT_FILENAME = "latest-pipeline.json"
 NUMERIC_FIELDS = (
     ("TKQ_ACCOUNT", "CREDIT_LIMIT_AMT"),
@@ -68,7 +69,7 @@ def _dimensions(row):
         return {}
 
 
-def build_public_report(metrics, rule_counts, *, validation_passed=False, completed_at=None):
+def build_public_report(metrics, rule_counts, *, validation_passed=False, completed_at=None, rule_outcomes=()):
     """Project fixed allowlists only; never copy arbitrary text, categories, or dimensions."""
     if validation_passed is not True or any(row.get("generated_check_status") == "ISSUE" for row in metrics):
         raise ValueError("A public success report requires successful generation and integrity validation.")
@@ -131,6 +132,7 @@ def build_public_report(metrics, rule_counts, *, validation_passed=False, comple
         "numeric_differences": numeric, "categorical_differences": categorical,
         "dependency_results": {"credit_limit_balance_pearson": correlation, "delinquency_by_utilization": conditional},
         "warnings": warnings,
+        "validation_report": build_validation_report(metrics, rule_outcomes),
     }
 
 
@@ -151,7 +153,7 @@ def load_public_report(spark, source_run_id, batch_id, generation_id, generated_
         raise ValueError("No saved validation report for this execution. Run the validation task first.")
     # Aggregate counts are taken from the generation-time audit, not today's approval status.
     audit = _rows(spark, f"""
-        SELECT proposal_id, batch_id, source_run_id, approved, implemented, applied, outcome
+        SELECT proposal_id, batch_id, source_run_id, approved, implemented, applied, outcome, implementation_name
         FROM {GENERATED_SCHEMA}.rule_execution_log WHERE generation_id = :generation
     """, args)
     proposals = [row for row in audit if row.get("proposal_id") is not None]
@@ -165,7 +167,7 @@ def load_public_report(spark, source_run_id, batch_id, generation_id, generated_
               "applied": sum(row.get("applied") is True for row in proposals),
               "skipped": sum(row.get("outcome") == "SKIPPED" for row in proposals),
               "approved_unimplemented": sum(row.get("approved") is True and row.get("implemented") is False for row in proposals)}
-    return build_public_report(metrics, counts, validation_passed=True, completed_at=validated_at)
+    return build_public_report(metrics, counts, validation_passed=True, completed_at=validated_at, rule_outcomes=audit)
 
 
 def export_public_report(spark, output_dir, **execution):

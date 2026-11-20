@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Measured differences between original SOURCE and synthetic banking data, using saved aggregate validation results.">
+  <meta name="theme-color" content="#c8102e">
+  <title>Validation Report — Original vs Synthetic Data | RCAR</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="validation-config.js" defer></script>
+  <script src="validation.js" defer></script>
+</head>
+<body class="validation-page">
+  <a class="skip-link" href="#main">Skip to validation report</a>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="index.html" aria-label="RCAR project overview"><span class="brand-name">RCAR<span aria-hidden="true">.</span></span><span class="brand-description">Synthetic banking data</span></a>
+      <a href="index.html">Project methodology</a>
+    </div>
+    <nav class="report-nav container" aria-label="Validation report sections">
+      <a href="#summary">Summary</a><a href="#findings">Strengths &amp; gaps</a><a href="#numeric">Numeric</a><a href="#categorical">Categorical</a><a href="#dependencies">Dependencies</a><a href="#structure">Structure</a><a href="#interpretation">How to interpret</a>
+    </nav>
+  </header>
+  <main id="main" class="container report-main" tabindex="-1">
+    <div class="report-intro">
+      <p class="eyebrow">Latest pipeline results</p>
+      <h1 aria-label="Validation Report — Original vs Synthetic Data">Validation Report <span>Original vs Synthetic Data</span></h1>
+      <p>Compare the selected original SOURCE profile with its corresponding GENERATED profile. Read the measured differences, the relationships that matched, and the areas requiring review.</p>
+      <p class="measurement-note">This is a descriptive prototype screen. Integrity validation, statistical similarity and privacy clearance are separate decisions.</p>
+    </div>
+    <div id="validation-report" data-report-url="latest-pipeline.json" aria-live="off">
+      <p class="results-notice" role="status">Validation results pending</p>
+      <noscript><p>Enable JavaScript to load the aggregate validation report. Project methodology is available on the overview page.</p></noscript>
+    </div>
+  </main>
+  <footer class="site-footer container"><p>RCAR · Synthetic banking data prototype</p><a href="index.html">Project overview</a><a href="#main">Back to top</a></footer>
+</body>
+</html>

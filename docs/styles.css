@@ -12,6 +12,59 @@
   --mono: "IBM Plex Mono", Consolas, "Liberation Mono", monospace;
 }
 
+/* Dedicated validation report: shared palette and typography, static layout. */
+.report-nav { display: flex; gap: 1.6rem; overflow-x: auto; white-space: nowrap; }
+.report-nav a { padding: .6rem 0 .8rem; text-decoration: none; color: var(--ink); font-size: .9rem; }
+.report-nav a:hover { color: var(--red-dark); text-decoration: underline; }
+.report-main { padding-top: 3.5rem; }
+.report-intro { max-width: 61rem; padding-bottom: 2.5rem; }
+.report-intro h1 { max-width: 100%; font-size: clamp(2.3rem, 4.4vw, 4rem); margin-bottom: 1.5rem; }
+.report-intro h1 span { display: block; color: var(--red-dark); }
+.report-intro > p + p { margin-top: .8rem; }
+.report-section { padding: 3.5rem 0; border-bottom: 1px solid var(--line); scroll-margin-top: 1rem; min-width: 0; }
+.report-section h2 { font-size: clamp(1.7rem, 3vw, 2.4rem); margin-bottom: 1rem; }
+.report-description { max-width: 58rem; margin-bottom: 1.8rem; }
+.report-verdict { font-size: 1.4rem; color: var(--ink); font-weight: 650; }
+.report-metrics { margin: 1.8rem 0; background: var(--soft); border-top: 3px solid var(--red); padding: 1.5rem; }
+.findings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2.5rem; }
+.finding-panel h3 { margin-bottom: 1.4rem; }
+.finding-list { list-style: none; counter-reset: findings; padding: 0; }
+.finding-list li { position: relative; padding: 1rem 0 1.1rem 2.2rem; border-top: 1px solid var(--line); counter-increment: findings; }
+.finding-list li::before { content: counter(findings) "."; position: absolute; left: 0; font-weight: 700; color: var(--muted); }
+.finding-list p { margin: .3rem 0 .45rem; font-variant-numeric: tabular-nums; }
+.match-badge { display: inline-block; border: 1px solid #bfc3c9; border-radius: .2rem; padding: .15rem .5rem; font-size: .8rem; line-height: 1.5; font-weight: 650; white-space: nowrap; color: var(--ink); background: var(--soft); }
+.match-strong { background: #eef3f1; color: #245540; border-color: #a9c2b5; }
+.match-needs_review { color: var(--red-dark); border-color: #db9da7; background: var(--red-soft); }
+.match-unavailable { border-style: dashed; color: var(--muted); background: white; }
+.percentile-chart { list-style: none; margin: 2rem 0; padding: 0; display: grid; gap: 1.4rem; max-width: 60rem; }
+.chart-label { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: .5rem; }
+.chart-track { height: .65rem; background: #eceef1; width: 100%; border-radius: .15rem; }
+.chart-bar { height: 100%; background: #424a52; border-radius: .15rem; min-width: 0; }
+.chart-review { background: var(--red); }
+.chart-value { font-size: .875rem; margin-top: .3rem; font-variant-numeric: tabular-nums; }
+.report-table { min-width: 43rem; width: 100%; font-size: .9rem; }
+.report-table caption { text-align: left; font-weight: 650; color: var(--ink); padding: 1.1rem 0 .7rem; }
+.report-table td { font-variant-numeric: tabular-nums; }
+.report-table th:first-child { min-width: 12rem; }
+.report-table tbody th { font-weight: 550; }
+.report-section > .table-scroll { margin: 1.4rem 0; }
+.report-section .measurement-note { margin-top: 1rem; max-width: 60rem; }
+.report-details { margin-top: 1.4rem; border-top: 1px solid var(--line); padding-top: 1rem; }
+.report-details summary { cursor: pointer; color: var(--ink); font-weight: 600; padding: .3rem 0; }
+.report-sort { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; margin: 2rem 0 .5rem; font-size: .9rem; font-weight: 600; }
+.report-sort select { font: inherit; color: var(--ink); background: white; border: 1px solid #888e96; border-radius: .2rem; padding: .6rem .8rem; min-height: 44px; max-width: 100%; }
+.report-link-panel { display: flex; justify-content: space-between; align-items: center; gap: 1.5rem; padding-block: 2rem; }
+.report-link-panel p { max-width: 40rem; }
+button:focus-visible, select:focus-visible { outline: 3px solid var(--red); outline-offset: 3px; }
+@media (max-width: 760px) {
+  .findings-grid { grid-template-columns: 1fr; gap: 2rem; }
+  .report-link-panel { align-items: flex-start; flex-direction: column; }
+  .report-main { padding-top: 2.2rem; }
+  .report-section { padding-block: 2.5rem; }
+  .report-intro h1 { font-size: 2.4rem; }
+  .chart-label { align-items: flex-start; }
+}
+
 * {
   box-sizing: border-box;
 }
