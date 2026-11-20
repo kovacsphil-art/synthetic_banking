@@ -669,6 +669,69 @@ td {
 .results-help {
   margin-top: 2rem;
 }
+.results-completed {
+  font-size: .875rem;
+  color: var(--muted);
+}
+.results-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.25rem 1rem;
+  margin: 1.5rem 0;
+}
+.results-metrics > div {
+  min-width: 0;
+  border-top: 2px solid var(--line);
+  padding-top: .65rem;
+}
+.results-metrics dt {
+  font-size: .875rem;
+  color: var(--muted);
+  font-weight: 500;
+}
+.results-metrics dd {
+  margin: .2rem 0 0;
+  font-size: clamp(1.1rem, 2vw, 1.5rem);
+  font-weight: 650;
+  line-height: 1.4;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+.results-panel h4 {
+  font-size: 1rem;
+}
+.results-detail {
+  margin-top: .5rem;
+}
+.results-notes-title {
+  margin-top: 1.75rem;
+}
+.results-notes {
+  padding-left: 1.2rem;
+  margin-block: .6rem 1rem;
+  font-size: .875rem;
+  color: var(--muted);
+}
+.results-notes li + li {
+  margin-top: .5rem;
+}
+.results-refresh {
+  margin-top: 1.25rem;
+  font-size: .875rem;
+}
+.results-refresh:disabled {
+  opacity: .65;
+  cursor: wait;
+}
+.results-panel .comparison-table {
+  min-width: 27rem;
+}
+@media (max-width: 520px) {
+  .results-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
 .next-list {
   display: grid;
   grid-template-columns: 1fr 1fr;

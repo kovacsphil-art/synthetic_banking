@@ -1,60 +1,16 @@
-"""Optional packaging of already-existing generated CSV files."""
+"""The legacy arbitrary-CSV archive is intentionally disabled for row release."""
 
 from synthetic_banking.config import CSV_OUTPUT_DIR, SOURCE_DIR
+from synthetic_banking.privacy import PrivacyGateError
 
 
 def zip_existing_csvs(output_dir=CSV_OUTPUT_DIR, *, local_path="/tmp/RCAR_generated_row_level.zip", volume_path=SOURCE_DIR + "/RCAR_generated_row_level.zip"):
-    import os
-    import zipfile
-    import shutil
+    """No existing CSV manifest proves these files came from an assessed generation.
 
-    # Existing CSVs in the Volume
-    OUTPUT_DIR = output_dir
-
-    csv_paths = [
-        f"{OUTPUT_DIR}/PERSON.csv",
-        f"{OUTPUT_DIR}/CUSTOMER_ACCOUNT_REL.csv",
-        f"{OUTPUT_DIR}/CUSTOMER_RELATIONSHIP.csv",
-        f"{OUTPUT_DIR}/TKQ_ACCOUNT.csv",
-        f"{OUTPUT_DIR}/TKQ_ACCOUNT_BALANCE.csv",
-        f"{OUTPUT_DIR}/TRADELINES.csv"
-    ]
-
-    # ---------------------------------------------------------
-    # Create ZIP locally first
-    # ---------------------------------------------------------
-
-    local_zip_path = local_path
-
-    with zipfile.ZipFile(
-        local_zip_path,
-        "w",
-        compression=zipfile.ZIP_DEFLATED
-    ) as zip_file:
-
-        for csv_path in csv_paths:
-
-            zip_file.write(
-                csv_path,
-                arcname=os.path.basename(csv_path)
-            )
-
-    print("Local ZIP created:")
-    print(local_zip_path)
-
-    # ---------------------------------------------------------
-    # Copy completed ZIP into the Databricks Volume
-    # ---------------------------------------------------------
-
-    volume_zip_path = (
-        volume_path
+    A future generation-bound exporter must call privacy.require_row_level_release
+    with exact SOURCE/generation/assessment IDs before writing or distributing rows.
+    """
+    raise PrivacyGateError(
+        "Row-level CSV packaging is disabled: existing files are not bound to a privacy-assessed generation. "
+        "A generation-bound exporter must enforce require_row_level_release before any dataset download."
     )
-
-    shutil.copyfile(
-        local_zip_path,
-        volume_zip_path
-    )
-
-    print("\nZIP copied to Volume:")
-    print(volume_zip_path)
-    return volume_zip_path

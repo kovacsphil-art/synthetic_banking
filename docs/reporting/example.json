@@ -1,0 +1,329 @@
+{
+  "schema_version": "1.0",
+  "pipeline_completed_at": "2026-01-01T12:00:00Z",
+  "generation": {
+    "total_rows": {
+      "status": "AVAILABLE",
+      "value": 8200,
+      "reason": null
+    },
+    "customers": {
+      "status": "AVAILABLE",
+      "value": 1000,
+      "reason": null
+    },
+    "accounts": {
+      "status": "AVAILABLE",
+      "value": 1400,
+      "reason": null
+    },
+    "table_rows": [
+      {
+        "table": "PERSON",
+        "status": "AVAILABLE",
+        "value": 1000,
+        "reason": null
+      },
+      {
+        "table": "CUSTOMER_ACCOUNT_REL",
+        "status": "AVAILABLE",
+        "value": 1400,
+        "reason": null
+      },
+      {
+        "table": "TKQ_ACCOUNT",
+        "status": "AVAILABLE",
+        "value": 1400,
+        "reason": null
+      },
+      {
+        "table": "TKQ_ACCOUNT_BALANCE",
+        "status": "AVAILABLE",
+        "value": 1400,
+        "reason": null
+      },
+      {
+        "table": "TRADELINES",
+        "status": "AVAILABLE",
+        "value": 2500,
+        "reason": null
+      },
+      {
+        "table": "CUSTOMER_RELATIONSHIP",
+        "status": "AVAILABLE",
+        "value": 500,
+        "reason": null
+      }
+    ]
+  },
+  "rules": {
+    "proposed": {
+      "status": "AVAILABLE",
+      "value": 2,
+      "reason": null
+    },
+    "approved": {
+      "status": "AVAILABLE",
+      "value": 2,
+      "reason": null
+    },
+    "applied": {
+      "status": "AVAILABLE",
+      "value": 2,
+      "reason": null
+    },
+    "skipped": {
+      "status": "AVAILABLE",
+      "value": 0,
+      "reason": null
+    },
+    "approved_unimplemented": {
+      "status": "AVAILABLE",
+      "value": 0,
+      "reason": null
+    }
+  },
+  "validation": {
+    "status": "PASS",
+    "fidelity_acceptance": "NOT_CONFIGURED",
+    "account_balance_join_coverage": {
+      "accounts_with_balance": {
+        "status": "AVAILABLE",
+        "value": 1.0,
+        "reason": null
+      },
+      "balances_with_account": {
+        "status": "AVAILABLE",
+        "value": 1.0,
+        "reason": null
+      }
+    }
+  },
+  "numeric_differences": [
+    {
+      "table": "TKQ_ACCOUNT",
+      "column": "CREDIT_LIMIT_AMT",
+      "metric": "mean_value",
+      "status": "AVAILABLE",
+      "source": 1000.0,
+      "generated": 1020.0,
+      "difference": 20.0,
+      "difference_unit": "value",
+      "reason": null
+    },
+    {
+      "table": "TKQ_ACCOUNT",
+      "column": "CREDIT_LIMIT_AMT",
+      "metric": "p50",
+      "status": "AVAILABLE",
+      "source": 1000.0,
+      "generated": 1020.0,
+      "difference": 20.0,
+      "difference_unit": "value",
+      "reason": null
+    },
+    {
+      "table": "TKQ_ACCOUNT",
+      "column": "CREDIT_LIMIT_AMT",
+      "metric": "p95",
+      "status": "AVAILABLE",
+      "source": 1000.0,
+      "generated": 1020.0,
+      "difference": 20.0,
+      "difference_unit": "value",
+      "reason": null
+    },
+    {
+      "table": "TKQ_ACCOUNT_BALANCE",
+      "column": "CURRENT_BALANCE_AMT",
+      "metric": "mean_value",
+      "status": "AVAILABLE",
+      "source": 1000.0,
+      "generated": 1020.0,
+      "difference": 20.0,
+      "difference_unit": "value",
+      "reason": null
+    },
+    {
+      "table": "TKQ_ACCOUNT_BALANCE",
+      "column": "CURRENT_BALANCE_AMT",
+      "metric": "p50",
+      "status": "AVAILABLE",
+      "source": 1000.0,
+      "generated": 1020.0,
+      "difference": 20.0,
+      "difference_unit": "value",
+      "reason": null
+    },
+    {
+      "table": "TKQ_ACCOUNT_BALANCE",
+      "column": "CURRENT_BALANCE_AMT",
+      "metric": "p95",
+      "status": "AVAILABLE",
+      "source": 1000.0,
+      "generated": 1020.0,
+      "difference": 20.0,
+      "difference_unit": "value",
+      "reason": null
+    },
+    {
+      "table": "TKQ_ACCOUNT_BALANCE",
+      "column": "AVAILABLE_TO_BUY_AMT",
+      "metric": "mean_value",
+      "status": "AVAILABLE",
+      "source": 1000.0,
+      "generated": 1020.0,
+      "difference": 20.0,
+      "difference_unit": "value",
+      "reason": null
+    },
+    {
+      "table": "TKQ_ACCOUNT_BALANCE",
+      "column": "AVAILABLE_TO_BUY_AMT",
+      "metric": "p50",
+      "status": "AVAILABLE",
+      "source": 1000.0,
+      "generated": 1020.0,
+      "difference": 20.0,
+      "difference_unit": "value",
+      "reason": null
+    },
+    {
+      "table": "TKQ_ACCOUNT_BALANCE",
+      "column": "AVAILABLE_TO_BUY_AMT",
+      "metric": "p95",
+      "status": "AVAILABLE",
+      "source": 1000.0,
+      "generated": 1020.0,
+      "difference": 20.0,
+      "difference_unit": "value",
+      "reason": null
+    },
+    {
+      "table": "TKQ_ACCOUNT_BALANCE",
+      "column": "OVERLIMIT_AMT",
+      "metric": "mean_value",
+      "status": "AVAILABLE",
+      "source": 1000.0,
+      "generated": 1020.0,
+      "difference": 20.0,
+      "difference_unit": "value",
+      "reason": null
+    },
+    {
+      "table": "TKQ_ACCOUNT_BALANCE",
+      "column": "OVERLIMIT_AMT",
+      "metric": "p50",
+      "status": "AVAILABLE",
+      "source": 1000.0,
+      "generated": 1020.0,
+      "difference": 20.0,
+      "difference_unit": "value",
+      "reason": null
+    },
+    {
+      "table": "TKQ_ACCOUNT_BALANCE",
+      "column": "OVERLIMIT_AMT",
+      "metric": "p95",
+      "status": "AVAILABLE",
+      "source": 1000.0,
+      "generated": 1020.0,
+      "difference": 20.0,
+      "difference_unit": "value",
+      "reason": null
+    }
+  ],
+  "categorical_differences": [
+    {
+      "table": "TKQ_ACCOUNT",
+      "column": "PAST_DUE_INDICATO_CD",
+      "category": "Y",
+      "status": "AVAILABLE",
+      "source": 0.1,
+      "generated": 0.11,
+      "difference": 1.0,
+      "difference_unit": "percentage_points",
+      "reason": null
+    },
+    {
+      "table": "TKQ_ACCOUNT",
+      "column": "PAST_DUE_INDICATO_CD",
+      "category": "N",
+      "status": "AVAILABLE",
+      "source": 0.9,
+      "generated": 0.89,
+      "difference": -1.0,
+      "difference_unit": "percentage_points",
+      "reason": null
+    }
+  ],
+  "dependency_results": {
+    "credit_limit_balance_pearson": {
+      "status": "UNAVAILABLE",
+      "source": null,
+      "generated": null,
+      "difference": null,
+      "difference_unit": "correlation",
+      "reason": "metric_unavailable"
+    },
+    "delinquency_by_utilization": [
+      {
+        "utilization_bucket": "0-30%",
+        "status": "UNAVAILABLE",
+        "source": null,
+        "generated": null,
+        "difference": null,
+        "difference_unit": "percentage_points",
+        "reason": "metric_unavailable"
+      },
+      {
+        "utilization_bucket": "30-60%",
+        "status": "UNAVAILABLE",
+        "source": null,
+        "generated": null,
+        "difference": null,
+        "difference_unit": "percentage_points",
+        "reason": "metric_unavailable"
+      },
+      {
+        "utilization_bucket": "60-80%",
+        "status": "UNAVAILABLE",
+        "source": null,
+        "generated": null,
+        "difference": null,
+        "difference_unit": "percentage_points",
+        "reason": "metric_unavailable"
+      },
+      {
+        "utilization_bucket": "80-100%",
+        "status": "UNAVAILABLE",
+        "source": null,
+        "generated": null,
+        "difference": null,
+        "difference_unit": "percentage_points",
+        "reason": "metric_unavailable"
+      },
+      {
+        "utilization_bucket": "100%+",
+        "status": "UNAVAILABLE",
+        "source": null,
+        "generated": null,
+        "difference": null,
+        "difference_unit": "percentage_points",
+        "reason": "metric_unavailable"
+      }
+    ]
+  },
+  "warnings": [
+    {
+      "code": "FIDELITY_THRESHOLDS_NOT_CONFIGURED",
+      "message": "Integrity passed. Statistical differences are observations for review, without an overall acceptance score.",
+      "count": null
+    },
+    {
+      "code": "UNAVAILABLE_METRICS",
+      "message": "Some selected aggregate measurements are unavailable.",
+      "count": 6
+    }
+  ]
+}

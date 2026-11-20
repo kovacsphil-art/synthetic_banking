@@ -28,6 +28,8 @@ class GenerationSettings:
     seed: int = DEFAULT_SEED
     pilot_batch_id: str = ""
     pilot_proposal_ids: tuple[str, ...] = ()
+    # Job batch scoping is separate from the stricter one-to-three-rule manual pilot.
+    proposal_batch_id: str = ""
 
 
 def configured_sql(text):

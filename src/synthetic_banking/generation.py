@@ -41,6 +41,8 @@ complete_columns = add_missing_columns
 def generate_dataset(spark, profiles, settings=GenerationSettings(), *, date_sampler=None):
     source_run_id = profiles.source_run_id
     pilot_batch_id, pilot_proposal_ids = settings.pilot_batch_id, settings.pilot_proposal_ids
+    if settings.proposal_batch_id and pilot_batch_id:
+        raise ValueError("Choose workflow proposal_batch_id or manual pilot_batch_id, not both.")
     numeric_stats, category_stats = profiles.numeric_stats, profiles.category_stats
     column_quality, structural_stats = profiles.column_quality, profiles.structural_stats
     conditional_stats = profiles.conditional_stats
@@ -255,7 +257,7 @@ def generate_dataset(spark, profiles, settings=GenerationSettings(), *, date_sam
     if not account_df["ACCOUNT_ID"].equals(account_balance_df["ACCOUNT_ID"]):
         raise ValueError("Account and balance rows must align by ACCOUNT_ID before applying balance rules.")
 
-    rule_proposals = load_rule_proposals(spark, source_run_id, batch_id=pilot_batch_id)
+    rule_proposals = load_rule_proposals(spark, source_run_id, batch_id=settings.proposal_batch_id or pilot_batch_id)
     if pilot_batch_id:
         approved_ids = {proposal.proposal_id for proposal in rule_proposals if proposal.approved}
         if approved_ids != set(pilot_proposal_ids):

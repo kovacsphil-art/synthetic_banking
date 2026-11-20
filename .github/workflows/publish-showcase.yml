@@ -1,0 +1,89 @@
+name: Publish validated showcase
+
+on:
+  schedule:
+    - cron: '7,22,37,52 * * * *'
+  workflow_dispatch:
+    inputs:
+      pipeline_run_id:
+        description: 'Successful Databricks job run ID (blank selects latest successful run)'
+        required: false
+        type: string
+
+concurrency:
+  group: showcase-publication
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  prepare:
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    outputs:
+      ready: ${{ steps.report.outputs.ready }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install reporting transport and schema validator
+        run: python -m pip install databricks-sdk==0.72.0 jsonschema==4.23.0
+      - name: Retrieve report from a successful pipeline execution
+        id: report
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
+          DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
+          DATABRICKS_AUTH_TYPE: oauth-m2m
+          DATABRICKS_JOB_ID: ${{ vars.DATABRICKS_JOB_ID }}
+          REPORT_OUTPUT_DIR: ${{ vars.REPORT_OUTPUT_DIR }}
+          PIPELINE_RUN_ID: ${{ inputs.pipeline_run_id }}
+        run: python scripts/publish_showcase.py
+      - name: Check webpage contract
+        if: steps.report.outputs.ready == 'true'
+        run: |
+          node -e "require('./docs/results.js').normalizeReport(require('./docs/latest-pipeline.json'))"
+      - name: Commit only the sanitized report
+        if: steps.report.outputs.ready == 'true'
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- docs/latest-pipeline.json
+          if ! git diff --cached --quiet; then
+            git commit -m "Update sanitized showcase results"
+            git push
+          fi
+      - name: Stage only public website files
+        if: steps.report.outputs.ready == 'true'
+        run: |
+          mkdir _site
+          cp docs/index.html docs/styles.css docs/results.js docs/latest-pipeline.json _site/
+          touch _site/.nojekyll
+      - uses: actions/upload-pages-artifact@v3
+        if: steps.report.outputs.ready == 'true'
+        with:
+          path: _site
+  deploy:
+    needs: prepare
+    if: needs.prepare.outputs.ready == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+      - name: Deploy static site
+        id: deployment
+        uses: actions/deploy-pages@v4

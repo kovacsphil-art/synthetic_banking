@@ -12,7 +12,7 @@ from synthetic_banking.validation import null_padding_type, validate_generated_b
 def save_generation(spark, result):
     from pyspark.sql import functions as F
     source_run_id, SEED = result.source_run_id, result.settings.seed
-    pilot_batch_id = result.settings.pilot_batch_id
+    pilot_batch_id = result.settings.proposal_batch_id or result.settings.pilot_batch_id
     expected_schema, rule_events = result.expected_schema, result.rule_events
     relationship_plan = result.relationship_plan
     date_sampler = SimpleNamespace(expected_null_counts=result.date_null_counts)

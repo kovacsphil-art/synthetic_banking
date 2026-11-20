@@ -282,6 +282,10 @@ def export_showcase(spark, output_dir, *, template_dir=None):
     stylesheet = template_dir / "styles.css"
     if stylesheet.resolve() != output / "styles.css":
         shutil.copyfile(stylesheet, output / "styles.css")
+    # Retain the JSON loader when exporting a copy of the current static template.
+    loader = template_dir / "results.js"
+    if loader.is_file() and loader.resolve() != output / "results.js":
+        shutil.copyfile(loader, output / "results.js")
     temporary = None
     try:
         with NamedTemporaryFile(mode="w", encoding="utf-8", dir=output, suffix=".html", delete=False) as file:

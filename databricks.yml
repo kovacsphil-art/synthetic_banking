@@ -1,0 +1,15 @@
+bundle:
+  name: synthetic-banking
+
+include:
+  - resources/*.yml
+
+variables:
+  cluster_id:
+    description: Existing Unity Catalog-compatible Databricks cluster ID
+  report_output_dir:
+    description: Absolute writable Volume directory for the sanitized JSON export
+
+targets:
+  dev:
+    default: true

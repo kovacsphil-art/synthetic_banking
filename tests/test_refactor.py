@@ -224,6 +224,18 @@ class ProposalExtractionTests(unittest.TestCase):
 
 @unittest.skipIf(pd is None, "Generator integration requires pandas, included in Databricks.")
 class ExtractedGenerationTests(unittest.TestCase):
+    def test_workflow_batch_scoping_preserves_sampling_and_routes_only_the_selected_batch(self):
+        from generation_fixtures import fabricated_profiles, fingerprint
+        from synthetic_banking.generation import generate_dataset
+        profiles, date_factory = fabricated_profiles()
+        spark = SimpleNamespace(catalog=SimpleNamespace(tableExists=lambda _: False))
+        settings = GenerationSettings(8, 42, proposal_batch_id="batch-A")
+        with patch("synthetic_banking.generation.load_rule_proposals", return_value=()) as load, redirect_stdout(StringIO()):
+            result = generate_dataset(spark, profiles, settings, date_sampler=date_factory(42))
+        load.assert_called_once_with(spark, "source-A", batch_id="batch-A")
+        expected = json.loads((FIXTURES / "generation_reference.json").read_text())["8:42"]
+        self.assertEqual(json.loads(json.dumps(fingerprint(result.tables, result.rule_events, result.rng_state, result.relationship_plan))), expected)
+
     def test_storage_publishes_completed_only_after_validation(self):
         from synthetic_banking.storage import save_generation
         from synthetic_banking.validation import GeneratedValidationError

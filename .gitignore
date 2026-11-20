@@ -3,6 +3,7 @@
 .env.*
 !.env.example
 .databrickscfg
+.databricks/
 .venv/
 venv/
 
@@ -15,6 +16,7 @@ fidelity_report.json
 /generated_row_level/
 /output/
 /outputs/
+/_site/
 
 # Python and notebook caches
 __pycache__/

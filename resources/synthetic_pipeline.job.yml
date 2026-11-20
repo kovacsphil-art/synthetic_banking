@@ -1,0 +1,112 @@
+resources:
+  jobs:
+    synthetic_pipeline:
+      name: synthetic-banking-controlled-pipeline
+      description: Explicit SOURCE lineage, manual rule review, privacy row-release screening and sanitized reporting.
+      max_concurrent_runs: 1
+      parameters:
+        - name: reuse_source_run_id
+          default: ""
+        - name: reuse_batch_id
+          default: ""
+        - name: rule_scope
+          default: BALANCE_PILOT
+      tasks:
+        - task_key: source_profile
+          existing_cluster_id: ${var.cluster_id}
+          max_retries: 0
+          notebook_task:
+            notebook_path: ../notebooks/01_Stat extraction _v1.ipynb
+            base_parameters:
+              workflow_mode: "ON"
+              profile_type: SOURCE
+              reuse_source_run_id: "{{job.parameters.reuse_source_run_id}}"
+              reuse_batch_id: "{{job.parameters.reuse_batch_id}}"
+        - task_key: llm_proposal
+          depends_on:
+            - task_key: source_profile
+          existing_cluster_id: ${var.cluster_id}
+          max_retries: 0
+          notebook_task:
+            notebook_path: ../notebooks/02_LLM Rule Generation.ipynb
+            base_parameters:
+              workflow_mode: "ON"
+              source_run_id: "{{tasks.source_profile.values.source_run_id}}"
+              workflow_rule_scope: "{{job.parameters.rule_scope}}"
+              reuse_batch_id: "{{job.parameters.reuse_batch_id}}"
+        - task_key: approval_check
+          depends_on:
+            - task_key: llm_proposal
+          existing_cluster_id: ${var.cluster_id}
+          max_retries: 0
+          notebook_task:
+            notebook_path: ../notebooks/04_Approval_Check.py
+            base_parameters:
+              source_run_id: "{{tasks.source_profile.values.source_run_id}}"
+              batch_id: "{{tasks.llm_proposal.values.batch_id}}"
+        - task_key: synthetic_generation
+          depends_on:
+            - task_key: approval_check
+          existing_cluster_id: ${var.cluster_id}
+          max_retries: 0
+          notebook_task:
+            notebook_path: ../notebooks/03_Synthetic_Gen_v1.ipynb
+            base_parameters:
+              workflow_mode: "ON"
+              source_run_id: "{{tasks.source_profile.values.source_run_id}}"
+              proposal_batch_id: "{{tasks.approval_check.values.batch_id}}"
+              approval_fingerprint: "{{tasks.approval_check.values.approval_fingerprint}}"
+              pilot_batch_id: ""
+              pilot_proposal_ids: ""
+        - task_key: privacy_check
+          depends_on:
+            - task_key: synthetic_generation
+          existing_cluster_id: ${var.cluster_id}
+          max_retries: 0
+          notebook_task:
+            notebook_path: ../notebooks/07_Privacy_Check.py
+            base_parameters:
+              source_run_id: "{{tasks.source_profile.values.source_run_id}}"
+              batch_id: "{{tasks.llm_proposal.values.batch_id}}"
+              generation_id: "{{tasks.synthetic_generation.values.generation_id}}"
+        - task_key: generated_profile
+          depends_on:
+            - task_key: privacy_check
+          existing_cluster_id: ${var.cluster_id}
+          max_retries: 0
+          notebook_task:
+            notebook_path: ../notebooks/01_Stat extraction _v1.ipynb
+            base_parameters:
+              workflow_mode: "ON"
+              profile_type: GENERATED
+              generation_id: "{{tasks.synthetic_generation.values.generation_id}}"
+              workflow_source_run_id: "{{tasks.source_profile.values.source_run_id}}"
+              workflow_batch_id: "{{tasks.llm_proposal.values.batch_id}}"
+        - task_key: validate
+          depends_on:
+            - task_key: generated_profile
+          existing_cluster_id: ${var.cluster_id}
+          max_retries: 0
+          notebook_task:
+            notebook_path: ../notebooks/05_Validate_Run.py
+            base_parameters:
+              source_run_id: "{{tasks.source_profile.values.source_run_id}}"
+              batch_id: "{{tasks.llm_proposal.values.batch_id}}"
+              generation_id: "{{tasks.synthetic_generation.values.generation_id}}"
+              generated_run_id: "{{tasks.generated_profile.values.generated_run_id}}"
+        - task_key: reporting
+          depends_on:
+            - task_key: validate
+          existing_cluster_id: ${var.cluster_id}
+          max_retries: 0
+          notebook_task:
+            notebook_path: ../notebooks/06_Export_Report.py
+            base_parameters:
+              source_run_id: "{{tasks.validate.values.source_run_id}}"
+              batch_id: "{{tasks.validate.values.batch_id}}"
+              generation_id: "{{tasks.validate.values.generation_id}}"
+              generated_run_id: "{{tasks.validate.values.generated_run_id}}"
+              validation_status: "{{tasks.validate.values.validation_status}}"
+              validated_at: "{{tasks.validate.values.validated_at}}"
+              report_output_dir: ${var.report_output_dir}
+              workflow_run_id: "{{job.run_id}}"

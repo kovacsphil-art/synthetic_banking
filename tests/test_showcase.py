@@ -156,6 +156,7 @@ class ShowcaseTests(unittest.TestCase):
             self.assertIn('class="status-label status-measured"', page)
             self.assertNotIn("Results pending", page)
             self.assertTrue((Path(folder) / "styles.css").is_file())
+            self.assertTrue((Path(folder) / "results.js").is_file())
             original = (template / "index.html").read_text(encoding="utf-8")
             start, end = "<!-- SHOWCASE RESULTS START -->", "<!-- SHOWCASE RESULTS END -->"
             self.assertEqual(page.split(start)[0], original.split(start)[0])

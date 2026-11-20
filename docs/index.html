@@ -7,6 +7,7 @@
   <meta name="theme-color" content="#c8102e">
   <title>RCAR — Synthetic Banking Data</title>
   <link rel="stylesheet" href="styles.css">
+  <script src="results.js" defer></script>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to content</a>
@@ -179,6 +180,7 @@
       </div>
       <div class="validation-grid">
         <div class="validation-checks">
+          <p class="eyebrow">Project methodology</p>
           <h3>What validation checks</h3>
           <ul class="check-list">
             <li>Required columns and compatible types</li>
@@ -192,25 +194,13 @@
             <div class="disclosure-content"><p>Accounts and balances share <code>ACCOUNT_ID</code> and <code>BUSINESSEFFECTIVEDATE</code>. Matching both fields keeps dependency checks aligned with the generated account population.</p></div>
           </details>
         </div>
-        <div class="results-panel" aria-labelledby="comparison-title">
+        <div class="results-panel" id="latest-results" data-report-url="latest-pipeline.json" aria-labelledby="comparison-title">
           <!-- SHOWCASE RESULTS START -->
-          <div class="panel-heading"><h3 id="comparison-title">SOURCE vs GENERATED</h3><span class="status-label status-pending">Results pending</span></div>
+          <div class="panel-heading"><h3 id="comparison-title">Latest pipeline results</h3><span class="status-label status-pending" role="status" aria-live="polite">Results pending</span></div>
           <div class="results-notice">
-            <p id="results-description">Measured values are awaiting export from a completed, reviewed pilot.</p>
-            <p>The table below identifies the comparisons that will appear here.</p>
+            <p>Results load from the latest sanitized pipeline report. Project methodology is documented separately.</p>
+            <noscript><p>JavaScript is required to load the aggregate results. You can still explore all project methodology on this page.</p></noscript>
           </div>
-          <div class="table-scroll" role="region" aria-label="Comparison placeholders" tabindex="0">
-            <table aria-describedby="results-description">
-              <caption class="sr-only">Measurements awaiting export</caption>
-              <thead><tr><th scope="col">Comparison</th><th scope="col">SOURCE</th><th scope="col">GENERATED</th></tr></thead>
-              <tbody>
-                <tr><th scope="row">Mean &amp; quantiles</th><td>Pending</td><td>Pending</td></tr>
-                <tr><th scope="row">Balance / limit correlation</th><td>Pending</td><td>Pending</td></tr>
-                <tr><th scope="row">Past-due rates by utilization</th><td>Pending</td><td>Pending</td></tr>
-              </tbody>
-            </table>
-          </div>
-          <p class="panel-footnote">After the Databricks pilot, this panel includes aggregate differences, sample sizes, join coverage, and rule execution outcomes.</p>
           <!-- SHOWCASE RESULTS END -->
         </div>
       </div>
@@ -218,8 +208,8 @@
         <summary>How to read and refresh these results</summary>
         <div class="disclosure-content">
           <p>SOURCE is the selected baseline. GENERATED is the synthetic-data profile compared against it. Quantiles show cutoffs in a distribution. Utilization is balance relative to credit limit, and past-due rates are grouped by utilization range.</p>
-          <p>Differences are relative to SOURCE. A zero baseline uses an absolute difference. Unavailable indicates a missing or undefined measurement.</p>
-          <p>Notebook 01's final GENERATED cell refreshes the showcase after checking completion, lineage, and saved validation versions. Refresh the exported HTML file to view it, or commit and push the refreshed files to update GitHub Pages.</p>
+          <p>Differences are GENERATED minus SOURCE, in the measurement’s native units. Rate differences use percentage points. Unavailable indicates a missing or undefined measurement. Integrity checks and statistical fidelity are separate: no overall fidelity acceptance threshold is configured.</p>
+          <p>The workflow’s final reporting task exports sanitized aggregate JSON after validation succeeds. Publish that file as <code>latest-pipeline.json</code> beside this page, then choose Refresh results. The timestamp identifies the last successfully validated export; the page does not connect directly to Databricks.</p>
         </div>
       </details>
     </section>

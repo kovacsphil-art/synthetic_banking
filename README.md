@@ -23,6 +23,8 @@ Notebook 03 uses the selected SOURCE statistics and predefined Python implementa
 5. Set Notebook 03's `source_run_id` to the same SOURCE ID. For the pilot, fill in `pilot_batch_id` and `pilot_proposal_ids`. Run through the Delta-save and validation cell and record the `generation_id`.
 6. Rerun Notebook 01 with `profile_type` set to `GENERATED` and the recorded `generation_id`. Review its fidelity report against the original SOURCE run. Optionally set `fidelity_output_dir` to an absolute writable folder for an aggregate JSON copy.
 
+For an orchestrated run, deploy the serial job in [`databricks.yml`](databricks.yml) using the [workflow runbook](docs/workflow.md). It passes exact IDs between the existing notebooks, stops for manual proposal review, and validates the completed profile pair. A separate privacy-screening task runs after generation; unresolved privacy findings block row-level release while aggregate validation/reporting continue. Its final task publishes [sanitized aggregate JSON](docs/reporting/README.md) without modifying the HTML showcase. The runbook covers deployment, task handoffs, repairing the approval stop, and reusing a previously reviewed SOURCE/batch pair.
+
 ### Shared code and configuration
 
 Keep `notebooks/` and `src/` together, whether using Git or uploading the project to Databricks. Each notebook finds `src/` automatically; no package build or installation is needed. Run each notebook from the top after changing parameters or shared code. If discovery fails, add the absolute project `src/` path to `sys.path`.
@@ -41,8 +43,16 @@ The notebooks now coordinate these reusable modules:
 | Select/apply reviewed rules | `rules.py` | Provenance checks, predefined implementations, legacy fallbacks, and application/skip events |
 | Persist and validate | `storage.py`, `validation.py`, `temporal.py` | Six Delta tables, audits, validation gates, and completion only after validation |
 | Compare and publish aggregates | `fidelity.py`, `showcase.py` | Pinned SOURCE-vs-GENERATED metrics and optional HTML export |
+| Job handoffs and public report | `workflow.py`, `reporting.py` | Explicit provenance, manual approval gate, generation/version guards, and sanitized versioned JSON |
+| Privacy screening / row-release gate | `privacy.py`, `privacy_checks.py`, `privacy_sources.py` | Aggregate-only disclosure checks, SOURCE Delta snapshots, and fail-closed release clearance |
 
-This refactor retains sampling formulas, RNG call order, rule eligibility, table/view architecture, and validation gates. The existing optional CSV ZIP utility is in `artifacts.py`; its notebook call is commented out until all six CSVs have been exported. Delta generation does not create those CSVs.
+This refactor retains sampling formulas, RNG call order, rule eligibility and table/view architecture. Row-level release has a separate privacy gate. The legacy arbitrary-CSV ZIP utility in `artifacts.py` is now disabled because its files cannot be bound to an assessed generation; aggregate reporting is unaffected.
+
+### Privacy screening before row-level sharing
+
+The job runs Notebook 07 after generation and saves separate aggregate privacy metrics: identifier-domain overlap, exact SOURCE-row matches, payload copying with regenerated IDs, curated rare categorical patterns and bounded PERSON date/gender similarity. SOURCE snapshots are recorded and verified by Notebook 01; older SOURCE runs without that evidence cannot clear row release. See [privacy checks, thresholds and limitations](docs/privacy.md).
+
+`PASS`, `REVIEW_REQUIRED` and `BLOCKED` describe this basic screen, not anonymization certification. Unresolved findings, missing inputs, errors or resource limits block any future row exporter through `require_row_level_release`. The existing unbound-CSV ZIP helper is disabled. Aggregate fidelity JSON and the HTML showcase continue independently, and their validation PASS must not be read as privacy approval. No dataset download/publication feature is enabled.
 
 ### Optional setup for fake SOURCE inputs
 
@@ -52,11 +62,13 @@ Set `SCHEMA_XLSX` and `OUTPUT_DIR` for your workspace. The output directory must
 
 ### Project showcase and GitHub Pages
 
-Open [docs/index.html](docs/index.html) in a browser to view the static showcase. To publish it, push these files to GitHub, open the repository's **Settings → Pages**, choose **Deploy from a branch**, select the branch containing the site and **/docs**, then save. GitHub displays the published URL when deployment completes. [GitHub Pages publishing instructions](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site)
+Open [docs/index.html](docs/index.html) in a browser to view the static showcase. Automated publishing uses [Publish validated showcase](.github/workflows/publish-showcase.yml): GitHub polls for a successful Databricks job every 15 minutes, validates its run-specific sanitized JSON, commits only `docs/latest-pipeline.json`, and deploys an explicit list of static assets using GitHub Pages. Choose **Settings → Pages → GitHub Actions**, then configure the secrets and variables in the [publication runbook](docs/publication.md). Failed runs and invalid reports leave the published site intact. **Actions → Publish validated showcase → Run workflow** provides a manual trigger.
 
-Notebook 01's final cell automatically refreshes the showcase after a completed `GENERATED` profile. It exports means and quantiles for the four pilot fields, balance/limit correlation, past-due rates and sample sizes, table counts, snapshot join coverage, and rule outcome counts. It uses the active GENERATED profile and its pinned SOURCE baseline, checks the saved validation versions, and writes aggregate measurements only. Missing statistics display as `Unavailable`.
+The **Latest pipeline results** panel reads `docs/latest-pipeline.json` using the lightweight `results.js` loader. Architecture, profiling methodology and review explanations remain static. The publication workflow retrieves only the sanitized artifact from the successful reporting task. Manual download/copy remains available for local previews. Missing/invalid files show a professional unavailable state, and missing individual measurements show `Unavailable`. The documentation example is never loaded as live results.
 
-Keep `docs/` alongside `src/` in Databricks. Leave the `showcase_output_dir` widget blank to update that checkout's `docs/`, or set an absolute writable folder to export a separate `index.html` and `styles.css`. Refresh the exported page locally, or commit and push the refreshed files for GitHub Pages. When Databricks and your local checkout are separate, download the exported files into local `docs/` first. Remote-Git job tasks need a writable output location such as a Volume. [Databricks workspace file limitations](https://docs.databricks.com/aws/en/files/workspace)
+For local preview, run `python -m http.server 8000 --bind 127.0.0.1 --directory docs` from the repository root and open `http://127.0.0.1:8000/#validation`. Opening `index.html` directly still shows the project, but browser `file://` restrictions can block JSON loading. See the [exact webpage JSON field reference](docs/results-data.md), [reporting schema](docs/reporting/pipeline-report.schema.json) and [fabricated example](docs/reporting/example.json).
+
+Notebook 01's older static-HTML export remains available in interactive mode for compatibility; it is not needed to publish JSON-backed results. It also copies `results.js` when present. Workflow mode skips that HTML export. Use the sanitized reporting artifact as the site's results source rather than exporting raw profiler tables or the internal `fidelity_report.json`.
 
 ---
 
@@ -79,7 +91,7 @@ The LLM should **not** directly generate customer rows and should not be given r
 
 # Current Notebooks
 
-The project currently consists of three main Databricks notebooks.
+The project has three main Databricks notebooks, plus small approval, validation and reporting task notebooks for the [orchestrated workflow](docs/workflow.md).
 
 ## `01_Stat extraction _v1.ipynb`
 
@@ -139,6 +151,9 @@ Important objects include:
 source_config
 profile_runs
 profile_run_lineage
+privacy_source_snapshots
+privacy_assessments
+privacy_metrics
 current_run
 column_inventory
 column_quality
@@ -698,13 +713,7 @@ workspace.synthetic_generated
 
 Notebook 03 records the generation ID and its SOURCE profile ID in `generation_state`. It sets the state to `RUNNING` before writing the tables and to `COMPLETED` after the saved data and audit pass validation.
 
-The notebook also contains ZIP logic for CSV outputs expected under:
-
-```text
-/Volumes/workspace/default/scotia/generated_row_level
-```
-
-The current ZIP cell assumes those CSV files already exist; the notebook itself does not currently contain the CSV export step.
+The legacy CSV ZIP packaging step is disabled: existing files have no manifest binding them to the privacy-assessed generation. A future generation-bound row-level exporter must enforce the [privacy gate](docs/privacy.md) before any dataset download. The notebooks continue producing validated Delta tables and aggregate reports.
 
 ### Generated batch validation
 
@@ -899,7 +908,7 @@ Known limitations include:
 - Categorical-to-categorical dependencies are not yet systematically modeled.
 - Numeric dependency profiling covers selected account/tradeline pairs, product/type segments, and four SOURCE X-quantile intervals. Pearson and these coarse segments can still miss nonlinear structure; they do not constitute a conditional generative model. Categorical profiling also covers a curated, bounded set of pairs.
 - Customer relationships preserve measured degree/direction/type/null patterns approximately, with bounded logged reconciliation. Demographic compatibility, full reciprocal histories and ownership-total constraints are not modeled.
-- The ZIP step assumes row-level CSV files already exist.
+- Basic privacy screens are heuristic and limited to configured fields; no formal anonymity or disclosure guarantee is established. Row-level distribution remains gated, and the arbitrary-CSV ZIP helper is disabled.
 
 ---
 
@@ -911,7 +920,7 @@ Prioritize work in roughly this order:
 2. Extend the registry to additional measured dependencies after validating the reviewed utilization-to-delinquency path.
 3. Exercise the expanded fidelity report in Databricks and agree on use-case-specific acceptance thresholds.
 4. Exercise customer-relationship fidelity on a Databricks test destination and review degree adjustments.
-5. Refactor reusable notebook logic into Python modules once behavior is stable.
+5. Smoke-test the orchestrated workflow, its approval repair, and sanitized reporting export in a Databricks test destination.
 
 ---
 
@@ -981,12 +990,26 @@ When modifying this repository:
 synthetic_banking/
 |-- AGENTS.md
 |-- README.md
+|-- databricks.yml
+|-- resources/
+|   `-- synthetic_pipeline.job.yml
 |-- docs/
-|   `-- controlled-pilot.md
+|   |-- index.html
+|   |-- styles.css
+|   |-- results.js
+|   |-- results-data.md
+|   |-- controlled-pilot.md
+|   |-- workflow.md
+|   |-- privacy.md
+|   `-- reporting/
 |-- notebooks/
 |   |-- 01_Stat extraction _v1.ipynb
 |   |-- 02_LLM Rule Generation.ipynb
-|   `-- 03_Synthetic_Gen_v1.ipynb
+|   |-- 03_Synthetic_Gen_v1.ipynb
+|   |-- 04_Approval_Check.py
+|   |-- 05_Validate_Run.py
+|   |-- 06_Export_Report.py
+|   `-- 07_Privacy_Check.py
 |-- src/
 |   `-- synthetic_banking/
 |       |-- __init__.py
@@ -999,17 +1022,22 @@ synthetic_banking/
 |       |-- generators.py
 |       |-- marginal_profiles.py
 |       |-- numeric_dependencies.py
+|       |-- privacy.py
+|       |-- privacy_checks.py
+|       |-- privacy_sources.py
 |       |-- profiles.py
 |       |-- profiling.py
 |       |-- profiling_run.py
 |       |-- profiling_sql.py
 |       |-- proposals.py
 |       |-- relationship_profiles.py
+|       |-- reporting.py
 |       |-- rules.py
 |       |-- showcase.py
 |       |-- storage.py
 |       |-- temporal.py
-|       `-- validation.py
+|       |-- validation.py
+|       `-- workflow.py
 `-- tests/
     |-- test_categorical_profiling.py
     |-- test_customer_relationships.py
@@ -1017,10 +1045,14 @@ synthetic_banking/
     |-- test_delinquency.py
     |-- test_fidelity.py
     |-- test_numeric_dependencies.py
+    |-- test_privacy.py
     |-- test_refactor.py
+    |-- test_results.cjs
+    |-- test_reporting.py
     |-- test_rules.py
     |-- test_showcase.py
-    `-- test_validation.py
+    |-- test_validation.py
+    `-- test_workflow.py
 ```
 
 [`AGENTS.md`](AGENTS.md) records repository guidance for Codex. Notebook 03 calls [`profiles.py`](src/synthetic_banking/profiles.py), [`generation.py`](src/synthetic_banking/generation.py), and [`storage.py`](src/synthetic_banking/storage.py); generation continues to use the controlled registry in [`rules.py`](src/synthetic_banking/rules.py).
@@ -1034,7 +1066,16 @@ $env:PYTHONPATH = (Resolve-Path -LiteralPath src).Path
 python -B -m unittest discover -s tests -v
 ```
 
-The tests use fabricated inputs to check date distributions/nulls/order/repeatability, categorical statistics and limits, aggregate-only prompt context, provenance filtering, rule dispatch, generated output validation, and fidelity metrics/history. Refactor checks cover SOURCE selection, preflight, proposal batches, unchanged profiler aggregations/SQL/prompts, and generator parity with two pre-refactor fabricated baselines (six tables, audits, graph plan, and RNG state). Install pandas alongside NumPy to run all generator integration checks locally; those checks skip when pandas is unavailable. Databricks provides these runtime libraries. Verify notebook execution and Delta writes separately in a Databricks test destination.
+The static showcase's dependency-free JavaScript checks run with Node:
+
+Publication tests additionally use `jsonschema==4.23.0` (`python -m pip install jsonschema==4.23.0`); they skip when it is unavailable. GitHub installs the pinned publication dependencies automatically.
+
+```powershell
+node --check docs/results.js
+node --test tests/test_results.cjs
+```
+
+The tests use fabricated inputs to check date distributions/nulls/order/repeatability, categorical statistics and limits, aggregate-only prompt context, provenance filtering, rule dispatch, generated output validation, and fidelity metrics/history. Refactor checks cover SOURCE selection, preflight, proposal batches, unchanged profiler aggregations/SQL/prompts, and generator parity with two pre-refactor fabricated baselines (six tables, audits, graph plan, and RNG state). Workflow/report checks cover approval stops, changed review metadata, strict handoffs, sanitized output and preservation of the last successful export. Privacy checks execute against fabricated rows in an in-memory SQL adapter and exercise overlap, copying, rarity, similarity, snapshot and release-guard behavior. Install pandas alongside NumPy to run all generator integration checks locally; those checks skip when pandas is unavailable. Databricks provides these runtime libraries. Verify bundle deployment, task values/repair, notebook execution and Delta/Volume writes separately in a Databricks test destination.
 
 ---
 
@@ -1090,5 +1131,6 @@ The project already has:
 [ ] broader dependency modeling
 [ ] broader validation dashboard/report
 [✓] reusable Python modules with notebook orchestration
+[✓] aggregate-only privacy screening with a separate row-level release guard
 [ ] HTML portfolio showcase
 ```
