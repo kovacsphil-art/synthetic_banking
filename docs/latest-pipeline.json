@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "2.0",
   "pipeline_completed_at": "2026-11-20T14:35:14.439063Z",
   "generation": {
     "total_rows": {
@@ -325,5 +325,1135 @@
       "message": "Some selected aggregate measurements are unavailable.",
       "count": 1
     }
-  ]
+  ],
+  "validation_report": {
+    "status": "AVAILABLE",
+    "policy_version": "prototype_v1",
+    "thresholds": {
+      "numeric_iqr_pct": {
+        "strong": 5.0,
+        "acceptable": 15.0
+      },
+      "proportion_pp": {
+        "strong": 1.0,
+        "acceptable": 3.0
+      },
+      "conditional_pp": {
+        "strong": 2.0,
+        "acceptable": 5.0
+      },
+      "correlation": {
+        "strong": 0.05,
+        "acceptable": 0.15
+      },
+      "distribution_tvd_pct": {
+        "strong": 2.0,
+        "acceptable": 5.0
+      }
+    },
+    "min_conditional_rows": 30,
+    "summary": {
+      "comparison_status": "REVIEW_REQUIRED",
+      "variables_total": 8,
+      "variables_evaluated": 8,
+      "variables_within_tolerance": 4,
+      "variables_requiring_review": 3,
+      "variables_incomplete": 1,
+      "checks_evaluated": 35,
+      "strong": 29,
+      "acceptable": 2,
+      "needs_review": 4,
+      "unavailable": 5
+    },
+    "strengths": [
+      "cardinality.relationships_incoming",
+      "graph.directed_dyads_proportion",
+      "null.account_open",
+      "conditional.2",
+      "numeric.credit_limit",
+      "categorical.past_due"
+    ],
+    "weaknesses": [
+      "numeric.available_credit",
+      "correlation.balance_limit",
+      "date.birth",
+      "date.customer_since"
+    ],
+    "assessments": [
+      {
+        "key": "numeric.credit_limit",
+        "label": "Credit limit",
+        "family": "numeric",
+        "status": "STRONG",
+        "source": 9900.0,
+        "generated": 9936.864467096979,
+        "difference": 36.86446709697884,
+        "score": 3.428575577308493,
+        "policy": "numeric_iqr_pct",
+        "source_n": 1552,
+        "generated_n": 17313,
+        "source_count": null,
+        "generated_count": null,
+        "reason": null
+      },
+      {
+        "key": "numeric.current_balance",
+        "label": "Current balance",
+        "family": "numeric",
+        "status": "ACCEPTABLE",
+        "source": 2369.19,
+        "generated": 2321.752845042741,
+        "difference": -47.43715495725928,
+        "score": 8.163587742764175,
+        "policy": "numeric_iqr_pct",
+        "source_n": 1552,
+        "generated_n": 17313,
+        "source_count": null,
+        "generated_count": null,
+        "reason": null
+      },
+      {
+        "key": "numeric.available_credit",
+        "label": "Available credit",
+        "family": "numeric",
+        "status": "NEEDS_REVIEW",
+        "source": 6813.54,
+        "generated": 7161.222099490194,
+        "difference": 347.68209949019365,
+        "score": 46.21333980147877,
+        "policy": "numeric_iqr_pct",
+        "source_n": 1552,
+        "generated_n": 17313,
+        "source_count": null,
+        "generated_count": null,
+        "reason": null
+      },
+      {
+        "key": "numeric.overlimit",
+        "label": "Overlimit amount",
+        "family": "numeric",
+        "status": "UNAVAILABLE",
+        "source": 0.0,
+        "generated": 0.0,
+        "difference": 0.0,
+        "score": null,
+        "policy": "numeric_iqr_pct",
+        "source_n": 1552,
+        "generated_n": 17313,
+        "source_count": null,
+        "generated_count": null,
+        "reason": "zero_or_missing_source_iqr"
+      },
+      {
+        "key": "categorical.past_due",
+        "label": "Past-due category proportions",
+        "family": "categorical",
+        "status": "STRONG",
+        "source": null,
+        "generated": null,
+        "difference": null,
+        "score": 0.7536050914603853,
+        "policy": "proportion_pp",
+        "source_n": null,
+        "generated_n": null,
+        "source_count": null,
+        "generated_count": null,
+        "reason": null
+      },
+      {
+        "key": "null.credit_limit",
+        "label": "Credit limit \u00b7 null rate",
+        "family": "nulls",
+        "status": "STRONG",
+        "source": 0.0,
+        "generated": 0.0,
+        "difference": 0.0,
+        "score": 0.0,
+        "policy": "proportion_pp",
+        "source_n": 1552,
+        "generated_n": 17313,
+        "source_count": 0,
+        "generated_count": 0,
+        "reason": null
+      },
+      {
+        "key": "null.current_balance",
+        "label": "Current balance \u00b7 null rate",
+        "family": "nulls",
+        "status": "STRONG",
+        "source": 0.0,
+        "generated": 0.0,
+        "difference": 0.0,
+        "score": 0.0,
+        "policy": "proportion_pp",
+        "source_n": 1552,
+        "generated_n": 17313,
+        "source_count": 0,
+        "generated_count": 0,
+        "reason": null
+      },
+      {
+        "key": "null.available_credit",
+        "label": "Available credit \u00b7 null rate",
+        "family": "nulls",
+        "status": "STRONG",
+        "source": 0.0,
+        "generated": 0.0,
+        "difference": 0.0,
+        "score": 0.0,
+        "policy": "proportion_pp",
+        "source_n": 1552,
+        "generated_n": 17313,
+        "source_count": 0,
+        "generated_count": 0,
+        "reason": null
+      },
+      {
+        "key": "null.overlimit",
+        "label": "Overlimit amount \u00b7 null rate",
+        "family": "nulls",
+        "status": "STRONG",
+        "source": 0.0,
+        "generated": 0.0,
+        "difference": 0.0,
+        "score": 0.0,
+        "policy": "proportion_pp",
+        "source_n": 1552,
+        "generated_n": 17313,
+        "source_count": 0,
+        "generated_count": 0,
+        "reason": null
+      },
+      {
+        "key": "null.past_due",
+        "label": "Past-due indicator \u00b7 null rate",
+        "family": "nulls",
+        "status": "STRONG",
+        "source": 0.0,
+        "generated": 0.0,
+        "difference": 0.0,
+        "score": 0.0,
+        "policy": "proportion_pp",
+        "source_n": 1552,
+        "generated_n": 17313,
+        "source_count": 0,
+        "generated_count": 0,
+        "reason": null
+      },
+      {
+        "key": "null.birth",
+        "label": "Birth-date distribution \u00b7 null rate",
+        "family": "nulls",
+        "status": "STRONG",
+        "source": 0.0,
+        "generated": 0.0,
+        "difference": 0.0,
+        "score": 0.0,
+        "policy": "proportion_pp",
+        "source_n": 1000,
+        "generated_n": 10000,
+        "source_count": 0,
+        "generated_count": 0,
+        "reason": null
+      },
+      {
+        "key": "null.customer_since",
+        "label": "Customer-since distribution \u00b7 null rate",
+        "family": "nulls",
+        "status": "STRONG",
+        "source": 0.0,
+        "generated": 0.0,
+        "difference": 0.0,
+        "score": 0.0,
+        "policy": "proportion_pp",
+        "source_n": 1000,
+        "generated_n": 10000,
+        "source_count": 0,
+        "generated_count": 0,
+        "reason": null
+      },
+      {
+        "key": "null.account_open",
+        "label": "Account-open distribution \u00b7 null rate",
+        "family": "nulls",
+        "status": "STRONG",
+        "source": 0.0,
+        "generated": 0.0,
+        "difference": 0.0,
+        "score": 0.0,
+        "policy": "proportion_pp",
+        "source_n": 1552,
+        "generated_n": 17313,
+        "source_count": 0,
+        "generated_count": 0,
+        "reason": null
+      },
+      {
+        "key": "date.birth",
+        "label": "Birth-date distribution",
+        "family": "dates",
+        "status": "NEEDS_REVIEW",
+        "source": null,
+        "generated": null,
+        "difference": null,
+        "score": 8.68,
+        "policy": "distribution_tvd_pct",
+        "source_n": null,
+        "generated_n": null,
+        "source_count": null,
+        "generated_count": null,
+        "reason": null
+      },
+      {
+        "key": "date.customer_since",
+        "label": "Customer-since distribution",
+        "family": "dates",
+        "status": "NEEDS_REVIEW",
+        "source": null,
+        "generated": null,
+        "difference": null,
+        "score": 8.18,
+        "policy": "distribution_tvd_pct",
+        "source_n": null,
+        "generated_n": null,
+        "source_count": null,
+        "generated_count": null,
+        "reason": null
+      },
+      {
+        "key": "date.account_open",
+        "label": "Account-open distribution",
+        "family": "dates",
+        "status": "ACCEPTABLE",
+        "source": null,
+        "generated": null,
+        "difference": null,
+        "score": 4.593737588285068,
+        "policy": "distribution_tvd_pct",
+        "source_n": null,
+        "generated_n": null,
+        "source_count": null,
+        "generated_count": null,
+        "reason": null
+      },
+      {
+        "key": "cardinality.accounts_per_customer",
+        "label": "Accounts per customer",
+        "family": "cardinality",
+        "status": "STRONG",
+        "source": null,
+        "generated": null,
+        "difference": null,
+        "score": 0.40260869565217416,
+        "policy": "distribution_tvd_pct",
+        "source_n": null,
+        "generated_n": null,
+        "source_count": null,
+        "generated_count": null,
+        "reason": null
+      },
+      {
+        "key": "cardinality.relationships_outgoing",
+        "label": "Outgoing relationships per person",
+        "family": "cardinality",
+        "status": "STRONG",
+        "source": null,
+        "generated": null,
+        "difference": null,
+        "score": 0.0,
+        "policy": "distribution_tvd_pct",
+        "source_n": null,
+        "generated_n": null,
+        "source_count": null,
+        "generated_count": null,
+        "reason": null
+      },
+      {
+        "key": "cardinality.relationships_incoming",
+        "label": "Incoming relationships per person",
+        "family": "cardinality",
+        "status": "STRONG",
+        "source": null,
+        "generated": null,
+        "difference": null,
+        "score": 0.0,
+        "policy": "distribution_tvd_pct",
+        "source_n": null,
+        "generated_n": null,
+        "source_count": null,
+        "generated_count": null,
+        "reason": null
+      },
+      {
+        "key": "cardinality.tradelines_per_customer",
+        "label": "Tradelines per customer",
+        "family": "cardinality",
+        "status": "UNAVAILABLE",
+        "source": null,
+        "generated": null,
+        "difference": null,
+        "score": null,
+        "policy": "distribution_tvd_pct",
+        "source_n": null,
+        "generated_n": null,
+        "source_count": null,
+        "generated_count": null,
+        "reason": "metric_unavailable"
+      },
+      {
+        "key": "correlation.balance_limit",
+        "label": "Credit limit / balance correlation",
+        "family": "correlation",
+        "status": "NEEDS_REVIEW",
+        "source": 0.4962310647025491,
+        "generated": 0.08087851195791743,
+        "difference": -0.4153525527446317,
+        "score": 0.4153525527446317,
+        "policy": "correlation",
+        "source_n": null,
+        "generated_n": null,
+        "source_count": null,
+        "generated_count": null,
+        "reason": null
+      },
+      {
+        "key": "conditional.0",
+        "label": "Past due \u00b7 utilization 0-30%",
+        "family": "conditional",
+        "status": "STRONG",
+        "source": 0.0291,
+        "generated": 0.02746,
+        "difference": -0.0016400000000000026,
+        "score": 0.16400000000000026,
+        "policy": "conditional_pp",
+        "source_n": 859,
+        "generated_n": 9833,
+        "source_count": null,
+        "generated_count": null,
+        "reason": null
+      },
+      {
+        "key": "conditional.1",
+        "label": "Past due \u00b7 utilization 30-60%",
+        "family": "conditional",
+        "status": "STRONG",
+        "source": 0.07719,
+        "generated": 0.07484,
+        "difference": -0.002349999999999991,
+        "score": 0.2349999999999991,
+        "policy": "conditional_pp",
+        "source_n": 570,
+        "generated_n": 3942,
+        "source_count": null,
+        "generated_count": null,
+        "reason": null
+      },
+      {
+        "key": "conditional.2",
+        "label": "Past due \u00b7 utilization 60-80%",
+        "family": "conditional",
+        "status": "STRONG",
+        "source": 0.22222,
+        "generated": 0.22213,
+        "difference": -9.000000000000674e-05,
+        "score": 0.009000000000000674,
+        "policy": "conditional_pp",
+        "source_n": 108,
+        "generated_n": 1220,
+        "source_count": null,
+        "generated_count": null,
+        "reason": null
+      },
+      {
+        "key": "conditional.3",
+        "label": "Past due \u00b7 utilization 80-100%",
+        "family": "conditional",
+        "status": "UNAVAILABLE",
+        "source": 0.46667,
+        "generated": 0.47245,
+        "difference": 0.005780000000000007,
+        "score": null,
+        "policy": "conditional_pp",
+        "source_n": 15,
+        "generated_n": 726,
+        "source_count": null,
+        "generated_count": null,
+        "reason": "insufficient_conditional_rows"
+      },
+      {
+        "key": "conditional.4",
+        "label": "Past due \u00b7 utilization 100%+",
+        "family": "conditional",
+        "status": "UNAVAILABLE",
+        "source": null,
+        "generated": 0.04209,
+        "difference": null,
+        "score": null,
+        "policy": "conditional_pp",
+        "source_n": null,
+        "generated_n": 1592,
+        "source_count": null,
+        "generated_count": null,
+        "reason": "metric_unavailable"
+      },
+      {
+        "key": "integrity.account_coverage",
+        "label": "Accounts with a balance",
+        "family": "integrity",
+        "status": "STRONG",
+        "source": 1.0,
+        "generated": 1.0,
+        "difference": 0.0,
+        "score": 0.0,
+        "policy": null,
+        "source_n": 1552,
+        "generated_n": 17313,
+        "source_count": 1552,
+        "generated_count": 17313,
+        "reason": null
+      },
+      {
+        "key": "integrity.balance_coverage",
+        "label": "Balances with an account",
+        "family": "integrity",
+        "status": "STRONG",
+        "source": 1.0,
+        "generated": 1.0,
+        "difference": 0.0,
+        "score": 0.0,
+        "policy": null,
+        "source_n": 1552,
+        "generated_n": 17313,
+        "source_count": 1552,
+        "generated_count": 17313,
+        "reason": null
+      },
+      {
+        "key": "integrity.available_formula",
+        "label": "Available-credit formula violations",
+        "family": "integrity",
+        "status": "STRONG",
+        "source": 0.0,
+        "generated": 0.0,
+        "difference": 0.0,
+        "score": 0.0,
+        "policy": null,
+        "source_n": 1552,
+        "generated_n": 17313,
+        "source_count": 0,
+        "generated_count": 0,
+        "reason": null
+      },
+      {
+        "key": "integrity.overlimit_formula",
+        "label": "Overlimit formula violations",
+        "family": "integrity",
+        "status": "STRONG",
+        "source": 0.0,
+        "generated": 0.0,
+        "difference": 0.0,
+        "score": 0.0,
+        "policy": null,
+        "source_n": 1552,
+        "generated_n": 17313,
+        "source_count": 0,
+        "generated_count": 0,
+        "reason": null
+      },
+      {
+        "key": "integrity.balance_cap",
+        "label": "Balance-cap violations",
+        "family": "integrity",
+        "status": "STRONG",
+        "source": 0.0,
+        "generated": 0.0,
+        "difference": 0.0,
+        "score": 0.0,
+        "policy": null,
+        "source_n": 1552,
+        "generated_n": 17313,
+        "source_count": 0,
+        "generated_count": 0,
+        "reason": null
+      },
+      {
+        "key": "integrity.negative_balance",
+        "label": "Negative balance violations",
+        "family": "integrity",
+        "status": "STRONG",
+        "source": 0.0,
+        "generated": 0.0,
+        "difference": 0.0,
+        "score": 0.0,
+        "policy": null,
+        "source_n": 1552,
+        "generated_n": 17313,
+        "source_count": 0,
+        "generated_count": 0,
+        "reason": null
+      },
+      {
+        "key": "integrity.delinquency_flag",
+        "label": "Delinquency flag/count violations",
+        "family": "integrity",
+        "status": "STRONG",
+        "source": 0.004510309278350515,
+        "generated": 0.0,
+        "difference": -0.004510309278350515,
+        "score": 0.0,
+        "policy": null,
+        "source_n": 1552,
+        "generated_n": 17313,
+        "source_count": 7,
+        "generated_count": 0,
+        "reason": null
+      },
+      {
+        "key": "integrity.birth_order",
+        "label": "Birth/customer-since ordering violations",
+        "family": "integrity",
+        "status": "STRONG",
+        "source": 0.0,
+        "generated": 0.0,
+        "difference": 0.0,
+        "score": 0.0,
+        "policy": null,
+        "source_n": 1000,
+        "generated_n": 10000,
+        "source_count": 0,
+        "generated_count": 0,
+        "reason": null
+      },
+      {
+        "key": "integrity.account_date_order",
+        "label": "Account open/close ordering violations",
+        "family": "integrity",
+        "status": "STRONG",
+        "source": 0.0,
+        "generated": 0.0,
+        "difference": 0.0,
+        "score": 0.0,
+        "policy": null,
+        "source_n": 86,
+        "generated_n": 959,
+        "source_count": 0,
+        "generated_count": 0,
+        "reason": null
+      },
+      {
+        "key": "integrity.relationship_endpoints",
+        "label": "Customer-relationship invalid endpoints",
+        "family": "integrity",
+        "status": "STRONG",
+        "source": 0.0,
+        "generated": 0.0,
+        "difference": 0.0,
+        "score": 0.0,
+        "policy": null,
+        "source_n": 112,
+        "generated_n": 1120,
+        "source_count": 0,
+        "generated_count": 0,
+        "reason": null
+      },
+      {
+        "key": "graph.directed_dyads_proportion",
+        "label": "Customer relationships \u00b7 directed dyads",
+        "family": "graph",
+        "status": "STRONG",
+        "source": 1.0,
+        "generated": 1.0,
+        "difference": 0.0,
+        "score": 0.0,
+        "policy": "proportion_pp",
+        "source_n": 112,
+        "generated_n": 1120,
+        "source_count": 112,
+        "generated_count": 1120,
+        "reason": null
+      },
+      {
+        "key": "graph.reciprocal_dyads_proportion",
+        "label": "Customer relationships \u00b7 reciprocal dyads",
+        "family": "graph",
+        "status": "STRONG",
+        "source": 0.0,
+        "generated": 0.0,
+        "difference": 0.0,
+        "score": 0.0,
+        "policy": "proportion_pp",
+        "source_n": 112,
+        "generated_n": 1120,
+        "source_count": 0,
+        "generated_count": 0,
+        "reason": null
+      },
+      {
+        "key": "graph.self_dyads_proportion",
+        "label": "Customer relationships \u00b7 self dyads",
+        "family": "graph",
+        "status": "STRONG",
+        "source": 0.0,
+        "generated": 0.0,
+        "difference": 0.0,
+        "score": 0.0,
+        "policy": "proportion_pp",
+        "source_n": 112,
+        "generated_n": 1120,
+        "source_count": 0,
+        "generated_count": 0,
+        "reason": null
+      },
+      {
+        "key": "integrity.other_references",
+        "label": "Other cross-table referential integrity",
+        "family": "integrity",
+        "status": "UNAVAILABLE",
+        "source": null,
+        "generated": null,
+        "difference": null,
+        "score": null,
+        "policy": null,
+        "source_n": null,
+        "generated_n": null,
+        "source_count": null,
+        "generated_count": null,
+        "reason": "not_in_saved_fidelity_report"
+      }
+    ],
+    "numeric": [
+      {
+        "key": "credit_limit",
+        "label": "Credit limit",
+        "source_iqr": 6400.0,
+        "percentiles": [
+          {
+            "name": "P25",
+            "source": 7000.0,
+            "generated": 7028.8273652822545,
+            "difference": 28.827365282254505
+          },
+          {
+            "name": "P50",
+            "source": 9900.0,
+            "generated": 9936.864467096979,
+            "difference": 36.86446709697884
+          },
+          {
+            "name": "P75",
+            "source": 13400.0,
+            "generated": 13366.68487552577,
+            "difference": -33.31512447422938
+          },
+          {
+            "name": "P95",
+            "source": 20500.0,
+            "generated": 20719.428836947744,
+            "difference": 219.42883694774355
+          }
+        ],
+        "average_difference_pct_iqr": 1.243889819535962,
+        "max_difference_pct_iqr": 3.428575577308493,
+        "status": "STRONG"
+      },
+      {
+        "key": "current_balance",
+        "label": "Current balance",
+        "source_iqr": 3150.75,
+        "percentiles": [
+          {
+            "name": "P25",
+            "source": 1079.42,
+            "generated": 1052.7582862947856,
+            "difference": -26.661713705214424
+          },
+          {
+            "name": "P50",
+            "source": 2369.19,
+            "generated": 2321.752845042741,
+            "difference": -47.43715495725928
+          },
+          {
+            "name": "P75",
+            "source": 4230.17,
+            "generated": 4152.726010583215,
+            "difference": -77.44398941678537
+          },
+          {
+            "name": "P95",
+            "source": 8119.8,
+            "generated": 7862.585759194858,
+            "difference": -257.21424080514225
+          }
+        ],
+        "average_difference_pct_iqr": 3.243331737557735,
+        "max_difference_pct_iqr": 8.163587742764175,
+        "status": "ACCEPTABLE"
+      },
+      {
+        "key": "available_credit",
+        "label": "Available credit",
+        "source_iqr": 5641.15,
+        "percentiles": [
+          {
+            "name": "P25",
+            "source": 4326.33,
+            "generated": 3371.702314798499,
+            "difference": -954.6276852015008
+          },
+          {
+            "name": "P50",
+            "source": 6813.54,
+            "generated": 7161.222099490194,
+            "difference": 347.68209949019365
+          },
+          {
+            "name": "P75",
+            "source": 9967.48,
+            "generated": 11163.20398042412,
+            "difference": 1195.7239804241199
+          },
+          {
+            "name": "P95",
+            "source": 16133.43,
+            "generated": 18740.39381821112,
+            "difference": 2606.9638182111194
+          }
+        ],
+        "average_difference_pct_iqr": 22.623922353274306,
+        "max_difference_pct_iqr": 46.21333980147877,
+        "status": "NEEDS_REVIEW"
+      },
+      {
+        "key": "overlimit",
+        "label": "Overlimit amount",
+        "source_iqr": 0.0,
+        "percentiles": [
+          {
+            "name": "P25",
+            "source": 0.0,
+            "generated": 0.0,
+            "difference": 0.0
+          },
+          {
+            "name": "P50",
+            "source": 0.0,
+            "generated": 0.0,
+            "difference": 0.0
+          },
+          {
+            "name": "P75",
+            "source": 0.0,
+            "generated": 0.0,
+            "difference": 0.0
+          },
+          {
+            "name": "P95",
+            "source": 0.0,
+            "generated": 656.4554011968089,
+            "difference": 656.4554011968089
+          }
+        ],
+        "average_difference_pct_iqr": null,
+        "max_difference_pct_iqr": null,
+        "status": "UNAVAILABLE"
+      }
+    ],
+    "categorical": [
+      {
+        "category": "Y",
+        "source": 0.06443298969072164,
+        "generated": 0.07196904060532548,
+        "absolute_difference_pp": 0.753605091460384,
+        "status": "STRONG"
+      },
+      {
+        "category": "N",
+        "source": 0.9355670103092784,
+        "generated": 0.9280309593946745,
+        "absolute_difference_pp": 0.7536050914603853,
+        "status": "STRONG"
+      }
+    ],
+    "dates": [
+      {
+        "key": "birth",
+        "label": "Birth-date distribution",
+        "total_variation_pct": 8.68,
+        "earliest_shift_days": 1.0,
+        "latest_shift_days": 0.0,
+        "status": "NEEDS_REVIEW"
+      },
+      {
+        "key": "customer_since",
+        "label": "Customer-since distribution",
+        "total_variation_pct": 8.18,
+        "earliest_shift_days": 0.0,
+        "latest_shift_days": 0.0,
+        "status": "NEEDS_REVIEW"
+      },
+      {
+        "key": "account_open",
+        "label": "Account-open distribution",
+        "total_variation_pct": 4.593737588285068,
+        "earliest_shift_days": 0.0,
+        "latest_shift_days": 0.0,
+        "status": "ACCEPTABLE"
+      }
+    ],
+    "cardinality": [
+      {
+        "key": "accounts_per_customer",
+        "label": "Accounts per customer",
+        "total_variation_pct": 0.40260869565217416,
+        "bins": [
+          {
+            "bucket": "0",
+            "source": 0,
+            "generated": 0,
+            "absolute_difference_pp": 0
+          },
+          {
+            "bucket": "1",
+            "source": 0.483835005574136,
+            "generated": 0.4854,
+            "absolute_difference_pp": 0.1564994425863997
+          },
+          {
+            "bucket": "2",
+            "source": 0.34782608695652173,
+            "generated": 0.3438,
+            "absolute_difference_pp": 0.4026086956521735
+          },
+          {
+            "bucket": "3",
+            "source": 0.12263099219620958,
+            "generated": 0.1249,
+            "absolute_difference_pp": 0.22690078037904127
+          },
+          {
+            "bucket": "4",
+            "source": 0.045707915273132664,
+            "generated": 0.0459,
+            "absolute_difference_pp": 0.019208472686733924
+          },
+          {
+            "bucket": "5+",
+            "source": 0,
+            "generated": 0,
+            "absolute_difference_pp": 0
+          }
+        ],
+        "source_mean": 1.730211817168339,
+        "generated_mean": 1.7313,
+        "status": "STRONG"
+      },
+      {
+        "key": "relationships_outgoing",
+        "label": "Outgoing relationships per person",
+        "total_variation_pct": 0.0,
+        "bins": [
+          {
+            "bucket": "0",
+            "source": 0.888,
+            "generated": 0.888,
+            "absolute_difference_pp": 0.0
+          },
+          {
+            "bucket": "1",
+            "source": 0.112,
+            "generated": 0.112,
+            "absolute_difference_pp": 0.0
+          },
+          {
+            "bucket": "2",
+            "source": 0,
+            "generated": 0,
+            "absolute_difference_pp": 0
+          },
+          {
+            "bucket": "3",
+            "source": 0,
+            "generated": 0,
+            "absolute_difference_pp": 0
+          },
+          {
+            "bucket": "4",
+            "source": 0,
+            "generated": 0,
+            "absolute_difference_pp": 0
+          },
+          {
+            "bucket": "5+",
+            "source": 0,
+            "generated": 0,
+            "absolute_difference_pp": 0
+          }
+        ],
+        "source_mean": 0.112,
+        "generated_mean": 0.112,
+        "status": "STRONG"
+      },
+      {
+        "key": "relationships_incoming",
+        "label": "Incoming relationships per person",
+        "total_variation_pct": 0.0,
+        "bins": [
+          {
+            "bucket": "0",
+            "source": 0.888,
+            "generated": 0.888,
+            "absolute_difference_pp": 0.0
+          },
+          {
+            "bucket": "1",
+            "source": 0.112,
+            "generated": 0.112,
+            "absolute_difference_pp": 0.0
+          },
+          {
+            "bucket": "2",
+            "source": 0,
+            "generated": 0,
+            "absolute_difference_pp": 0
+          },
+          {
+            "bucket": "3",
+            "source": 0,
+            "generated": 0,
+            "absolute_difference_pp": 0
+          },
+          {
+            "bucket": "4",
+            "source": 0,
+            "generated": 0,
+            "absolute_difference_pp": 0
+          },
+          {
+            "bucket": "5+",
+            "source": 0,
+            "generated": 0,
+            "absolute_difference_pp": 0
+          }
+        ],
+        "source_mean": 0.112,
+        "generated_mean": 0.112,
+        "status": "STRONG"
+      },
+      {
+        "key": "tradelines_per_customer",
+        "label": "Tradelines per customer",
+        "total_variation_pct": null,
+        "bins": [
+          {
+            "bucket": "0",
+            "source": null,
+            "generated": null,
+            "absolute_difference_pp": null
+          },
+          {
+            "bucket": "1",
+            "source": null,
+            "generated": null,
+            "absolute_difference_pp": null
+          },
+          {
+            "bucket": "2",
+            "source": null,
+            "generated": null,
+            "absolute_difference_pp": null
+          },
+          {
+            "bucket": "3",
+            "source": null,
+            "generated": null,
+            "absolute_difference_pp": null
+          },
+          {
+            "bucket": "4",
+            "source": null,
+            "generated": null,
+            "absolute_difference_pp": null
+          },
+          {
+            "bucket": "5+",
+            "source": null,
+            "generated": null,
+            "absolute_difference_pp": null
+          }
+        ],
+        "source_mean": null,
+        "generated_mean": null,
+        "status": "UNAVAILABLE"
+      }
+    ],
+    "populations": [
+      {
+        "table": "PERSON",
+        "source": 1000.0,
+        "generated": 10000.0,
+        "difference": 9000.0
+      },
+      {
+        "table": "CUSTOMER_ACCOUNT_REL",
+        "source": 1552.0,
+        "generated": 17313.0,
+        "difference": 15761.0
+      },
+      {
+        "table": "TKQ_ACCOUNT",
+        "source": 1552.0,
+        "generated": 17313.0,
+        "difference": 15761.0
+      },
+      {
+        "table": "TKQ_ACCOUNT_BALANCE",
+        "source": 1552.0,
+        "generated": 17313.0,
+        "difference": 15761.0
+      },
+      {
+        "table": "TRADELINES",
+        "source": 5594.0,
+        "generated": 30000.0,
+        "difference": 24406.0
+      },
+      {
+        "table": "CUSTOMER_RELATIONSHIP",
+        "source": 112.0,
+        "generated": 1120.0,
+        "difference": 1008.0
+      }
+    ],
+    "accounts_per_person": {
+      "source": 1.552,
+      "generated": 1.7313
+    },
+    "rule_outcomes": [
+      {
+        "implementation": "available_to_buy",
+        "target": "AVAILABLE_TO_BUY_AMT",
+        "proposed": 1,
+        "approved": 1,
+        "applied": 1,
+        "skipped": 0
+      },
+      {
+        "implementation": "overlimit_amount",
+        "target": "OVERLIMIT_AMT",
+        "proposed": 1,
+        "approved": 1,
+        "applied": 1,
+        "skipped": 0
+      },
+      {
+        "implementation": "delinquency_by_utilization",
+        "target": "PAST_DUE_INDICATO_CD",
+        "proposed": 0,
+        "approved": 0,
+        "applied": 0,
+        "skipped": 0
+      }
+    ]
+  }
 }
