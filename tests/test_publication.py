@@ -51,6 +51,33 @@ class PublicationTests(unittest.TestCase):
         self.assertEqual(self.downloads, [])
         self.assertEqual(self.outputs, [])
 
+    def test_repaired_run_uses_only_latest_successful_reporting_attempt(self):
+        task = next(t for t in self.run["tasks"] if t["task_key"] == "reporting")
+        task.update(start_time=20, attempt_number=0, run_id=999)
+        old = deepcopy(task)
+        old.update(start_time=10, attempt_number=1, run_id=888,
+                   state=dict(life_cycle_state="TERMINATED", result_state="FAILED"))
+        self.run["tasks"].append(old)
+        retrieve(self.client(), 10, "/Volumes/public/reports/showcase", 20)
+        self.assertEqual(self.outputs, [dict(run_id=999)])
+        self.assertEqual(self.downloads, [self.path])
+        # A newer failed attempt must block, even with an older successful one.
+        old.update(start_time=30)
+        with self.assertRaises(ValueError): retrieve(self.client(), 10, "/Volumes/public/reports/showcase", 20)
+        self.assertEqual(self.outputs, [])
+        self.assertEqual(self.downloads, [])
+
+    def test_ambiguous_or_undated_duplicate_attempts_cannot_publish(self):
+        original = deepcopy(self.run)
+        for start in (None, 10):
+            self.run = deepcopy(original)
+            task = self.run["tasks"][0]
+            if start:
+                task.update(start_time=start)
+            self.run["tasks"].append(deepcopy(task))
+            with self.assertRaises(ValueError): retrieve(self.client(), 10, "/Volumes/public/reports/showcase", 20)
+            self.assertEqual(self.downloads, [])
+
     def test_failures_and_wrong_jobs_never_download_or_read_task_outputs(self):
         original = deepcopy(self.run)
         for change in (lambda: self.run.update(job_id=99),

@@ -53,12 +53,37 @@ def successful(run):
     return state.get("life_cycle_state") == "TERMINATED" and state.get("result_state") == "SUCCESS"
 
 
-def report_path(run, output, job_id, base_dir):
+def validated_tasks(run, job_id):
+    """Check final attempts, including API responses containing retry history."""
     tasks = run.get("tasks") or []
     if (run.get("job_id") != job_id or not successful(run)
-            or len(tasks) != len(TASKS) or {t["task_key"] for t in tasks} != TASKS
-            or any(not successful(t) for t in tasks)):
+            or {t.get("task_key") for t in tasks} != TASKS):
         raise ValueError("All expected pipeline tasks must have succeeded for this job.")
+    latest = []
+    for name in sorted(TASKS):
+        attempts = [t for t in tasks if t["task_key"] == name]
+        if len(attempts) > 1:
+            # Repairs can reset attempt_number; start_time identifies chronology.
+            ranks = []
+            for task in attempts:
+                start, attempt = task.get("start_time"), task.get("attempt_number", 0)
+                if type(start) is not int or start <= 0 or type(attempt) is not int or attempt < 0:
+                    raise ValueError("Task-attempt history lacks ordering evidence.")
+                ranks.append((start, attempt))
+            rank = max(ranks)
+            if ranks.count(rank) != 1:
+                raise ValueError("Task-attempt history is ambiguous.")
+            task = attempts[ranks.index(rank)]
+        else:
+            task = attempts[0]
+        if not successful(task):
+            raise ValueError("The final attempt of every pipeline task must succeed.")
+        latest.append(task)
+    return latest
+
+
+def report_path(run, output, job_id, base_dir):
+    validated_tasks(run, job_id)
     if output.get("error") or not output.get("notebook_output") or output["notebook_output"].get("truncated"):
         raise ValueError("Reporting task has no complete success receipt.")
     receipt = json.loads(output["notebook_output"]["result"])
@@ -85,10 +110,7 @@ def retrieve(client, job_id, base_dir, run_id=None):
         if run is None:
             return None
     # Validate before reading any notebook output or file.
-    tasks = run.get("tasks") or []
-    if (run.get("job_id") != job_id or not successful(run) or len(tasks) != len(TASKS)
-            or {t["task_key"] for t in tasks} != TASKS or any(not successful(t) for t in tasks)):
-        raise ValueError("Pipeline run is not a complete success.")
+    tasks = validated_tasks(run, job_id)
     task = next(t for t in tasks if t["task_key"] == "reporting")
     output = client.jobs.get_run_output(run_id=task["run_id"]).as_dict()
     path = report_path(run, output, job_id, base_dir)
