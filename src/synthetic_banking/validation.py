@@ -1,6 +1,11 @@
 """Validate persisted generation outputs before publishing them for profiling."""
 
-GENERATED_SCHEMA = "workspace.synthetic_generated"
+from synthetic_banking.temporal import temporal_checks
+import json
+
+from synthetic_banking.customer_relationships import AUDIT_TABLE as RELATIONSHIP_AUDIT_TABLE, IMPLEMENTATION_VERSION as RELATIONSHIP_VERSION
+
+from synthetic_banking.config import PROFILE_SCHEMA, GENERATED_SCHEMA
 AUDIT_TABLE = "rule_execution_log"
 
 _KEYS = {
@@ -10,11 +15,13 @@ _KEYS = {
     "TKQ_ACCOUNT_BALANCE": ("ACCOUNT_ID", "A", 9),
     "TRADELINES": ("account_number", "TL", 10),
 }
-GENERATED_TABLES = tuple(_KEYS)
+GENERATED_TABLES = (*_KEYS, "CUSTOMER_RELATIONSHIP")
 
 _REQUIRED_TYPES = {
     "PERSON": {"PARTY_ID": "string", "BIRTH_DT": "date", "SINCE_DT": "date"},
     "CUSTOMER_ACCOUNT_REL": {"PARTY_ID": "string", "ACCT_ID": "string"},
+    "CUSTOMER_RELATIONSHIP": {"FROM_PARTY_ID": "string", "TO_PARTY_ID": "string",
+                              "FROM_TO_CUST_RELATN_CD": "string", "TO_FROM_CUST_RELATN_CD": "string"},
     "TKQ_ACCOUNT": {
         "ACCOUNT_ID": "string", "BUSINESSEFFECTIVEDATE": "timestamp",
         "CREDIT_LIMIT_AMT": "double", "_UTILIZATION_RATE": "double",
@@ -89,7 +96,7 @@ def _check_schema(actual, expected, table):
 def generated_table_versions(spark):
     """Return Delta table identity and commit version for each batch output and its audit."""
     versions = {}
-    for name in (*GENERATED_TABLES, AUDIT_TABLE):
+    for name in (*GENERATED_TABLES, AUDIT_TABLE, RELATIONSHIP_AUDIT_TABLE):
         table = f"{GENERATED_SCHEMA}.{name}"
         if not spark.catalog.tableExists(table):
             raise GeneratedValidationError(f"Missing generated Delta table {table}.")
@@ -117,6 +124,7 @@ def check_validated_versions(spark, validated_versions):
 
 def validate_generated_batch(
     spark, expected_schema, expected_counts, generation_id, source_run_id, expected_audit_rows,
+    expected_date_null_counts=None,
 ):
     """Check saved tables and return the versions that passed validation."""
     versions = generated_table_versions(spark)
@@ -159,6 +167,86 @@ def validate_generated_batch(
 
     if not counts["PERSON"] or not counts["TKQ_ACCOUNT"]:
         issues.append("PERSON and TKQ_ACCOUNT must contain generated records.")
+
+    relationship_audit = spark.sql(f"""
+        SELECT source_run_id, seed, implementation_version, plan_json FROM {GENERATED_SCHEMA}.{RELATIONSHIP_AUDIT_TABLE}
+        WHERE generation_id = :generation
+    """, args={"generation": generation_id}).collect()
+    if len(relationship_audit) != 1 or relationship_audit[0]["source_run_id"] != source_run_id:
+        raise GeneratedValidationError("Customer relationship audit must identify this generation and SOURCE run exactly once.")
+    try:
+        relationship_plan = json.loads(relationship_audit[0]["plan_json"])
+    except (TypeError, ValueError) as error:
+        raise GeneratedValidationError("Customer relationship audit plan is invalid JSON.") from error
+    source_relationships = spark.sql(f"""
+        SELECT p.self_rows FROM {PROFILE_SCHEMA}.customer_relationship_summary p
+        JOIN {PROFILE_SCHEMA}.profile_runs r ON p.run_id = r.run_id
+        WHERE p.run_id = :source AND p.profile_type = 'SOURCE' AND r.profile_type = 'SOURCE'
+          AND r.status = 'COMPLETED' AND r.completed_at IS NOT NULL
+    """, args={"source": source_run_id}).collect()
+    if (not isinstance(relationship_plan, dict) or len(source_relationships) != 1 or relationship_plan.get("source_run_id") != source_run_id
+        or relationship_plan.get("seed") != relationship_audit[0]["seed"]
+        or relationship_plan.get("implementation_version") != RELATIONSHIP_VERSION
+        or relationship_audit[0]["implementation_version"] != RELATIONSHIP_VERSION
+        or not relationship_plan.get("profile_signature")
+        or relationship_plan.get("generated_person_count") != counts["PERSON"]
+        or bool(relationship_plan.get("self_allowed")) != bool(source_relationships[0]["self_rows"])):
+        raise GeneratedValidationError("Customer relationship audit does not match the pinned completed SOURCE evidence.")
+    if not isinstance(relationship_plan.get("null_counts"), dict):
+        raise GeneratedValidationError("Customer relationship null plan must be a field/count mapping.")
+    if set(relationship_plan["null_counts"]) != set(expected_schema["CUSTOMER_RELATIONSHIP"]) - {"FROM_PARTY_ID", "TO_PARTY_ID"}:
+        # Preserve SOURCE spellings; endpoint spellings can differ only in case.
+        expected_null_fields = {name.upper() for name in expected_schema["CUSTOMER_RELATIONSHIP"]} - {"FROM_PARTY_ID", "TO_PARTY_ID"}
+        if {name.upper() for name in relationship_plan.get("null_counts", {})} != expected_null_fields:
+            raise GeneratedValidationError("Customer relationship null plan must cover every non-key SOURCE column.")
+    owned_column = next((name for name in schemas["CUSTOMER_RELATIONSHIP"] if name == "OWNERSHIP_PERCENTAGE"), None)
+    ownership_check = (", COUNT(CASE WHEN r.ownership_percentage < 0 OR r.ownership_percentage > 100 "
+                       "OR ISNAN(CAST(r.ownership_percentage AS DOUBLE)) THEN 1 END) AS invalid_ownership" if owned_column else "")
+    relationships = spark.sql(f"""
+        SELECT COUNT(*) AS row_count,
+            COUNT(CASE WHEN f.PARTY_ID IS NULL OR t.PARTY_ID IS NULL THEN 1 END) AS orphan_rows,
+            COUNT(CASE WHEN r.FROM_PARTY_ID = r.TO_PARTY_ID THEN 1 END) AS self_rows {ownership_check}
+        FROM {tables['CUSTOMER_RELATIONSHIP']} r
+        LEFT JOIN {tables['PERSON']} f ON r.FROM_PARTY_ID = f.PARTY_ID
+        LEFT JOIN {tables['PERSON']} t ON r.TO_PARTY_ID = t.PARTY_ID
+    """).first()
+    counts["CUSTOMER_RELATIONSHIP"] = relationships["row_count"]
+    print(f"CUSTOMER_RELATIONSHIP: {relationships['row_count']} rows, {relationships['orphan_rows']} invalid endpoints, {relationships['self_rows']} self rows")
+    if relationships["row_count"] != expected_counts["CUSTOMER_RELATIONSHIP"] or relationships["row_count"] != relationship_plan.get("row_count"):
+        issues.append("CUSTOMER_RELATIONSHIP row count differs from the generation/audit plan.")
+    if relationships["orphan_rows"]:
+        issues.append("CUSTOMER_RELATIONSHIP contains null or nonexistent FROM/TO_PARTY_ID references.")
+    if relationships["self_rows"] != relationship_plan.get("self_rows") or (relationships["self_rows"] and not source_relationships[0]["self_rows"]):
+        issues.append("CUSTOMER_RELATIONSHIP contains unsupported or unplanned self-relationships.")
+    if owned_column and relationships["invalid_ownership"]:
+        issues.append("CUSTOMER_RELATIONSHIP ownership percentages must be finite and between 0 and 100.")
+    for column, expected_nulls in relationship_plan.get("null_counts", {}).items():
+        if column.upper() not in schemas["CUSTOMER_RELATIONSHIP"]:
+            raise GeneratedValidationError("Customer relationship null plan refers to an unknown column.")
+        quoted = "`" + column.replace("`", "``") + "`"
+        actual = spark.sql(f"SELECT COUNT(CASE WHEN {quoted} IS NULL THEN 1 END) AS n FROM {tables['CUSTOMER_RELATIONSHIP']}").first()["n"]
+        if actual != expected_nulls:
+            issues.append(f"CUSTOMER_RELATIONSHIP.{column}: saved null count differs from the profiled relationship null plan.")
+
+    temporal_columns = {name: [column for column, kind in fields.items() if _type_family(kind) == "temporal"]
+                        for name, fields in schemas.items()}
+    for check in temporal_checks(spark, tables, temporal_columns):
+        if check["profile_status"] == "UNAVAILABLE":
+            continue
+        print(f"Temporal {check['logical_table_name']}.{check['metric']}: "
+              f"{check['numerator']} violations / {check['denominator']} non-null pairs")
+        if check["numerator"]:
+            issues.append(f"{check['logical_table_name']}: {check['numerator']} temporal violations of {check['metric']}.")
+    for table, fields in (expected_date_null_counts or {}).items():
+        if table not in schemas:
+            raise GeneratedValidationError(f"Unknown table in date null plan: {table}.")
+        for column, expected_nulls in fields.items():
+            if column.upper() not in schemas[table] or _type_family(schemas[table][column.upper()]) != "temporal":
+                raise GeneratedValidationError(f"{table}.{column}: date null plan requires a saved temporal column.")
+            quoted = "`" + column.replace("`", "``") + "`"
+            actual = spark.sql(f"SELECT COUNT(CASE WHEN {quoted} IS NULL THEN 1 END) AS null_count FROM {tables[table]}").first()["null_count"]
+            if actual != expected_nulls:
+                issues.append(f"{table}.{column}: {actual} saved date nulls; expected {expected_nulls} from the SOURCE null plan.")
 
     links = spark.sql(f"""
         SELECT

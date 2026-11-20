@@ -1,0 +1,264 @@
+{
+  "8:42": {
+    "relationship_plan": {
+      "directed_dyads": 4,
+      "endpoints_non_null": true,
+      "generated_person_count": 8,
+      "implementation_version": "customer_relationships_v1",
+      "max_adjustment_fraction": 0.05,
+      "null_counts": {
+        "FROM_TO_CUST_RELATN_CD": 0,
+        "LAST_UPDT_CHANNEL_CD": 0,
+        "LAST_UPDT_TRANSIT_NUM": 0,
+        "ORIGINATING_APP_CD": 0,
+        "OWNED_BUS_SINCE_DT": 4,
+        "TO_FROM_CUST_RELATN_CD": 0,
+        "ownership_percentage": 4
+      },
+      "profile_signature": "0dd1101e623496debf2b66e394755166d8e27a3304653cd7c95862403ad7574c",
+      "reciprocal_dyads": 0,
+      "removed_neighbor_stubs": 0,
+      "requested_neighbor_stubs": 8,
+      "row_budget": 1000000,
+      "row_count": 4,
+      "seed": 42,
+      "self_allowed": false,
+      "self_dyads": 0,
+      "self_rows": 0,
+      "source_excluded_endpoint_rows": 0,
+      "source_person_count": 2,
+      "source_run_id": "source-A",
+      "source_valid_rows": 1
+    },
+    "rng_state": {
+      "bit_generator": "PCG64",
+      "has_uint32": 0,
+      "state": {
+        "inc": 332724090758049132448979897138935081983,
+        "state": 134424765036159797882906154868649697203
+      },
+      "uinteger": 0
+    },
+    "rule_events": [
+      {
+        "applied": false,
+        "approval_status": null,
+        "approved": false,
+        "batch_id": null,
+        "execution_order": 1,
+        "implementation_name": "available_to_buy",
+        "implemented": true,
+        "outcome": "LEGACY_FALLBACK",
+        "parent_columns": [
+          "TKQ_ACCOUNT.CREDIT_LIMIT_AMT",
+          "TKQ_ACCOUNT_BALANCE.CURRENT_BALANCE_AMT"
+        ],
+        "proposal_id": null,
+        "proposed": false,
+        "reason": "no_eligible_approval",
+        "rows_processed": 9,
+        "rule_type": "DERIVED",
+        "target_column": "AVAILABLE_TO_BUY_AMT",
+        "target_table": "TKQ_ACCOUNT_BALANCE"
+      },
+      {
+        "applied": false,
+        "approval_status": null,
+        "approved": false,
+        "batch_id": null,
+        "execution_order": 2,
+        "implementation_name": "overlimit_amount",
+        "implemented": true,
+        "outcome": "LEGACY_FALLBACK",
+        "parent_columns": [
+          "TKQ_ACCOUNT.CREDIT_LIMIT_AMT",
+          "TKQ_ACCOUNT_BALANCE.CURRENT_BALANCE_AMT"
+        ],
+        "proposal_id": null,
+        "proposed": false,
+        "reason": "no_eligible_approval",
+        "rows_processed": 9,
+        "rule_type": "DERIVED",
+        "target_column": "OVERLIMIT_AMT",
+        "target_table": "TKQ_ACCOUNT_BALANCE"
+      },
+      {
+        "applied": false,
+        "approval_status": null,
+        "approved": false,
+        "batch_id": null,
+        "execution_order": 3,
+        "implementation_name": "get_delinquency_probability",
+        "implemented": true,
+        "outcome": "LEGACY_FALLBACK",
+        "parent_columns": [
+          "TKQ_ACCOUNT.UTILIZATION_RATE"
+        ],
+        "proposal_id": null,
+        "proposed": false,
+        "reason": "no_eligible_approval",
+        "rows_processed": 9,
+        "rule_type": "CONDITIONAL",
+        "target_column": "PAST_DUE_INDICATO_CD",
+        "target_table": "TKQ_ACCOUNT"
+      }
+    ],
+    "tables": {
+      "CUSTOMER_ACCOUNT_REL": {
+        "rows": 9,
+        "sha256": "436c945a9450d948e010e7cf5af5df20b65a1ee3731e80dbb80d0f4b403f0eed"
+      },
+      "CUSTOMER_RELATIONSHIP": {
+        "rows": 4,
+        "sha256": "cd045857dc5db2587bc398d38bf1335bf38fc73dfcb1242004f31fe081c69cdb"
+      },
+      "PERSON": {
+        "rows": 8,
+        "sha256": "354490248b7b9f7b0e21a145c153c471dcdf9581db1adc3dea9521176f047a9c"
+      },
+      "TKQ_ACCOUNT": {
+        "rows": 9,
+        "sha256": "e0908ccf2fe65c6cfe32dffef1ecfb2619a0a7ec081a8005b11c9a9c574368d6"
+      },
+      "TKQ_ACCOUNT_BALANCE": {
+        "rows": 9,
+        "sha256": "6d91930cf76f5e3c759213a91c20f8bff1fa8543223639b6fa4c7ad3a73ce24a"
+      },
+      "TRADELINES": {
+        "rows": 24,
+        "sha256": "bf9f8589d4eebbc6ab112f9fc50dadf889543f2f9cc660eb5f37c828d4b145fc"
+      }
+    }
+  },
+  "9:7": {
+    "relationship_plan": {
+      "directed_dyads": 4,
+      "endpoints_non_null": true,
+      "generated_person_count": 9,
+      "implementation_version": "customer_relationships_v1",
+      "max_adjustment_fraction": 0.05,
+      "null_counts": {
+        "FROM_TO_CUST_RELATN_CD": 0,
+        "LAST_UPDT_CHANNEL_CD": 0,
+        "LAST_UPDT_TRANSIT_NUM": 0,
+        "ORIGINATING_APP_CD": 0,
+        "OWNED_BUS_SINCE_DT": 4,
+        "TO_FROM_CUST_RELATN_CD": 0,
+        "ownership_percentage": 4
+      },
+      "profile_signature": "0dd1101e623496debf2b66e394755166d8e27a3304653cd7c95862403ad7574c",
+      "reciprocal_dyads": 0,
+      "removed_neighbor_stubs": 1,
+      "requested_neighbor_stubs": 9,
+      "row_budget": 1000000,
+      "row_count": 4,
+      "seed": 7,
+      "self_allowed": false,
+      "self_dyads": 0,
+      "self_rows": 0,
+      "source_excluded_endpoint_rows": 0,
+      "source_person_count": 2,
+      "source_run_id": "source-A",
+      "source_valid_rows": 1
+    },
+    "rng_state": {
+      "bit_generator": "PCG64",
+      "has_uint32": 0,
+      "state": {
+        "inc": 261136684632268670825940853076396136793,
+        "state": 243635289373715728209963572782677635214
+      },
+      "uinteger": 0
+    },
+    "rule_events": [
+      {
+        "applied": false,
+        "approval_status": null,
+        "approved": false,
+        "batch_id": null,
+        "execution_order": 1,
+        "implementation_name": "available_to_buy",
+        "implemented": true,
+        "outcome": "LEGACY_FALLBACK",
+        "parent_columns": [
+          "TKQ_ACCOUNT.CREDIT_LIMIT_AMT",
+          "TKQ_ACCOUNT_BALANCE.CURRENT_BALANCE_AMT"
+        ],
+        "proposal_id": null,
+        "proposed": false,
+        "reason": "no_eligible_approval",
+        "rows_processed": 13,
+        "rule_type": "DERIVED",
+        "target_column": "AVAILABLE_TO_BUY_AMT",
+        "target_table": "TKQ_ACCOUNT_BALANCE"
+      },
+      {
+        "applied": false,
+        "approval_status": null,
+        "approved": false,
+        "batch_id": null,
+        "execution_order": 2,
+        "implementation_name": "overlimit_amount",
+        "implemented": true,
+        "outcome": "LEGACY_FALLBACK",
+        "parent_columns": [
+          "TKQ_ACCOUNT.CREDIT_LIMIT_AMT",
+          "TKQ_ACCOUNT_BALANCE.CURRENT_BALANCE_AMT"
+        ],
+        "proposal_id": null,
+        "proposed": false,
+        "reason": "no_eligible_approval",
+        "rows_processed": 13,
+        "rule_type": "DERIVED",
+        "target_column": "OVERLIMIT_AMT",
+        "target_table": "TKQ_ACCOUNT_BALANCE"
+      },
+      {
+        "applied": false,
+        "approval_status": null,
+        "approved": false,
+        "batch_id": null,
+        "execution_order": 3,
+        "implementation_name": "get_delinquency_probability",
+        "implemented": true,
+        "outcome": "LEGACY_FALLBACK",
+        "parent_columns": [
+          "TKQ_ACCOUNT.UTILIZATION_RATE"
+        ],
+        "proposal_id": null,
+        "proposed": false,
+        "reason": "no_eligible_approval",
+        "rows_processed": 13,
+        "rule_type": "CONDITIONAL",
+        "target_column": "PAST_DUE_INDICATO_CD",
+        "target_table": "TKQ_ACCOUNT"
+      }
+    ],
+    "tables": {
+      "CUSTOMER_ACCOUNT_REL": {
+        "rows": 13,
+        "sha256": "6b4b7b2322c00bbc5ff7be37e40a38afaa4bbf03400719702c60b7f49be9305d"
+      },
+      "CUSTOMER_RELATIONSHIP": {
+        "rows": 4,
+        "sha256": "71b160ff6d2fc2d78717e6451aee07b63f63bc1c9ac6c3bfe0d2a24111077e34"
+      },
+      "PERSON": {
+        "rows": 9,
+        "sha256": "efbb3f535b89f09839126aa11326bd9a8cf6f125e64cfcec6fb48ed229d7541e"
+      },
+      "TKQ_ACCOUNT": {
+        "rows": 13,
+        "sha256": "c695a244da8dac445b29b6c9c691a1b16973afa5bd96c4ba75ec084c83b97ab1"
+      },
+      "TKQ_ACCOUNT_BALANCE": {
+        "rows": 13,
+        "sha256": "5d687f588f0d6da1612dc6472b698a607492843124ad3a2347cd534eda2de9ab"
+      },
+      "TRADELINES": {
+        "rows": 27,
+        "sha256": "c0aaf778a46c282ba47b2155d7895f45b5896f0dc7b5e923604f5fdd6feed108"
+      }
+    }
+  }
+}

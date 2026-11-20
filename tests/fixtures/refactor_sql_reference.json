@@ -1,0 +1,79 @@
+{
+  "profiling_queries": {
+    "metadata": [
+      "d39ebeac74d1a4f18418331cc4acc94e013c54edb2581404a182011a0a1587e4",
+      "7af969423a21c6457a7f4ca3db123cc49d4f75d1214585b0c30f48525c9b653c"
+    ],
+    "column_schema": [
+      "7b4be392d80537ba74eeb667fc7609bf9f4c870c5ec27758fd37010d359d3fe7"
+    ],
+    "ensure_schema": [
+      "cf694d3915b91b9fd10dbdbd2d38a6606da8bd7e65653f222955a369ddebac44",
+      "7af969423a21c6457a7f4ca3db123cc49d4f75d1214585b0c30f48525c9b653c"
+    ],
+    "quality_table": [
+      "4f32d77cf092c5c4fbb7a7fed65c50fce091a4d725dcdef471fdf8499d79b2ba"
+    ],
+    "clear_quality": [
+      "18c10c3da0e7e743944121d0b901ca3b0a6636cc886b20189899678dd5c6469d"
+    ],
+    "numeric_table": [
+      "20453065cf85bd14770716dac54dc08303b937823b3e32e325798217ac4d7e0f"
+    ],
+    "category_table": [
+      "6e05d531727cb4d8adccabf8fa2ba9077a0c7bb28da6285593bd2f50000dbb75"
+    ],
+    "date_table": [
+      "70655c5a55e0ff16805ddfb1d5bcf8ba0d2c9a4845e5669961e0a44357a8c211"
+    ],
+    "relationship_table": [
+      "959e5a12f2cbc12da3835e61bcdc224e57d15e969b4db293e75db137d3faa6c9"
+    ],
+    "legacy_correlation": [
+      "ef5de7b1792f2611e04c93e9add075a5a53ccc25e7cacca027b5cb8bc64291d9"
+    ],
+    "conditional_table": [
+      "3315d26de9d710cd614fb2a4bd5de19c90f4f68b7756ad714921bad7b8a7cfb9",
+      "3315d26de9d710cd614fb2a4bd5de19c90f4f68b7756ad714921bad7b8a7cfb9"
+    ],
+    "conditional_insert": [
+      "06cfb5d202dffe910ed3b246cf519d912bf2a478ae950a7fd878707b89dbfc66"
+    ],
+    "cardinality_table": [
+      "88174452f4b2d3b95214da0bc7a5e3fa8aade2eefe86b71ad0a3c22872c419ab"
+    ],
+    "cardinality_insert": [
+      "264408ffef8158e3364e47b678aa3e9447337bb43a856262d438471e922eae45"
+    ],
+    "numeric_view": [
+      "b76308fd14bae708b9ac5dc991618f60a463c2389e820e471a255613a3610c86"
+    ],
+    "category_view": [
+      "dc4a52f3d4d22c431cd2866effe9d1a019f8bb6d3115ca29907e5e01260ae3e5"
+    ],
+    "structural_view": [
+      "f64a8765502fe02db0c1a35a54d76e6b8a8fed9992b141129dad73d46233a8fa"
+    ],
+    "dependency_view": [
+      "82a036eb50a97ce1cc1f62d129c7271423fbd14a155110cbb2d0aecdec2bb0a9"
+    ]
+  },
+  "features": {
+    "account_features": "5e4dd8ff273fe8e97952371319477a7eee80020c67662369019fa1f2c4c912e2",
+    "customer_account_features": "fb16bbbeba4a5cf5bb257fad82c47780ff9ae9014e2e7fa42300635e16bef40b",
+    "person_features": "2f276a963e74767894a97c93d478c2f700e5bda2d29e31e2cc80dbd635e50876",
+    "tradeline_features": "da5c54b41a0b9724b3754171a1e4c1e373a5586b4b71eee99b0776eea085210e",
+    "cif_tradeline_counts": "fa7cab6d8dfe31dafb36f367c58f472e5df0909b6dc3ccdea088ddbb0895e71d"
+  },
+  "marginals": {
+    "profile_column_quality": "59aca1527686350c1d3059e4e622379a653fb63c1ae9550ccc3eab482eaae664",
+    "profile_numeric": "f4a52ac54ea1d6b1adc6f65d291153ba84af76fcdb95d46d57abf5a145675305",
+    "profile_categories": "935d0392f1d28809dcbf028a4fcd1be0abe9ab70b6b26b9f0d94f7e0a537b90f",
+    "profile_dates": "e454eac7c34b554bef5548b4a2d83ca318f1f0aa9116a641770faa3952ffb5e4"
+  },
+  "prompts": {
+    "ACCOUNT_CORE": "31d5123891ce9cd38553d315ebb2ea002de27954c8aeb999cda54a17e0fa82d1",
+    "BALANCE_PILOT": "99b8536c7679ead48c7a7173a48d5a4b67b1beaca89eae8a86b0d44fe66aae1d",
+    "DELINQUENCY_PILOT": "5b42b4430064cdd506653335aa0640622d043b13dbc6ec83277ff38bbf0f7abe"
+  }
+}

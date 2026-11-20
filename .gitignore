@@ -10,6 +10,7 @@ venv/
 *.csv
 *.parquet
 *.zip
+fidelity_report.json
 /generated/
 /generated_row_level/
 /output/

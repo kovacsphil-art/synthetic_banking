@@ -69,7 +69,7 @@ class ProfileSpark:
                 "INSERT INTO conditional_profile VALUES (?, 'ACCOUNT', 'UTILIZATION_RATE', 'PAST_DUE_INDICATO_CD', '0-30%', 2, .5)",
                 (run,),
             )
-            for table in ("PERSON", "CUSTOMER_ACCOUNT_REL", "TKQ_ACCOUNT", "TKQ_ACCOUNT_BALANCE", "TRADELINES"):
+            for table in ("PERSON", "CUSTOMER_ACCOUNT_REL", "CUSTOMER_RELATIONSHIP", "TKQ_ACCOUNT", "TKQ_ACCOUNT_BALANCE", "TRADELINES"):
                 self.connection.execute("INSERT INTO column_quality VALUES (?, ?, 2)", (run, table))
 
     def sql(self, query, args=None):

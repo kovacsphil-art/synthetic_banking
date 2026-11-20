@@ -100,12 +100,12 @@
           <div><dt>Null rates</dt><dd>Column quality records missing values, row counts, and distinct counts.</dd></div>
           <div><dt>Date ranges</dt><dd>Earliest and latest observed dates define generation bounds.</dd></div>
           <div><dt>Cardinalities</dt><dd>Relationship counts describe structure, such as how many accounts belong to a person.</dd></div>
-          <div><dt>Dependency statistics</dt><dd>Selected correlations and delinquency rates by utilization bucket capture relationships.</dd></div>
+          <div><dt>Dependency statistics</dt><dd>Selected correlations, utilization-bucket delinquency rates, and bounded categorical cross-tabs with Cramér's V describe relationships.</dd></div>
         </dl>
         <details class="disclosure">
           <summary>How profiles guide sampling</summary>
           <div class="disclosure-content">
-            <p>Numeric generation approximates an inverse cumulative distribution using profiled quantiles. A quantile is a cutoff in a distribution, such as the median or 95th percentile. Categorical sampling uses observed proportions, and date sampling is uniform within observed bounds.</p>
+            <p>Numeric generation approximates an inverse cumulative distribution using profiled quantiles. A quantile is a cutoff in a distribution, such as the median or 95th percentile. Categorical sampling uses observed proportions. Dates use SOURCE month proportions and feasible ordering bounds.</p>
             <p>The profiler supplies measured distributions and probabilities. The LLM proposes which dependencies may matter.</p>
           </div>
         </details>
@@ -168,7 +168,7 @@
             <details class="disclosure"><summary>Implementation for overlimit amount</summary><div class="disclosure-content"><p><code>overlimit_amount</code> targets <code>TKQ_ACCOUNT_BALANCE</code> with rule type <code>DERIVED</code>.</p></div></details>
           </article>
         </div>
-        <p class="section-footnote">Utilization and delinquency currently retain their existing generation paths. Their activation is separate from this two-rule pilot.</p>
+        <p class="section-footnote">The conditional registry also supports <code>UTILIZATION_RATE → PAST_DUE_INDICATO_CD</code>. A manually approved proposal can select predefined sampling from measured SOURCE delinquency rates by utilization bucket. Missing evidence produces a logged skip. Without an eligible approval, the existing generation path supplies the outcome.</p>
       </div>
     </section>
 
@@ -228,12 +228,12 @@
       <div class="container">
         <div class="section-heading">
           <div><p class="eyebrow">Prototype scope</p><h2 id="next-title">Limitations &amp; next steps</h2></div>
-          <p>Most fields still use marginal sampling. Numeric distributions use percentile approximations, and dates use uniform sampling within observed bounds.</p>
+          <p>Most fields still use marginal sampling. Numeric distributions use percentile approximations. Dates use day precision, with uniform sampling within each supported month and explicit ordering constraints.</p>
         </div>
         <dl class="next-list">
-          <div><dt>Broader dependencies</dt><dd>Extend measured relationships and the controlled registry beyond two balance rules. The AI stage currently covers the two account tables.</dd></div>
-          <div><dt>Categorical relationships</dt><dd>Model cross-category structure beyond independent marginal proportions.</dd></div>
-          <div><dt>Customer relationships</dt><dd>Implement <code>CUSTOMER_RELATIONSHIP</code> generation and Delta persistence.</dd></div>
+          <div><dt>Broader dependencies</dt><dd>Extend measured relationships and the controlled registry beyond the balance formulas and utilization-conditioned delinquency. The AI stage currently covers the two account tables.</dd></div>
+          <div><dt>Categorical relationships</dt><dd>Use the measured cross-tabs and association diagnostics to extend controlled generation beyond independent categorical sampling.</dd></div>
+          <div><dt>Customer relationships</dt><dd>Review measured degree, direction, type and null-pattern fidelity from the new <code>CUSTOMER_RELATIONSHIP</code> generator. Extend demographic and ownership-network modeling.</dd></div>
           <div><dt>Stronger validation</dt><dd>Expand comparisons of distributions, null rates, dates, cardinalities, and conditional outcomes.</dd></div>
           <div><dt>Privacy testing</dt><dd>Evaluate disclosure and re-identification risks alongside statistical utility.</dd></div>
         </dl>

@@ -11,7 +11,7 @@ from tempfile import NamedTemporaryFile
 from synthetic_banking.validation import GENERATED_SCHEMA, GENERATED_TABLES, check_validated_versions
 
 
-_PROFILE = "workspace.synthetic_profile"
+from synthetic_banking.config import PROFILE_SCHEMA as _PROFILE
 _FIELDS = (
     ("TKQ_ACCOUNT", "CREDIT_LIMIT_AMT"),
     ("TKQ_ACCOUNT_BALANCE", "CURRENT_BALANCE_AMT"),

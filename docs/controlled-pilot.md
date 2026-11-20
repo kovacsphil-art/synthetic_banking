@@ -111,6 +111,18 @@ Notebook 01's final cell refreshes the project showcase with aggregate measureme
 | GENERATED run B | Completed `run_id`, generation ID, and A |
 | Differences to investigate | Measured numeric differences, correlation, and supported bucket-rate changes |
 
+## Utilization-to-delinquency pilot
+
+1. Pin a completed SOURCE run with utilization/delinquency conditional profiles. In Notebook 02, set that `source_run_id`, `delinquency_pilot = ON`, and `balance_pilot = OFF`. Run from the top to create a fresh `DELINQUENCY_PILOT` batch.
+2. Review the candidate against the measured bucket rates and sample counts included in the saved prompt. The target must be `TKQ_ACCOUNT.PAST_DUE_INDICATO_CD`, the type `CONDITIONAL`, and the single parent `TKQ_ACCOUNT.UTILIZATION_RATE`. Approve the individual proposal using the existing SQL review template.
+3. In Notebook 03, supply the same SOURCE ID, the new `pilot_batch_id`, and that single `pilot_proposal_ids` value. The registered implementation samples from measured SOURCE rates after the balance rules and utilization calculation. Missing rates for an encountered bucket, invalid evidence, or conflicting approvals cause a logged skip. The selected pilot then stops before writes if its approval did not apply.
+4. Inspect the existing rule execution audit for the generation, batch, and proposal. Confirm `implementation_name = 'delinquency_by_utilization'`, `execution_order = 3`, and `applied = true`. Balance targets can use their recorded legacy fallback paths.
+5. Re-profile the completed generation as GENERATED in Notebook 01. Review the new paired delinquency comparison for source and generated sample counts, rates, and percentage-point differences in each utilization bucket. Its IDs come from `active_profile_run` and the pinned baseline. The showcase exports the same paired aggregate rates.
+
+The dependency already existed in legacy generation. This extension adds approval-controlled dispatch and measured-evidence checks while preserving legacy values and random-number consumption when no eligible approval exists. Outside an explicitly selected pilot, a skipped conditional rule uses the existing legacy path, including its 5% fallback for an absent bucket. The controlled implementation requires measured evidence for every bucket it uses.
+
+Notebook 03 accepts one to three reviewed proposal IDs from a single batch, allowing a combined ACCOUNT_CORE batch to include both balance proposals and the conditional proposal when all have been individually reviewed. The separate balance pilot continues to use its original one or two balance proposals.
+
 ## Before adding new dependencies
 
 - Complete this workflow in Databricks and retain the pilot evidence from the versioned outputs.
