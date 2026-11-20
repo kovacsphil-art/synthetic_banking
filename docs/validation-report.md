@@ -22,7 +22,7 @@ All paths below are under `validation_report`, except the existing `rules` and `
 | Null-rate detail | NULL_RATE for the four numeric fields, past-due indicator and three date fields | `assessments[]` where `family = nulls`: paired rates, absolute pp score and status |
 | Date distributions | Complete DATE_DISTRIBUTION calendar-month proportions and DATE_RANGE bounds | `dates[].{total_variation_pct,earliest_shift_days,latest_shift_days,status}` |
 | Correlation | CORRELATION ACCOUNT credit-limit / current-balance Pearson metric | `assessments[]` key `correlation.balance_limit`: paired correlation, absolute difference score, status |
-| Utilization / delinquency | CONDITIONAL outcome_rate and sample counts in five fixed utilization buckets | `assessments[]` family `conditional`: rates, `score` in pp, `source_n`, `generated_n`, status |
+| Utilization / delinquency | CONDITIONAL outcome_rate and sample counts in five fixed utilization buckets | `assessments[]` family `conditional`: rates, raw signed `difference` in fraction units (displayed as `100 × abs(difference)` pp), `score` in pp when classifiable, `source_n`, `generated_n`, status |
 | Cardinality distributions | CARDINALITY for accounts per party, outgoing/incoming customer relationships, tradelines per CIF when available | `cardinality[].{key,label,total_variation_pct,source_mean,generated_mean,status,bins}`; bin fields are `bucket`, `source`, `generated`, `absolute_difference_pp` |
 | Relationship directionality | CUSTOMER_RELATIONSHIP directed/reciprocal/self dyad proportions | `assessments[]` family `graph` |
 | Structural populations | ROW_COUNT across all six tables | `populations[].{table,source,generated,difference}` |
@@ -54,6 +54,8 @@ Numeric chart: `100 × mean(abs(GENERATED Pq − SOURCE Pq)) / SOURCE IQR` for q
 Distribution total variation: `50 × sum(abs(generated_proportion − source_proportion))`, expressed on a 0–100% scale. Both complete distributions must sum to one; unavailable or inconsistent profiles remain pending. Cardinality TV uses the full distribution before display rebinning. Temporal shape uses calendar-month bins; boundary shifts use days. Raw signed differences are GENERATED minus SOURCE.
 
 Conditional buckets require at least 30 rows on each side. Low-count buckets retain their raw rates/counts but are not classified or ranked as strong matches. This is a descriptive coverage safeguard, not a significance test. The legacy Pearson metric does not save paired sample counts, so missing sample sizes remain null; correlation is not causation.
+
+`ACCOUNTS_PER_PARTY` follows the existing customer-account feature population: parties represented in the customer-account relationship table. Its distribution does not measure the fraction of all PERSON records without an account. The separate account-rows/PERSON-rows ratio provides population context and can differ even when the profiled cardinality distribution matches.
 
 ## Summary, strengths and weaknesses
 
