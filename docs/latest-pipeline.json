@@ -1,0 +1,329 @@
+{
+  "schema_version": "1.0",
+  "pipeline_completed_at": "2026-11-20T14:35:14.439063Z",
+  "generation": {
+    "total_rows": {
+      "status": "AVAILABLE",
+      "value": 93059,
+      "reason": null
+    },
+    "customers": {
+      "status": "AVAILABLE",
+      "value": 10000,
+      "reason": null
+    },
+    "accounts": {
+      "status": "AVAILABLE",
+      "value": 17313,
+      "reason": null
+    },
+    "table_rows": [
+      {
+        "table": "PERSON",
+        "status": "AVAILABLE",
+        "value": 10000,
+        "reason": null
+      },
+      {
+        "table": "CUSTOMER_ACCOUNT_REL",
+        "status": "AVAILABLE",
+        "value": 17313,
+        "reason": null
+      },
+      {
+        "table": "TKQ_ACCOUNT",
+        "status": "AVAILABLE",
+        "value": 17313,
+        "reason": null
+      },
+      {
+        "table": "TKQ_ACCOUNT_BALANCE",
+        "status": "AVAILABLE",
+        "value": 17313,
+        "reason": null
+      },
+      {
+        "table": "TRADELINES",
+        "status": "AVAILABLE",
+        "value": 30000,
+        "reason": null
+      },
+      {
+        "table": "CUSTOMER_RELATIONSHIP",
+        "status": "AVAILABLE",
+        "value": 1120,
+        "reason": null
+      }
+    ]
+  },
+  "rules": {
+    "proposed": {
+      "status": "AVAILABLE",
+      "value": 2,
+      "reason": null
+    },
+    "approved": {
+      "status": "AVAILABLE",
+      "value": 2,
+      "reason": null
+    },
+    "applied": {
+      "status": "AVAILABLE",
+      "value": 2,
+      "reason": null
+    },
+    "skipped": {
+      "status": "AVAILABLE",
+      "value": 0,
+      "reason": null
+    },
+    "approved_unimplemented": {
+      "status": "AVAILABLE",
+      "value": 0,
+      "reason": null
+    }
+  },
+  "validation": {
+    "status": "PASS",
+    "fidelity_acceptance": "NOT_CONFIGURED",
+    "account_balance_join_coverage": {
+      "accounts_with_balance": {
+        "status": "AVAILABLE",
+        "value": 1.0,
+        "reason": null
+      },
+      "balances_with_account": {
+        "status": "AVAILABLE",
+        "value": 1.0,
+        "reason": null
+      }
+    }
+  },
+  "numeric_differences": [
+    {
+      "table": "TKQ_ACCOUNT",
+      "column": "CREDIT_LIMIT_AMT",
+      "metric": "mean_value",
+      "status": "AVAILABLE",
+      "source": 10570.103092783505,
+      "generated": 10733.188248519522,
+      "difference": 163.08515573601653,
+      "difference_unit": "value",
+      "reason": null
+    },
+    {
+      "table": "TKQ_ACCOUNT",
+      "column": "CREDIT_LIMIT_AMT",
+      "metric": "p50",
+      "status": "AVAILABLE",
+      "source": 9900.0,
+      "generated": 9936.864467096979,
+      "difference": 36.86446709697884,
+      "difference_unit": "value",
+      "reason": null
+    },
+    {
+      "table": "TKQ_ACCOUNT",
+      "column": "CREDIT_LIMIT_AMT",
+      "metric": "p95",
+      "status": "AVAILABLE",
+      "source": 20500.0,
+      "generated": 20719.428836947744,
+      "difference": 219.42883694774355,
+      "difference_unit": "value",
+      "reason": null
+    },
+    {
+      "table": "TKQ_ACCOUNT_BALANCE",
+      "column": "CURRENT_BALANCE_AMT",
+      "metric": "mean_value",
+      "status": "AVAILABLE",
+      "source": 3016.8691043814483,
+      "generated": 2986.8364100027034,
+      "difference": -30.032694378744964,
+      "difference_unit": "value",
+      "reason": null
+    },
+    {
+      "table": "TKQ_ACCOUNT_BALANCE",
+      "column": "CURRENT_BALANCE_AMT",
+      "metric": "p50",
+      "status": "AVAILABLE",
+      "source": 2369.19,
+      "generated": 2321.752845042741,
+      "difference": -47.43715495725928,
+      "difference_unit": "value",
+      "reason": null
+    },
+    {
+      "table": "TKQ_ACCOUNT_BALANCE",
+      "column": "CURRENT_BALANCE_AMT",
+      "metric": "p95",
+      "status": "AVAILABLE",
+      "source": 8119.8,
+      "generated": 7862.585759194858,
+      "difference": -257.21424080514225,
+      "difference_unit": "value",
+      "reason": null
+    },
+    {
+      "table": "TKQ_ACCOUNT_BALANCE",
+      "column": "AVAILABLE_TO_BUY_AMT",
+      "metric": "mean_value",
+      "status": "AVAILABLE",
+      "source": 7553.233988402069,
+      "generated": 7821.9352858579805,
+      "difference": 268.7012974559111,
+      "difference_unit": "value",
+      "reason": null
+    },
+    {
+      "table": "TKQ_ACCOUNT_BALANCE",
+      "column": "AVAILABLE_TO_BUY_AMT",
+      "metric": "p50",
+      "status": "AVAILABLE",
+      "source": 6813.54,
+      "generated": 7161.222099490194,
+      "difference": 347.68209949019365,
+      "difference_unit": "value",
+      "reason": null
+    },
+    {
+      "table": "TKQ_ACCOUNT_BALANCE",
+      "column": "AVAILABLE_TO_BUY_AMT",
+      "metric": "p95",
+      "status": "AVAILABLE",
+      "source": 16133.43,
+      "generated": 18740.39381821112,
+      "difference": 2606.9638182111194,
+      "difference_unit": "value",
+      "reason": null
+    },
+    {
+      "table": "TKQ_ACCOUNT_BALANCE",
+      "column": "OVERLIMIT_AMT",
+      "metric": "mean_value",
+      "status": "AVAILABLE",
+      "source": 0.0,
+      "generated": 75.5834473411461,
+      "difference": 75.5834473411461,
+      "difference_unit": "value",
+      "reason": null
+    },
+    {
+      "table": "TKQ_ACCOUNT_BALANCE",
+      "column": "OVERLIMIT_AMT",
+      "metric": "p50",
+      "status": "AVAILABLE",
+      "source": 0.0,
+      "generated": 0.0,
+      "difference": 0.0,
+      "difference_unit": "value",
+      "reason": null
+    },
+    {
+      "table": "TKQ_ACCOUNT_BALANCE",
+      "column": "OVERLIMIT_AMT",
+      "metric": "p95",
+      "status": "AVAILABLE",
+      "source": 0.0,
+      "generated": 656.4554011968089,
+      "difference": 656.4554011968089,
+      "difference_unit": "value",
+      "reason": null
+    }
+  ],
+  "categorical_differences": [
+    {
+      "table": "TKQ_ACCOUNT",
+      "column": "PAST_DUE_INDICATO_CD",
+      "category": "Y",
+      "status": "AVAILABLE",
+      "source": 0.06443298969072164,
+      "generated": 0.07196904060532548,
+      "difference": 0.753605091460384,
+      "difference_unit": "percentage_points",
+      "reason": null
+    },
+    {
+      "table": "TKQ_ACCOUNT",
+      "column": "PAST_DUE_INDICATO_CD",
+      "category": "N",
+      "status": "AVAILABLE",
+      "source": 0.9355670103092784,
+      "generated": 0.9280309593946745,
+      "difference": -0.7536050914603853,
+      "difference_unit": "percentage_points",
+      "reason": null
+    }
+  ],
+  "dependency_results": {
+    "credit_limit_balance_pearson": {
+      "status": "AVAILABLE",
+      "source": 0.4962310647025491,
+      "generated": 0.08087851195791743,
+      "difference": -0.4153525527446317,
+      "difference_unit": "correlation",
+      "reason": null
+    },
+    "delinquency_by_utilization": [
+      {
+        "utilization_bucket": "0-30%",
+        "status": "AVAILABLE",
+        "source": 0.0291,
+        "generated": 0.02746,
+        "difference": -0.16400000000000026,
+        "difference_unit": "percentage_points",
+        "reason": null
+      },
+      {
+        "utilization_bucket": "30-60%",
+        "status": "AVAILABLE",
+        "source": 0.07719,
+        "generated": 0.07484,
+        "difference": -0.2349999999999991,
+        "difference_unit": "percentage_points",
+        "reason": null
+      },
+      {
+        "utilization_bucket": "60-80%",
+        "status": "AVAILABLE",
+        "source": 0.22222,
+        "generated": 0.22213,
+        "difference": -0.009000000000000674,
+        "difference_unit": "percentage_points",
+        "reason": null
+      },
+      {
+        "utilization_bucket": "80-100%",
+        "status": "AVAILABLE",
+        "source": 0.46667,
+        "generated": 0.47245,
+        "difference": 0.5780000000000007,
+        "difference_unit": "percentage_points",
+        "reason": null
+      },
+      {
+        "utilization_bucket": "100%+",
+        "status": "UNAVAILABLE",
+        "source": null,
+        "generated": 0.04209,
+        "difference": null,
+        "difference_unit": "percentage_points",
+        "reason": "metric_unavailable"
+      }
+    ]
+  },
+  "warnings": [
+    {
+      "code": "FIDELITY_THRESHOLDS_NOT_CONFIGURED",
+      "message": "Integrity passed. Statistical differences are observations for review, without an overall acceptance score.",
+      "count": null
+    },
+    {
+      "code": "UNAVAILABLE_METRICS",
+      "message": "Some selected aggregate measurements are unavailable.",
+      "count": 1
+    }
+  ]
+}
