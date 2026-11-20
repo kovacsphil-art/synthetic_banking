@@ -24,6 +24,10 @@ test("measured classifications, raw percentiles, populations and dependencies ar
   assert.match(text,/Credit limit \/ balance correlation/);assert.match(text,/Accounts per person/);
   assert.match(text,/Other cross-table referential integrity/);assert.match(text,/Pending/);
   assert.ok(!text.includes("high quality"));
+  const conditional=all(node).find(n=>n.tagName==="TABLE"&&n.children[0].textContent==="Past-due rates by utilization bucket");
+  assert.match(conditional.textContent,/Strong match/);assert.doesNotMatch(conditional.textContent,/Passed/);
+  const integrity=all(node).find(n=>n.tagName==="TABLE"&&n.children[0].textContent==="Generated structural and business-rule checks");
+  assert.match(integrity.textContent,/Passed/);
 });
 
 test("numeric table sorts independently without losing raw data",()=>{
