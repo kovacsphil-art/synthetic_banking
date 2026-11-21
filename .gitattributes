@@ -1,0 +1,2 @@
+# The download manifest pins the preview's exact bytes across Windows and Actions.
+docs/demo-preview.json text eol=lf
