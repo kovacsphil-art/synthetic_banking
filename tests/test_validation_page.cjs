@@ -16,6 +16,30 @@ function all(n){return [n,...n.children.flatMap(all)];}
 const clone=()=>structuredClone(fixture);
 const location={origin:"https://example.invalid",protocol:"https:"};
 const response=r=>({ok:true,text:async()=>JSON.stringify(r)});
+const postFixture=JSON.parse(fs.readFileSync(path.join(__dirname,"../docs/reporting/example-postpilot.json"),"utf8"));
+
+test("post-pilot mean/tail screens and privacy findings remain separate and visible",()=>{
+  const r=structuredClone(postFixture),node=renderValidation(document(),normalizeValidation(r));
+  assert.match(node.textContent,/Numeric mean screening/);assert.match(node.textContent,/P01 \/ P05 \/ P99 tail screening/);
+  assert.match(node.textContent,/Balance mean needs review/);assert.match(node.textContent,/REVIEW_REQUIRED/);
+  assert.match(node.textContent,/SOURCE-rare pattern matches/);assert.match(node.textContent,/Row-level downloads disabled/);
+  assert.match(node.textContent,/Additional provisional screens/);assert.match(node.textContent,/Mandatory integrity requirements/);
+  assert.equal(all(node).filter(n=>n.className?.includes("mean-series")).length,8);
+  assert.ok(!all(node).some(n=>n.tagName==="A"&&/\.zip|\.csv|\.parquet/.test(n.attributes.href||"")));
+  const unchanged=structuredClone(r);delete unchanged.rules;delete unchanged.validation_report.rule_outcomes;
+  assert.equal(renderValidation(document(),normalizeValidation(unchanged)).textContent,node.textContent);
+});
+
+test("privacy never becomes clearance through missing evidence or altered labels",()=>{
+  for(const mutate of [r=>r.privacy.row_level_downloads_enabled=true,r=>r.privacy.status="PASS",r=>r.privacy.near_matches.variables[0]="PRIVATE_PERSON",
+    r=>r.privacy.near_matches.flagged_fraction=.99,r=>r.privacy.categorical_patterns[0].label="PRIVATE_PATTERN",r=>r.privacy.policy.near_date_days=-1,
+    r=>r.validation_report.post_pilot.assessments[0].status="NEEDS_REVIEW",r=>r.validation_report.post_pilot.thresholds.mean_relative_pct.acceptable=999,
+    r=>r.validation_report.post_pilot.numeric_details[0].tail_points[0].source="PRIVATE_VALUE"]){
+    const r=structuredClone(postFixture);mutate(r);assert.throws(()=>normalizeValidation(r),/Invalid/);
+  }
+  const r=structuredClone(postFixture);r.private_source_rows=["PRIVATE_ROW"];r.privacy.private_id="PRIVATE_ID";
+  assert.ok(!renderValidation(document(),normalizeValidation(r)).textContent.includes("PRIVATE_"));
+});
 
 function dependencyEvidence(){return {
   categorical:[{key:"account_type_product",label:"Account type / client product"},{key:"client_tsys_product",label:"Client / TSYS product"}].map(r=>({...r,source_cramers_v:1,generated_cramers_v:.99,absolute_association_gap:.01,source_n:1000,generated_n:10000,conditional_tvd_pct:.5,unsupported_combination_rate:0})),
@@ -113,7 +137,7 @@ test("raw upper-tail gaps remain visible when a zero SOURCE IQR prevents grading
   const node=renderValidation(document(),normalizeValidation(report));
   const tail=all(node).find(n=>n.tagName==="TABLE"&&n.children[0].textContent==="Upper-tail comparison");
   assert.match(tail.textContent,/Overlimit amount 0 656.46 \+656.46 0 656.46/);
-  assert.match(node.textContent,/behaviour beyond P95 is not assessed/);
+  assert.match(node.textContent,/beyond P95 remains unavailable/);
   assert.match(node.textContent,/zero or missing IQR prevents normalization/);
   assert.match(node.textContent,/Not comparable/);
 });

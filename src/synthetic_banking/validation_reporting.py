@@ -13,6 +13,15 @@ THRESHOLDS = {
     "distribution_tvd_pct": {"strong": 2.0, "acceptable": 5.0},
 }
 MIN_CONDITIONAL_ROWS = 30
+# Edit/version these provisional settings and regenerate the schema/browser config.
+SCREENING_POLICY_VERSION = "post_pilot_v1"
+SCREENING_THRESHOLDS = {
+    "mean_relative_pct": {"strong": 1.0, "acceptable": 3.0},
+    "zero_mean_absolute": {"strong": 0.0, "acceptable": 0.0},
+    "tail_iqr_pct": {"strong": 5.0, "acceptable": 15.0},
+    "conditional_tvd_pct": {"strong": 2.0, "acceptable": 5.0},
+    "date_bound_days": {"strong": 1.0, "acceptable": 7.0},
+}
 NUMERIC = (
     ("credit_limit", "TKQ_ACCOUNT", "CREDIT_LIMIT_AMT", "Credit limit"),
     ("current_balance", "TKQ_ACCOUNT_BALANCE", "CURRENT_BALANCE_AMT", "Current balance"),
@@ -258,7 +267,85 @@ def build_validation_report(metrics, rule_outcomes=()):
     supplemental = sampling_fidelity(metrics)
     if supplemental is not None:
         result["dependency_fidelity"] = supplemental
+    result["post_pilot"] = post_pilot_screening(metrics, result)
     return result
+
+
+def post_pilot_screening(metrics, report):
+    """Additional moments/tails and screening; retain historical core check counts."""
+    for limits in SCREENING_THRESHOLDS.values():
+        if any(number(v) is None or v < 0 for v in limits.values()) or limits['strong'] > limits['acceptable']:
+            raise ValueError("Screening thresholds must be finite, nonnegative and ordered.")
+
+    def find(table, column, metric):
+        rows = [r for r in metrics if (r.get('family'),r.get('entity_name'),r.get('column_name'),r.get('metric'))
+                == ('NUMERIC',table,column,metric)]
+        if len(rows)>1:
+            raise ValueError("Duplicate numeric screening evidence.")
+        row = rows[0] if rows else {}
+        s,g=number(row.get('source_value')),number(row.get('generated_value'))
+        valid=row.get('comparison_status')=='COMPARABLE' and s is not None and g is not None
+        return s,g,number(g-s) if valid else None,row
+
+    assessments=[]
+    def add(key,label,family,score,policy,source=None,generated=None,difference=None,row=None):
+        row=row or {}; limits=SCREENING_THRESHOLDS[policy]; score=number(score)
+        status='UNAVAILABLE' if score is None else 'STRONG' if score<=limits['strong']+1e-9 else 'ACCEPTABLE' if score<=limits['acceptable']+1e-9 else 'NEEDS_REVIEW'
+        assessments.append(dict(key=key,label=label,family=family,score=score,policy=policy,status=status,
+            source=source,generated=generated,difference=difference,
+            source_n=number(row.get('source_sample_size')),generated_n=number(row.get('generated_sample_size'))))
+
+    details=[]
+    for key,table,column,label in NUMERIC:
+        s,g,delta,row=find(table,column,'mean_value')
+        relative=number(100*abs(delta)/abs(s)) if delta is not None and s else None
+        policy='zero_mean_absolute' if s==0 else 'mean_relative_pct'
+        score=abs(delta) if delta is not None and s==0 else relative
+        add('mean.'+key,label+' mean','mean',score,policy,s,g,delta,row)
+        iqr=next(r['source_iqr'] for r in report['numeric'] if r['key']==key)
+        points=[]
+        for name in ('P01','P05','P99'):
+            a,b,d,_=find(table,column,name.lower())
+            points.append(dict(name=name,source=a,generated=b,difference=d))
+        scores=[100*abs(p['difference'])/iqr for p in points] if iqr and iqr>0 and all(p['difference'] is not None for p in points) else []
+        add('tail.'+key,label+' tail percentiles','tail',max(scores) if scores and all(number(s) is not None for s in scores) else None,'tail_iqr_pct')
+        bounds={}
+        for metric,public in (('min_value','minimum'),('max_value','maximum'),('stddev_value','stddev')):
+            a,b,_,_=find(table,column,metric)
+            bounds['source_'+public]=a; bounds['generated_'+public]=b
+        details.append(dict(key=key,label=label,mean_relative_pct=relative,tail_points=points,**bounds))
+    for r in report['dates']:
+        shifts=[r['earliest_shift_days'],r['latest_shift_days']]
+        add('date_bounds.'+r['key'],r['label']+' bounds','date_bounds',
+            max(abs(v) for v in shifts) if all(number(v) is not None for v in shifts) else None,'date_bound_days')
+    pairs=report.get('dependency_fidelity',{}).get('categorical',[])
+    for key,label in (('account_type_product','Account type / client product'),('client_tsys_product','Client / TSYS product')):
+        row=next((r for r in pairs if r['key']==key),{})
+        add('categorical_conditional.'+key,label,'categorical_conditional',number(row.get('conditional_tvd_pct')),'conditional_tvd_pct',
+            row={'source_sample_size':row.get('source_n'),'generated_sample_size':row.get('generated_n')})
+
+    combined=[*report['assessments'],*assessments]
+    thresholds={**THRESHOLDS,**SCREENING_THRESHOLDS}
+    def select(status,worst=False):
+        # Zero-reference native-unit departures are separate alerts, not ranked
+        # against percentage/correlation distances through an invented divisor.
+        eligible=[a for a in combined if a['status']==status and a['family']!='integrity'
+                  and a['policy'] and thresholds[a['policy']]['acceptable']>0]
+        eligible.sort(key=lambda a:((-1 if worst else 1)*a['score']/thresholds[a['policy']]['acceptable'],a['key']))
+        chosen=[]; counts={}
+        for cap in ((2,) if worst else (1,2)):
+            for a in eligible:
+                if a['key'] in chosen or counts.get(a['family'],0)>=cap:
+                    continue
+                chosen.append(a['key']);counts[a['family']]=counts.get(a['family'],0)+1
+                if len(chosen)==6:return chosen
+        return chosen
+    return dict(policy_version=SCREENING_POLICY_VERSION,provisional=True,
+        thresholds={k:dict(v) for k,v in SCREENING_THRESHOLDS.items()},
+        integrity_requirements=dict(snapshot_join_coverage=1.0,allowed_violations=0),
+        min_conditional_rows=MIN_CONDITIONAL_ROWS,numeric_details=details,assessments=assessments,
+        strengths=select('STRONG'),weaknesses=select('NEEDS_REVIEW',True),
+        zero_reference_alerts=[a['key'] for a in assessments if a['policy']=='zero_mean_absolute' and a['status']=='NEEDS_REVIEW'])
 
 
 def sampling_fidelity(metrics):

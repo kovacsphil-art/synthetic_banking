@@ -20,6 +20,7 @@ class WorkflowWiringTests(unittest.TestCase):
             "source_profile": {"source_run_id"}, "llm_proposal": {"source_run_id", "batch_id"},
             "approval_check": {"source_run_id", "batch_id", "approval_fingerprint"},
             "synthetic_generation": {"source_run_id", "batch_id", "generation_id"},
+            "privacy_check": {"source_run_id", "batch_id", "generation_id", "privacy_assessment_id", "privacy_status", "row_level_release_allowed"},
             "generated_profile": {"source_run_id", "batch_id", "generation_id", "generated_run_id"},
             "validate": {"source_run_id", "batch_id", "generation_id", "generated_run_id", "validation_status", "validated_at"},
         }

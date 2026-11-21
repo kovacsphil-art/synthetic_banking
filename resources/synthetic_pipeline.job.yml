@@ -110,3 +110,4 @@ resources:
               validated_at: "{{tasks.validate.values.validated_at}}"
               report_output_dir: ${var.report_output_dir}
               workflow_run_id: "{{job.run_id}}"
+              privacy_assessment_id: "{{tasks.privacy_check.values.privacy_assessment_id}}"

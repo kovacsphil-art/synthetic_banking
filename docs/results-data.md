@@ -1,5 +1,7 @@
 # Showcase results: JSON field reference
 
+The optional post-pilot fields populate measured mean bars, tail/conditional/boundary tables and a **separate privacy summary**. See the [exact field contract](reporting/README.md#post-pilot-public-fields) and [fabricated example](reporting/example-postpilot.json). Historical reports remain supported; absent fields are unavailable. The current privacy status is REVIEW_REQUIRED and row downloads remain disabled. No internal identifiers or matching records are rendered.
+
 The SAGE static site loads **`latest-pipeline.json` beside `index.html`** using `showcase.js` and the shared checks in `results.js` / `validation.js`. Hero counts, distribution comparisons and executive findings are measured results; architecture, methodology and review explanations remain static. The dedicated validation page evaluates final-cohort statistical/structural similarity, independently of rule approvals or application counts. It displays no overall accuracy score. No browser connection to Databricks, credentials, framework or build step is required.
 
 The executive pages require version 2.0, including `validation_report`; see [the field, chart and policy reference](validation-report.md). The legacy summary normalizer and publisher retain version-1 compatibility. Version 1 cannot populate the executive pages and produces an unavailable/pending state.

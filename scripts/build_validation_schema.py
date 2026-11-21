@@ -2,7 +2,8 @@
 
 import json
 from pathlib import Path
-from synthetic_banking.validation_reporting import build_validation_report, NUMERIC, DATES, CARDINALITIES, RULES, TABLES, THRESHOLDS, POLICY_VERSION, MIN_CONDITIONAL_ROWS
+from synthetic_banking.validation_reporting import build_validation_report, NUMERIC, DATES, CARDINALITIES, RULES, TABLES, THRESHOLDS, POLICY_VERSION, MIN_CONDITIONAL_ROWS, SCREENING_THRESHOLDS, SCREENING_POLICY_VERSION
+from synthetic_banking.privacy_reporting import PATTERNS
 
 ROOT = Path(__file__).resolve().parents[1]
 FOLDER = ROOT / "docs/reporting"
@@ -67,11 +68,39 @@ def build_schema():
         numeric_segments=array(obj(dict(bucket=enum(("Q1", "Q2", "Q3", "Q4")),
             source_mean=number, generated_mean=number, mean_difference=number,
             source_n=count, generated_n=count)), 4)))
+    extra=template['post_pilot']
+    extra_assessment=obj(dict(key=enum(a['key'] for a in extra['assessments']),
+        label=enum(a['label'] for a in extra['assessments']),family=enum(sorted({a['family'] for a in extra['assessments']})),
+        score=number,policy=enum(SCREENING_THRESHOLDS),status=status,source=number,generated=number,difference=number,
+        source_n=count,generated_n=count))
+    report['properties']['post_pilot']=obj(dict(
+        policy_version={'const':SCREENING_POLICY_VERSION},provisional={'const':True},
+        thresholds=obj({k:obj({name:{'const':value} for name,value in v.items()}) for k,v in SCREENING_THRESHOLDS.items()}),
+        integrity_requirements=obj(dict(snapshot_join_coverage={'const':1.0},allowed_violations={'const':0})),
+        min_conditional_rows={'const':MIN_CONDITIONAL_ROWS},assessments=array(extra_assessment,len(extra['assessments'])),
+        numeric_details=array(obj(dict(key=enum(r[0] for r in NUMERIC),label=enum(r[3] for r in NUMERIC),
+            mean_relative_pct=number,tail_points=array(obj(dict(name=enum(('P01','P05','P99')),source=number,generated=number,difference=number)),3),
+            **{side+'_'+metric:number for side in ('source','generated') for metric in ('minimum','maximum','stddev')})),4),
+        strengths={'type':'array','items':enum([a['key'] for a in template['assessments']+extra['assessments']]),'maxItems':6,'uniqueItems':True},
+        weaknesses={'type':'array','items':enum([a['key'] for a in template['assessments']+extra['assessments']]),'maxItems':6,'uniqueItems':True},
+        zero_reference_alerts={'type':'array','items':enum('mean.'+r[0] for r in NUMERIC),'maxItems':4,'uniqueItems':True}))
     schema = json.loads((FOLDER / "pipeline-report-v1.schema.json").read_text())
     schema["title"] = "Synthetic banking public pipeline report, version 2.0"
     schema["description"] = "Sanitized aggregates and prototype validation screening; no execution IDs or row records."
     schema["properties"]["schema_version"] = {"const": "2.0"}
     schema["properties"]["validation_report"] = report
+    privacy_policy=obj(dict(rare_min_count={'type':'integer','minimum':1},max_synthetic_rare_fraction=rate,
+        min_complete_fraction={'type':'number','exclusiveMinimum':0,'maximum':1},
+        near_date_days={'type':'integer','minimum':0,'maximum':366},max_similarity_candidates={'type':'integer','minimum':1}))
+    schema['properties']['privacy']=obj(dict(status=enum(('PASS','REVIEW_REQUIRED','BLOCKED','UNAVAILABLE')),
+        row_level_downloads_enabled={'const':False},formal_anonymization_certified={'const':False},
+        policy_version=enum(('basic_v1',None)),policy={'anyOf':[privacy_policy,{'type':'null'}]},
+        checks_recorded=count,checks_expected=count,identifier_overlap_rows=count,exact_source_row_matches=count,
+        near_matches=obj(dict(variables={'const':['BIRTH_DT','SINCE_DT','GENDER_CD']},evaluated_rows=count,flagged_rows=count,
+            flagged_fraction=rate,minimum_combined_distance_days=count,complete_case_coverage=rate)),
+        categorical_patterns=array(obj(dict(key=enum(p[0] for p in PATTERNS),label=enum(p[1] for p in PATTERNS),
+            status=enum(('PASS','INFO','FAIL','REVIEW_REQUIRED','UNAVAILABLE','ERROR')),evaluated_rows=count,
+            synthetic_rare_rows=count,source_rare_match_rows=count,complete_case_coverage=rate)),3)))
     schema["required"].append("validation_report")
     return schema
 
@@ -80,7 +109,9 @@ if __name__ == "__main__":
     (FOLDER / "pipeline-report.schema.json").write_text(json.dumps(build_schema(), indent=2)+"\n", encoding="utf-8")
     template = build_validation_report([])
     config = dict(assessments={a["key"]: {k: a[k] for k in ("label", "family", "policy")} for a in template["assessments"]},
-                  thresholds=THRESHOLDS)
+                  thresholds=THRESHOLDS,policy_version=POLICY_VERSION,min_conditional_rows=MIN_CONDITIONAL_ROWS,
+                  post_pilot=dict(policy_version=SCREENING_POLICY_VERSION,thresholds=SCREENING_THRESHOLDS,
+                    assessments={a['key']:{k:a[k] for k in ('label','family')} for a in template['post_pilot']['assessments']}))
     code = "/* Generated from validation_reporting.py; run scripts/build_validation_schema.py. */\n"
     code += "(() => { const config = " + json.dumps(config, indent=2) + ";\n"
     code += "if (typeof module !== 'undefined' && module.exports) module.exports = config;\n"

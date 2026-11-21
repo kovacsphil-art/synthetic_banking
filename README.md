@@ -17,6 +17,8 @@ Notebook 03 uses the selected SOURCE statistics and predefined Python implementa
 
 **View the published project:** [Showcase](https://kovacsphil-art.github.io/synthetic_banking/) · [Validation Report — Original vs Synthetic Data](https://kovacsphil-art.github.io/synthetic_banking/validation.html#summary) · [Sanitized reporting JSON](https://kovacsphil-art.github.io/synthetic_banking/latest-pipeline.json).
 
+**Post-pilot state:** all eight live tasks succeeded: 10,000 customers, 17,313 accounts, three reviewed rules applied, no skipped rules, and 100% account/balance coverage. Correlation and account-product fidelity improved, while balance mean fidelity worsened. Privacy remains **REVIEW_REQUIRED** (14 near matches and eight SOURCE-rare category matches); dataset downloads remain disabled. SOURCE is fabricated development data, not production banking data. The [post-pilot review](docs/post-pilot-review.md) explains the mean regression, the inactive calibration candidate and its trade-offs, privacy findings, and provisional validation criteria. The Validation Report loads the measured mean/tail and separate privacy summaries automatically; integrity PASS does not imply statistical acceptance or privacy clearance.
+
 ## How to Run
 
 1. Open the repo in Databricks and configure compute, permissions, and source paths using the [Notebook 01 prerequisites](notebooks/01_Stat%20extraction%20_v1.ipynb).
@@ -60,7 +62,7 @@ The notebooks now coordinate these reusable modules:
 | Persist and validate | `storage.py`, `validation.py`, `temporal.py` | Six Delta tables, audits, validation gates, and completion only after validation |
 | Compare and publish aggregates | `fidelity.py`, `showcase.py` | Pinned SOURCE-vs-GENERATED metrics and optional HTML export |
 | Job handoffs and public report | `workflow.py`, `reporting.py` | Explicit provenance, manual approval gate, generation/version guards, and sanitized versioned JSON |
-| Public validation interpretation | `validation_reporting.py` | Fixed aggregate selection, centralized prototype tolerances, deterministic strengths/weaknesses and availability states |
+| Public validation interpretation | `validation_reporting.py`, `privacy_reporting.py` | Fixed aggregate selection, versioned provisional tolerances, measured strengths/weaknesses, and a separate snapshot-verified privacy summary |
 | Privacy screening / row-release gate | `privacy.py`, `privacy_checks.py`, `privacy_sources.py` | Aggregate-only disclosure checks, SOURCE Delta snapshots, and fail-closed release clearance |
 
 The orchestration refactor retains sampling formulas, RNG call order and table/view architecture. The subsequent [phase-one fidelity update](docs/statistical-fidelity-phase1.md) adds three approval-gated samplers; without eligible new approvals the existing cohort path and RNG state remain unchanged. Row-level release has a separate privacy gate. The legacy arbitrary-CSV ZIP utility in `artifacts.py` is now disabled because its files cannot be bound to an assessed generation; aggregate reporting is unaffected.
@@ -72,6 +74,8 @@ Two measured categorical relationships are now supported: `ACCOUNT_TYPE_CD → C
 Use Notebook 02's `ACCOUNT_CORE` scope (both interactive pilot toggles OFF, or workflow `rule_scope=ACCOUNT_CORE`) to propose these candidates. The existing default `BALANCE_PILOT` remains narrowly scoped to its original formulas. The [phase-one runbook](docs/statistical-fidelity-phase1.md) documents matching metadata, support thresholds, ordering, local before/after previews, regressions and the remaining Databricks pilot. Preview results have not replaced published measurements.
 
 The fidelity report now includes categorical conditional proportions and unsupported-combination rates. Sanitized optional dependency fields feed supplemental tables within the existing Validation Report, without changing its design or headline check counts. Numeric means and downstream delinquency can regress even when correlations and percentiles improve; review individual metrics before accepting a cohort.
+
+The first live pilot completed after individual review, isolated validation and a successful main workflow. It generated 10,000 customers and 17,313 accounts; all three new proposals were applied, none skipped, and account/balance join coverage was 100%. The [live results and limitations](docs/statistical-fidelity-phase1.md#live-pilot-confirmation) distinguish successful structural validation from unresolved fidelity gaps and privacy `REVIEW_REQUIRED`. The local showcase JSON now contains these measured results. GitHub Pages still needs the phase-one repository changes pushed; the remote publisher's earlier schema cannot accept the new optional fields.
 
 ### Privacy screening before row-level sharing
 
@@ -986,7 +990,7 @@ Known limitations include:
 
 Prioritize work in roughly this order:
 
-1. Run the [phase-one samplers](docs/statistical-fidelity-phase1.md) through individual review and a Databricks test destination; inspect balance means, product marginals and utilization/delinquency regressions alongside improved correlations/percentiles.
+1. Investigate the [live phase-one pilot's](docs/statistical-fidelity-phase1.md#live-pilot-confirmation) remaining balance-mean, available-credit and utilization/delinquency discrepancies; review privacy findings before considering any row-level release.
 2. Investigate remaining available-credit, tail and PERSON-date deviations using pinned SOURCE/GENERATED pairs before extending the registry further.
 3. Calibrate the prototype report tolerances for the intended use case and expand coverage beyond the current public selection.
 4. Investigate missing tradeline cardinality, sparse conditional buckets and unavailable cross-table reference comparisons; review customer-relationship degree adjustments.
@@ -1200,7 +1204,7 @@ The project already has:
 [✓] reviewed proposals connected to the predefined balance rules
 [✓] per-generation balance-rule audit and local tests
 
-[✓] first approval-gated categorical and multivariate numeric sampling implementations (live pilot pending)
+[✓] first approval-gated categorical and multivariate numeric sampling implementations, verified in a completed live pilot
 [✓] aggregate-backed CUSTOMER_RELATIONSHIP generation, persistence and referential validation
 [ ] broader dependency modeling
 [✓] public validation report with calculated strengths/gaps, charts and transparent prototype tolerances

@@ -73,7 +73,13 @@ FROM workspace.synthetic_profile.privacy_metrics
 WHERE assessment_id = :assessment_id;
 ```
 
-The public version-1 JSON and HTML remain aggregate fidelity/methodology outputs. Their validation PASS is **not privacy clearance**. No privacy rows, source-derived combinations or matched values are added to that artifact, and no new website/download control is enabled.
+Version-1 artifacts remain supported. The optional version-2 `privacy` projection now publishes only the exact workflow assessment's allowlisted aggregate status, policy and check counts, independently from statistical fidelity. Reporting verifies saved SOURCE/generated snapshots and does not export assessment IDs, patterns, matching values or records. Validation PASS is **not privacy clearance**; dataset downloads remain disabled.
+
+### First live pilot review
+
+All 25 checks completed, but status remains **REVIEW_REQUIRED**. Fourteen of 10,000 generated people match a SOURCE person on gender with birth/customer-since dates each within seven days. Read-only aggregate investigation found one SOURCE candidate per flagged person, no exact full quasi-identifier tuple matches, and a minimum combined date gap of two days. A separate gender/language/customer-type check found eight rows matching SOURCE-rare patterns, with none rare in the larger generated cohort. Both checks had 100% complete-case coverage. Identifier overlaps and exact full-row matches were zero. The previous generator had the same findings.
+
+SOURCE is fabricated development data. These signals do not prove real-customer disclosure or certify safety for a future production baseline. Review release purpose and attacker knowledge, evaluate removing/coarsening the selected quasi-identifiers and SOURCE-supported sparse-category aggregation, then rerun checks on the proposed release. No mitigation or status override was applied automatically. See the [aggregate investigation and limitations](post-pilot-review.md#privacy-findings-aggregate-investigation).
 
 ## Mandatory guard for future row-level publication
 

@@ -42,7 +42,7 @@ Notebook 01 captures SOURCE snapshot metadata before creating profiling input vi
 
 ## Approval stop and resume
 
-A fresh proposal batch normally contains PENDING proposals. The gate publishes `approval_status=APPROVAL_REQUIRED`, the SOURCE/batch IDs and counts, then raises the named `ApprovalRequired` exception. **Databricks displays the gate/run as Failed intentionally**, and downstream tasks do not run. This is a manual-review stop, not a successful completed dataset. Automatic retries are disabled.
+A fresh proposal batch normally contains PENDING proposals. The gate publishes `approval_status=APPROVAL_REQUIRED`, the SOURCE/batch IDs and counts, then raises the named `ApprovalRequired` exception. **Databricks displays the gate/run as Failed intentionally**, and downstream tasks do not run. This is a manual-review stop, not a successful completed dataset. Configured task retries are zero; the live serverless pilot nevertheless included platform-managed additional attempts. Inspect Jobs attempt/repair history and use the successful task's exact batch handoff. A retry can create a new proposal batch; it never approves proposals.
 
 1. Open `llm_proposal`/`approval_check` task output and record the SOURCE and batch IDs.
 2. Inspect the saved proposals and evidence. Use Notebook 02's individual review SQL template to record APPROVED or REJECTED with reviewer/time. Review **all** PENDING proposals in this batch; rejecting an unsuitable proposal is a valid decision. Do not rerun Notebook 02 from the top just to review, because that creates a new batch.
@@ -87,10 +87,12 @@ Workflow mode skips Notebook 01's HTML export and defers its automatic fidelity-
 
 ## Remaining manual work
 
+The final `reporting` task also receives `privacy_assessment_id` directly from `privacy_check`. The identifier is private; reporting checks that assessment against the exact SOURCE/generation and saved snapshots, then exports only allowlisted aggregates. A privacy REVIEW_REQUIRED does not stop aggregate reporting or open row release. After deploying reporting changes, repair **only reporting** in a still-current successful run to refresh public fields without regenerating data. This was verified on the completed pilot; all eight task outcomes remained successful. Do not rerun SOURCE/LLM tasks merely to refresh presentation. See the [post-pilot review](post-pilot-review.md).
+
 - Configure/authenticate the workspace, compute, permissions and input/output paths; deploy the bundle.
 - Review proposals individually and repair the approval gate, or explicitly select a previously reviewed SOURCE/batch pair.
 - Investigate validation failures and material statistical deviations; acceptance thresholds remain a human decision.
 - Review privacy findings before planning any row-level sharing. Screening PASS is not certification or distribution approval; there is no enabled dataset download task.
 - Configure the [GitHub publication workflow](publication.md) once to retrieve successful reports and deploy Pages automatically. Manual report downloads remain available; see [the reporting contract](reporting/README.md).
 
-Local tests cover handoff/provenance/review behavior using fabricated metadata. Actual bundle deployment, task-value repair behavior and Spark/Delta integration must be smoke-tested in Databricks. This repository update does not claim a live pipeline execution.
+Local tests cover handoff/provenance/review behavior using fabricated metadata. The first pilot verified live bundle deployment, approval repair, Spark/Delta generation/profiling/validation and reporting-only repair. New configurations still need a Databricks test-destination smoke test; historical success is not evidence that a changed environment will pass.

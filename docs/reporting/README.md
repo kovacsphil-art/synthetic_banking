@@ -72,6 +72,30 @@ Version 2.0 additionally permits `validation_report.dependency_fidelity`. Histor
 
 The object is omitted when neither selected evidence family is present. Unavailable measurements are null, not fabricated zeroes. The existing Validation Report renders the extension inside its dependencies disclosure; it does not add these observations to its legacy headline assessment counts or assign new thresholds. Top-level `rules` totals include new proposal applications; the existing three-entry `rule_outcomes` selection remains unchanged, and full per-target execution detail stays in the internal audit. Raw per-cell conditional comparisons and all numeric segment quantiles remain available internally in `fidelity_metrics`. See [method details and before/after limitations](../statistical-fidelity-phase1.md).
 
+## Post-pilot public fields
+
+Version 2.0 permits two optional, closed extensions. Historical artifacts without them remain valid. Missing metrics are null/UNAVAILABLE; examples are fabricated and never substituted for live results. [`example-postpilot.json`](example-postpilot.json) documents the full shape. The [post-pilot review](../post-pilot-review.md) documents interpretation and provisional thresholds.
+
+| JSON path | Contract |
+| --- | --- |
+| `validation_report.post_pilot.policy_version`, `provisional` | `post_pilot_v1`, `true` |
+| `…thresholds` | Fixed mean-relative, zero-mean-absolute, tail-IQR, conditional-TVD and date-bound policies; `strong` / `acceptable` numeric limits |
+| `…integrity_requirements`, `min_conditional_rows` | Snapshot coverage 1, allowed violations 0, minimum conditional count 30 |
+| `…assessments[]` | Exactly 13 fixed keys: four `mean.*`, four `tail.*`, three `date_bounds.*`, two `categorical_conditional.*`; fixed label/family/policy/status, nullable SOURCE/generated/difference/score/sample sizes |
+| `…numeric_details[]` | Four fixed numeric variables: relative mean gap; SOURCE/generated minimum, maximum, stddev; `tail_points[]` P01/P05/P99 with nullable SOURCE/generated/signed difference |
+| `…strengths`, `weaknesses`, `zero_reference_alerts` | Fixed assessment keys only; no editorial free text or combined score |
+| `privacy.status` | PASS / REVIEW_REQUIRED / BLOCKED / UNAVAILABLE; independent of integrity and fidelity |
+| `privacy.row_level_downloads_enabled`, `formal_anonymization_certified` | Always `false` |
+| `privacy.policy_version`, `policy` | `basic_v1` and saved `rare_min_count`, `max_synthetic_rare_fraction`, `min_complete_fraction`, `near_date_days`, `max_similarity_candidates`; null when unavailable |
+| `privacy.checks_recorded`, `checks_expected` | Nullable aggregate counts, not IDs |
+| `privacy.identifier_overlap_rows`, `exact_source_row_matches` | Nullable aggregate flagged counts |
+| `privacy.near_matches` | Fixed `variables` BIRTH_DT/SINCE_DT/GENDER_CD; nullable `evaluated_rows`, `flagged_rows`, `flagged_fraction`, `minimum_combined_distance_days`, `complete_case_coverage` |
+| `privacy.categorical_patterns[]` | Exactly three fixed keys/labels: customer_category, employment, account_product; status, nullable evaluated rows, `synthetic_rare_rows`, `source_rare_match_rows`, complete-case coverage |
+
+Counts and distances remain separate from risk conclusions. SOURCE-rare matches are not the same as patterns rare within the synthetic population. Fractions use [0,1], percentage scores use [0,100] where applicable, mean values use native units, and date distances use days. No matching values, raw category combinations, exact personal dates, IDs, policy hashes or record samples are public.
+
+Notebook 06 receives `privacy_assessment_id` from the exact privacy task; workflow mode requires it. `privacy_reporting.py` verifies the assessment's SOURCE/generation, completion, saved policy and dataset snapshots before projecting allowlisted aggregates. The identifier is never exported. Incomplete evidence cannot turn a privacy assessment into clearance. This does not activate or bypass the row-release guard.
+
 ## Locate the result
 
 Set bundle variable `report_output_dir` to an absolute writable Volume directory, for example `/Volumes/workspace/default/scotia/pipeline_reporting`. After the workflow's `reporting` task succeeds, the artifact is:

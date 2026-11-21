@@ -64,6 +64,24 @@ class PublicationTests(unittest.TestCase):
         self.assertEqual(self.downloads, [])
         self.assertEqual(self.outputs, [])
 
+    def test_postpilot_public_contract_is_closed_and_retains_review_state(self):
+        report = json.loads((ROOT / "docs/reporting/example-postpilot.json").read_text())
+        valid = validate_report(json.dumps(report).encode())
+        self.assertEqual(valid['privacy']['status'], 'REVIEW_REQUIRED')
+        self.assertFalse(valid['privacy']['row_level_downloads_enabled'])
+        for mutate in (
+            lambda r: r['privacy'].update(assessment_id='private-assessment'),
+            lambda r: r['privacy'].update(row_level_downloads_enabled=True),
+            lambda r: r['privacy']['near_matches'].update(source_records=[]),
+            lambda r: r['validation_report']['post_pilot'].update(source_run_id='private-run'),
+            lambda r: r['validation_report']['post_pilot']['numeric_details'][0].update(raw_values=[]),
+            lambda r: r['privacy']['categorical_patterns'][0].update(label='private-category'),
+        ):
+            bad = deepcopy(report)
+            mutate(bad)
+            with self.assertRaises(ValueError):
+                validate_report(json.dumps(bad).encode())
+
     def test_repaired_run_uses_only_latest_successful_reporting_attempt(self):
         task = next(t for t in self.run["tasks"] if t["task_key"] == "reporting")
         task.update(start_time=20, attempt_number=0, run_id=999)

@@ -11,6 +11,7 @@ from synthetic_banking.config import PROFILE_SCHEMA, GENERATED_SCHEMA
 from synthetic_banking.validation import GENERATED_TABLES
 from synthetic_banking.workflow import require_profile_pair, utc_now
 from synthetic_banking.validation_reporting import build_validation_report
+from synthetic_banking.privacy_reporting import public_privacy_summary, load_public_privacy
 
 SCHEMA_VERSION = "2.0"
 REPORT_FILENAME = "latest-pipeline.json"
@@ -133,6 +134,7 @@ def build_public_report(metrics, rule_counts, *, validation_passed=False, comple
         "dependency_results": {"credit_limit_balance_pearson": correlation, "delinquency_by_utilization": conditional},
         "warnings": warnings,
         "validation_report": build_validation_report(metrics, rule_outcomes),
+        "privacy": public_privacy_summary(),
     }
 
 
@@ -140,7 +142,7 @@ def _rows(spark, query, args):
     return [row.asDict() for row in spark.sql(query, args=args).collect()]
 
 
-def load_public_report(spark, source_run_id, batch_id, generation_id, generated_run_id, validation_status, validated_at=None):
+def load_public_report(spark, source_run_id, batch_id, generation_id, generated_run_id, validation_status, validated_at=None, privacy_assessment_id=""):
     if validation_status != "PASS":
         raise ValueError("Reporting requires the successful validation task's PASS handoff.")
     require_profile_pair(spark, source_run_id, batch_id, generation_id, generated_run_id)
@@ -167,7 +169,10 @@ def load_public_report(spark, source_run_id, batch_id, generation_id, generated_
               "applied": sum(row.get("applied") is True for row in proposals),
               "skipped": sum(row.get("outcome") == "SKIPPED" for row in proposals),
               "approved_unimplemented": sum(row.get("approved") is True and row.get("implemented") is False for row in proposals)}
-    return build_public_report(metrics, counts, validation_passed=True, completed_at=validated_at, rule_outcomes=audit)
+    report = build_public_report(metrics, counts, validation_passed=True, completed_at=validated_at, rule_outcomes=audit)
+    if privacy_assessment_id:
+        report["privacy"] = load_public_privacy(spark, source_run_id, generation_id, batch_id, privacy_assessment_id)
+    return report
 
 
 def export_public_report(spark, output_dir, **execution):

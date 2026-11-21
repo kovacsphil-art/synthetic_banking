@@ -1475,6 +1475,523 @@
             "numeric_segments"
           ],
           "additionalProperties": false
+        },
+        "post_pilot": {
+          "type": "object",
+          "properties": {
+            "policy_version": {
+              "const": "post_pilot_v1"
+            },
+            "provisional": {
+              "const": true
+            },
+            "thresholds": {
+              "type": "object",
+              "properties": {
+                "mean_relative_pct": {
+                  "type": "object",
+                  "properties": {
+                    "strong": {
+                      "const": 1.0
+                    },
+                    "acceptable": {
+                      "const": 3.0
+                    }
+                  },
+                  "required": [
+                    "strong",
+                    "acceptable"
+                  ],
+                  "additionalProperties": false
+                },
+                "zero_mean_absolute": {
+                  "type": "object",
+                  "properties": {
+                    "strong": {
+                      "const": 0.0
+                    },
+                    "acceptable": {
+                      "const": 0.0
+                    }
+                  },
+                  "required": [
+                    "strong",
+                    "acceptable"
+                  ],
+                  "additionalProperties": false
+                },
+                "tail_iqr_pct": {
+                  "type": "object",
+                  "properties": {
+                    "strong": {
+                      "const": 5.0
+                    },
+                    "acceptable": {
+                      "const": 15.0
+                    }
+                  },
+                  "required": [
+                    "strong",
+                    "acceptable"
+                  ],
+                  "additionalProperties": false
+                },
+                "conditional_tvd_pct": {
+                  "type": "object",
+                  "properties": {
+                    "strong": {
+                      "const": 2.0
+                    },
+                    "acceptable": {
+                      "const": 5.0
+                    }
+                  },
+                  "required": [
+                    "strong",
+                    "acceptable"
+                  ],
+                  "additionalProperties": false
+                },
+                "date_bound_days": {
+                  "type": "object",
+                  "properties": {
+                    "strong": {
+                      "const": 1.0
+                    },
+                    "acceptable": {
+                      "const": 7.0
+                    }
+                  },
+                  "required": [
+                    "strong",
+                    "acceptable"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "mean_relative_pct",
+                "zero_mean_absolute",
+                "tail_iqr_pct",
+                "conditional_tvd_pct",
+                "date_bound_days"
+              ],
+              "additionalProperties": false
+            },
+            "integrity_requirements": {
+              "type": "object",
+              "properties": {
+                "snapshot_join_coverage": {
+                  "const": 1.0
+                },
+                "allowed_violations": {
+                  "const": 0
+                }
+              },
+              "required": [
+                "snapshot_join_coverage",
+                "allowed_violations"
+              ],
+              "additionalProperties": false
+            },
+            "min_conditional_rows": {
+              "const": 30
+            },
+            "assessments": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "key": {
+                    "enum": [
+                      "mean.credit_limit",
+                      "tail.credit_limit",
+                      "mean.current_balance",
+                      "tail.current_balance",
+                      "mean.available_credit",
+                      "tail.available_credit",
+                      "mean.overlimit",
+                      "tail.overlimit",
+                      "date_bounds.birth",
+                      "date_bounds.customer_since",
+                      "date_bounds.account_open",
+                      "categorical_conditional.account_type_product",
+                      "categorical_conditional.client_tsys_product"
+                    ]
+                  },
+                  "label": {
+                    "enum": [
+                      "Credit limit mean",
+                      "Credit limit tail percentiles",
+                      "Current balance mean",
+                      "Current balance tail percentiles",
+                      "Available credit mean",
+                      "Available credit tail percentiles",
+                      "Overlimit amount mean",
+                      "Overlimit amount tail percentiles",
+                      "Birth-date distribution bounds",
+                      "Customer-since distribution bounds",
+                      "Account-open distribution bounds",
+                      "Account type / client product",
+                      "Client / TSYS product"
+                    ]
+                  },
+                  "family": {
+                    "enum": [
+                      "categorical_conditional",
+                      "date_bounds",
+                      "mean",
+                      "tail"
+                    ]
+                  },
+                  "score": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "policy": {
+                    "enum": [
+                      "mean_relative_pct",
+                      "zero_mean_absolute",
+                      "tail_iqr_pct",
+                      "conditional_tvd_pct",
+                      "date_bound_days"
+                    ]
+                  },
+                  "status": {
+                    "enum": [
+                      "STRONG",
+                      "ACCEPTABLE",
+                      "NEEDS_REVIEW",
+                      "UNAVAILABLE"
+                    ]
+                  },
+                  "source": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "generated": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "difference": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "source_n": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "minimum": 0
+                  },
+                  "generated_n": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "minimum": 0
+                  }
+                },
+                "required": [
+                  "key",
+                  "label",
+                  "family",
+                  "score",
+                  "policy",
+                  "status",
+                  "source",
+                  "generated",
+                  "difference",
+                  "source_n",
+                  "generated_n"
+                ],
+                "additionalProperties": false
+              },
+              "minItems": 13,
+              "maxItems": 13
+            },
+            "numeric_details": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "key": {
+                    "enum": [
+                      "credit_limit",
+                      "current_balance",
+                      "available_credit",
+                      "overlimit"
+                    ]
+                  },
+                  "label": {
+                    "enum": [
+                      "Credit limit",
+                      "Current balance",
+                      "Available credit",
+                      "Overlimit amount"
+                    ]
+                  },
+                  "mean_relative_pct": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "tail_points": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "enum": [
+                            "P01",
+                            "P05",
+                            "P99"
+                          ]
+                        },
+                        "source": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        },
+                        "generated": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        },
+                        "difference": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "name",
+                        "source",
+                        "generated",
+                        "difference"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "minItems": 3,
+                    "maxItems": 3
+                  },
+                  "source_minimum": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "source_maximum": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "source_stddev": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "generated_minimum": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "generated_maximum": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "generated_stddev": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "key",
+                  "label",
+                  "mean_relative_pct",
+                  "tail_points",
+                  "source_minimum",
+                  "source_maximum",
+                  "source_stddev",
+                  "generated_minimum",
+                  "generated_maximum",
+                  "generated_stddev"
+                ],
+                "additionalProperties": false
+              },
+              "minItems": 4,
+              "maxItems": 4
+            },
+            "strengths": {
+              "type": "array",
+              "items": {
+                "enum": [
+                  "numeric.credit_limit",
+                  "numeric.current_balance",
+                  "numeric.available_credit",
+                  "numeric.overlimit",
+                  "categorical.past_due",
+                  "null.credit_limit",
+                  "null.current_balance",
+                  "null.available_credit",
+                  "null.overlimit",
+                  "null.past_due",
+                  "null.birth",
+                  "null.customer_since",
+                  "null.account_open",
+                  "date.birth",
+                  "date.customer_since",
+                  "date.account_open",
+                  "cardinality.accounts_per_customer",
+                  "cardinality.relationships_outgoing",
+                  "cardinality.relationships_incoming",
+                  "cardinality.tradelines_per_customer",
+                  "correlation.balance_limit",
+                  "conditional.0",
+                  "conditional.1",
+                  "conditional.2",
+                  "conditional.3",
+                  "conditional.4",
+                  "integrity.account_coverage",
+                  "integrity.balance_coverage",
+                  "integrity.available_formula",
+                  "integrity.overlimit_formula",
+                  "integrity.balance_cap",
+                  "integrity.negative_balance",
+                  "integrity.delinquency_flag",
+                  "integrity.birth_order",
+                  "integrity.account_date_order",
+                  "integrity.relationship_endpoints",
+                  "graph.directed_dyads_proportion",
+                  "graph.reciprocal_dyads_proportion",
+                  "graph.self_dyads_proportion",
+                  "integrity.other_references",
+                  "mean.credit_limit",
+                  "tail.credit_limit",
+                  "mean.current_balance",
+                  "tail.current_balance",
+                  "mean.available_credit",
+                  "tail.available_credit",
+                  "mean.overlimit",
+                  "tail.overlimit",
+                  "date_bounds.birth",
+                  "date_bounds.customer_since",
+                  "date_bounds.account_open",
+                  "categorical_conditional.account_type_product",
+                  "categorical_conditional.client_tsys_product"
+                ]
+              },
+              "maxItems": 6,
+              "uniqueItems": true
+            },
+            "weaknesses": {
+              "type": "array",
+              "items": {
+                "enum": [
+                  "numeric.credit_limit",
+                  "numeric.current_balance",
+                  "numeric.available_credit",
+                  "numeric.overlimit",
+                  "categorical.past_due",
+                  "null.credit_limit",
+                  "null.current_balance",
+                  "null.available_credit",
+                  "null.overlimit",
+                  "null.past_due",
+                  "null.birth",
+                  "null.customer_since",
+                  "null.account_open",
+                  "date.birth",
+                  "date.customer_since",
+                  "date.account_open",
+                  "cardinality.accounts_per_customer",
+                  "cardinality.relationships_outgoing",
+                  "cardinality.relationships_incoming",
+                  "cardinality.tradelines_per_customer",
+                  "correlation.balance_limit",
+                  "conditional.0",
+                  "conditional.1",
+                  "conditional.2",
+                  "conditional.3",
+                  "conditional.4",
+                  "integrity.account_coverage",
+                  "integrity.balance_coverage",
+                  "integrity.available_formula",
+                  "integrity.overlimit_formula",
+                  "integrity.balance_cap",
+                  "integrity.negative_balance",
+                  "integrity.delinquency_flag",
+                  "integrity.birth_order",
+                  "integrity.account_date_order",
+                  "integrity.relationship_endpoints",
+                  "graph.directed_dyads_proportion",
+                  "graph.reciprocal_dyads_proportion",
+                  "graph.self_dyads_proportion",
+                  "integrity.other_references",
+                  "mean.credit_limit",
+                  "tail.credit_limit",
+                  "mean.current_balance",
+                  "tail.current_balance",
+                  "mean.available_credit",
+                  "tail.available_credit",
+                  "mean.overlimit",
+                  "tail.overlimit",
+                  "date_bounds.birth",
+                  "date_bounds.customer_since",
+                  "date_bounds.account_open",
+                  "categorical_conditional.account_type_product",
+                  "categorical_conditional.client_tsys_product"
+                ]
+              },
+              "maxItems": 6,
+              "uniqueItems": true
+            },
+            "zero_reference_alerts": {
+              "type": "array",
+              "items": {
+                "enum": [
+                  "mean.credit_limit",
+                  "mean.current_balance",
+                  "mean.available_credit",
+                  "mean.overlimit"
+                ]
+              },
+              "maxItems": 4,
+              "uniqueItems": true
+            }
+          },
+          "required": [
+            "policy_version",
+            "provisional",
+            "thresholds",
+            "integrity_requirements",
+            "min_conditional_rows",
+            "assessments",
+            "numeric_details",
+            "strengths",
+            "weaknesses",
+            "zero_reference_alerts"
+          ],
+          "additionalProperties": false
         }
       },
       "required": [
@@ -1493,6 +2010,250 @@
         "populations",
         "accounts_per_person",
         "rule_outcomes"
+      ],
+      "additionalProperties": false
+    },
+    "privacy": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "enum": [
+            "PASS",
+            "REVIEW_REQUIRED",
+            "BLOCKED",
+            "UNAVAILABLE"
+          ]
+        },
+        "row_level_downloads_enabled": {
+          "const": false
+        },
+        "formal_anonymization_certified": {
+          "const": false
+        },
+        "policy_version": {
+          "enum": [
+            "basic_v1",
+            null
+          ]
+        },
+        "policy": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "rare_min_count": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "max_synthetic_rare_fraction": {
+                  "type": [
+                    "number",
+                    "null"
+                  ],
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "min_complete_fraction": {
+                  "type": "number",
+                  "exclusiveMinimum": 0,
+                  "maximum": 1
+                },
+                "near_date_days": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 366
+                },
+                "max_similarity_candidates": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              },
+              "required": [
+                "rare_min_count",
+                "max_synthetic_rare_fraction",
+                "min_complete_fraction",
+                "near_date_days",
+                "max_similarity_candidates"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "checks_recorded": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "checks_expected": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "identifier_overlap_rows": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "exact_source_row_matches": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "near_matches": {
+          "type": "object",
+          "properties": {
+            "variables": {
+              "const": [
+                "BIRTH_DT",
+                "SINCE_DT",
+                "GENDER_CD"
+              ]
+            },
+            "evaluated_rows": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "flagged_rows": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "flagged_fraction": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0,
+              "maximum": 1
+            },
+            "minimum_combined_distance_days": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "complete_case_coverage": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0,
+              "maximum": 1
+            }
+          },
+          "required": [
+            "variables",
+            "evaluated_rows",
+            "flagged_rows",
+            "flagged_fraction",
+            "minimum_combined_distance_days",
+            "complete_case_coverage"
+          ],
+          "additionalProperties": false
+        },
+        "categorical_patterns": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "key": {
+                "enum": [
+                  "customer_category",
+                  "employment",
+                  "account_product"
+                ]
+              },
+              "label": {
+                "enum": [
+                  "Customer category pattern",
+                  "Employment / occupation pattern",
+                  "Account type / product pattern"
+                ]
+              },
+              "status": {
+                "enum": [
+                  "PASS",
+                  "INFO",
+                  "FAIL",
+                  "REVIEW_REQUIRED",
+                  "UNAVAILABLE",
+                  "ERROR"
+                ]
+              },
+              "evaluated_rows": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 0
+              },
+              "synthetic_rare_rows": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 0
+              },
+              "source_rare_match_rows": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 0
+              },
+              "complete_case_coverage": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "minimum": 0,
+                "maximum": 1
+              }
+            },
+            "required": [
+              "key",
+              "label",
+              "status",
+              "evaluated_rows",
+              "synthetic_rare_rows",
+              "source_rare_match_rows",
+              "complete_case_coverage"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 3,
+          "maxItems": 3
+        }
+      },
+      "required": [
+        "status",
+        "row_level_downloads_enabled",
+        "formal_anonymization_certified",
+        "policy_version",
+        "policy",
+        "checks_recorded",
+        "checks_expected",
+        "identifier_overlap_rows",
+        "exact_source_row_matches",
+        "near_matches",
+        "categorical_patterns"
       ],
       "additionalProperties": false
     }

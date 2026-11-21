@@ -73,7 +73,39 @@ Conditional TVD is `50 × sum(abs(GENERATED proportion − SOURCE proportion))` 
 6. Profile the validated batch as GENERATED, retaining its exact SOURCE lineage. Use the existing fidelity report for numeric means/tails, all category marginals, missingness, correlations, conditional rates, cardinalities and constraints. Before overwriting a prior generation, preserve its completed GENERATED profile and comparison; profile history remains available. Compare method revisions with identical SOURCE/population/seed and record the approved proposal set, without introducing AI/no-AI modes.
 7. Export via the normal reporting task. The optional sanitized dependency fields documented below feed the existing Validation Report. Do not replace the live report with this offline preview.
 
-A newly approved Databricks pilot and full saved-output integration check are still required. No new live rule approvals were made and no generated tables or published measurements were overwritten during this development review.
+The offline development preview made no live approvals and did not replace generated tables or published measurements. The subsequent individually approved live execution is recorded below.
+
+## Live pilot confirmation
+
+The isolated workflow and the main eight-stage Databricks workflow both completed successfully. Main validation completed at **2026-11-21 00:15:32 UTC** (November 20 in Toronto). Both used the same completed development SOURCE baseline as the previous cohort, the same 10,000-customer population and seed 42. Exact SOURCE, proposal batch, proposal, generation and GENERATED profile IDs are retained in Databricks task values, profile lineage and the generation audit; the private local execution receipt is excluded from Git and public reporting.
+
+The reviewer explicitly approved the three named first-phase proposals. All three were implemented and applied to 17,313 account snapshots; none were skipped or approved-but-unimplemented. The existing balance formulas and utilization/delinquency path were logged separately as legacy behavior. Earlier unselected, malformed or incomplete proposal batches were not approved or used.
+
+The six saved tables contain 10,000 PERSON rows, 17,313 rows each in CUSTOMER_ACCOUNT_REL / TKQ_ACCOUNT / TKQ_ACCOUNT_BALANCE, 30,000 TRADELINES and 1,120 CUSTOMER_RELATIONSHIP rows: **93,059 rows total**. Schema/type, synthetic-key, reference, count, snapshot join, amount, temporal, saved-version and applied categorical support checks passed. Account/balance join coverage was 100% in both directions. The re-profiled integrity metrics reported zero issues.
+
+These comparisons use actual saved SOURCE / previous GENERATED / new GENERATED profiles, rather than the offline preview:
+
+| Measurement | Previous generator | Updated live generator |
+| --- | --- | --- |
+| Limit/balance Pearson (SOURCE 0.4962) | 0.0809 | 0.4309 |
+| Account type / client product conditional TVD | 49.634% | 0.198% |
+| Client / TSYS product conditional TVD | 78.424% | 0% |
+| Balance worst P25/P50/P75/P95 gap / SOURCE IQR | 8.164% | 1.831% |
+| Available-credit worst percentile gap / IQR | 46.213% | 21.381% |
+| Balance mean difference, GENERATED − SOURCE | −30.03 | +101.99 |
+| Available-credit mean difference | +268.70 | +72.80 |
+| Overlimit mean (SOURCE = 0) | 75.58 | 11.71 |
+| Past-due marginal absolute gap | 0.754 pp | 0.817 pp |
+
+Both categorical associations now have V = 1 and zero SOURCE-unsupported complete-case combinations. Credit-limit mean, selected null-rate gaps, date distances and cardinality distances were unchanged. Approximate percentile aggregation can vary slightly between persisted profiles; small changes in unrelated quantile displays are not evidence of an improved sampler for those fields.
+
+Remaining fidelity concerns include the worsened balance mean, available-credit percentile error still above the existing display tolerance, nonzero generated overlimit amounts, and some worsened delinquency conditional rates. The 30–60% utilization gap increased from 0.235 to 0.990 pp; 60–80% from 0.009 to 0.748 pp. The 80–100% SOURCE bucket has only 15 observations and is not classified; SOURCE >100% remains unavailable. Birth/customer-since month distances remain 8.68% / 8.18%; account-open distance remains 4.594%. Accounts-per-linked-customer TVD remains 0.403%; tradeline cardinality comparison remains unavailable. Pipeline PASS describes structural/invariant validation; statistical acceptance is still `NOT_CONFIGURED`.
+
+**Privacy remains separate:** 25 aggregate checks completed with `REVIEW_REQUIRED`. Identifier overlap and exact full-SOURCE-row matches were zero. Fourteen PERSON rows triggered the configured near-date/gender similarity screen; a separate category check found eight generated rows matching SOURCE-rare patterns. Both checks had 100% complete-case coverage. Each near match had one candidate within the window, with no exact full quasi-identifier tuple match. These findings were also present in the previous cohort. The low-information link-table payload check is informational. The row-level release guard remains closed. These heuristic findings do not block sanitized aggregate reporting and do not establish anonymization. See the [post-pilot investigation](post-pilot-review.md).
+
+Live integration also corrected two compatibility issues without changing sampling formulas: aggregate loading now preserves Spark NULL interval bounds instead of converting them to pandas NaN, and configured SQL matches whole schema identifiers so test-schema suffixes are not expanded twice. ACCOUNT_CORE prompts now name the three physical targets explicitly; feature aliases are not silently remapped into implementations. The isolated profiler was repaired from its failed stage after the configuration fix, preserving the already validated generated cohort and audit. Earlier failed profiling attempts remain historical RUNNING entries and are not used as completed inputs; Jobs attempt/repair history identifies their failures. Local checks pass **199 Python tests and 30 JavaScript tests**.
+
+The main run's closed-schema sanitized JSON refreshed `docs/latest-pipeline.json`. The subsequent reporting-only repair added measured means/tails and the exact separate privacy assessment without regenerating the cohort. Both webpage loaders retain compatibility with historical artifacts. Publication uses the existing GitHub Actions allowlist and closed-schema gate; no row-level publication is enabled. See the [publication runbook](publication.md) and [post-pilot review](post-pilot-review.md). The separately tested mean-adjustment utility is inactive because its available-credit trade-off needs further review.
 
 ## Reporting and tests
 

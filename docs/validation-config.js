@@ -223,6 +223,87 @@
       "strong": 2.0,
       "acceptable": 5.0
     }
+  },
+  "policy_version": "prototype_v1",
+  "min_conditional_rows": 30,
+  "post_pilot": {
+    "policy_version": "post_pilot_v1",
+    "thresholds": {
+      "mean_relative_pct": {
+        "strong": 1.0,
+        "acceptable": 3.0
+      },
+      "zero_mean_absolute": {
+        "strong": 0.0,
+        "acceptable": 0.0
+      },
+      "tail_iqr_pct": {
+        "strong": 5.0,
+        "acceptable": 15.0
+      },
+      "conditional_tvd_pct": {
+        "strong": 2.0,
+        "acceptable": 5.0
+      },
+      "date_bound_days": {
+        "strong": 1.0,
+        "acceptable": 7.0
+      }
+    },
+    "assessments": {
+      "mean.credit_limit": {
+        "label": "Credit limit mean",
+        "family": "mean"
+      },
+      "tail.credit_limit": {
+        "label": "Credit limit tail percentiles",
+        "family": "tail"
+      },
+      "mean.current_balance": {
+        "label": "Current balance mean",
+        "family": "mean"
+      },
+      "tail.current_balance": {
+        "label": "Current balance tail percentiles",
+        "family": "tail"
+      },
+      "mean.available_credit": {
+        "label": "Available credit mean",
+        "family": "mean"
+      },
+      "tail.available_credit": {
+        "label": "Available credit tail percentiles",
+        "family": "tail"
+      },
+      "mean.overlimit": {
+        "label": "Overlimit amount mean",
+        "family": "mean"
+      },
+      "tail.overlimit": {
+        "label": "Overlimit amount tail percentiles",
+        "family": "tail"
+      },
+      "date_bounds.birth": {
+        "label": "Birth-date distribution bounds",
+        "family": "date_bounds"
+      },
+      "date_bounds.customer_since": {
+        "label": "Customer-since distribution bounds",
+        "family": "date_bounds"
+      },
+      "date_bounds.account_open": {
+        "label": "Account-open distribution bounds",
+        "family": "date_bounds"
+      },
+      "categorical_conditional.account_type_product": {
+        "label": "Account type / client product",
+        "family": "categorical_conditional"
+      },
+      "categorical_conditional.client_tsys_product": {
+        "label": "Client / TSYS product",
+        "family": "categorical_conditional"
+      }
+    }
   }
 };
 if (typeof module !== 'undefined' && module.exports) module.exports = config;

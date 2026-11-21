@@ -4,7 +4,7 @@
 
 The current SOURCE reference is the repository's **fake development baseline**, not real production banking data. Reproducing that baseline does not establish production representativeness. The public JSON does not independently certify the origin of a future replacement baseline; the page's baseline disclosure must be reviewed before changing the reference population.
 
-The executive views require version 2; a legacy version-1 artifact remains valid for the publisher and older summary loader but cannot populate these richer views. Missing/invalid files and unavailable evidence never produce fabricated strengths. This presentation update changes neither the reporting schema nor generation logic.
+The executive views require version 2; a legacy version-1 artifact remains valid for the publisher and older summary loader but cannot populate these richer views. Missing/invalid files and unavailable evidence never produce fabricated strengths. Optional, backward-compatible post-pilot fields extend the version-2 schema; the active generation path is unchanged.
 
 The distribution comparison joins only the published P25/P50/P75/P95 values: it is a percentile profile, not an estimated density. Categorical bars share a 0–100% scale. The conditional chart leaves gaps for missing rates and uses hollow markers for insufficient comparison evidence; its accessible values table preserves raw rates. Original series are solid charcoal and synthetic series dashed red in line charts, so colour is not the only signifier.
 
@@ -81,6 +81,12 @@ Strengths use only STRONG statistical comparisons, sorted by `score / acceptable
 
 Weaknesses use only NEEDS_REVIEW checks, sorted by descending `score / acceptable_threshold`, then fixed public key, up to six with at most two per family. For integrity issues the ranking denominator is 1 percentage point; any violation still fails its check. Each finding displays its measured departure and unit. Missing evidence is listed separately and never ranked as a measured deviation. There is no combined fidelity score.
 
+## Post-pilot additions
+
+The optional `validation_report.post_pilot` object adds 13 mean, tail, date-boundary and categorical-conditional screens, separately from the unchanged 40 core assessments. `post_pilot_v1` thresholds are provisional and configurable in `validation_reporting.py`; regenerate the schema/browser config after changes. Relative means use the absolute SOURCE mean, tails use SOURCE IQR, and zero denominators remain explicit. Zero-SOURCE-mean discrepancies use native units and a zero tolerance, and are kept out of cross-unit rankings. SOURCE/synthetic mean bars, a mean table, P01/P05/P99 tails, extrema/stddev, and measured conditional category distances remain individually visible. Combined findings use these additional measurements without changing legacy headline counts or claiming one accuracy score. See [criteria and limitations](post-pilot-review.md#provisional-acceptance-criteria).
+
+Top-level `privacy` is independent of fidelity. It displays the exact workflow assessment's status, policy, completeness and aggregate flags. `REVIEW_REQUIRED` remains visible above the fold; dataset downloads are always disabled. A missing historical assessment is UNAVAILABLE, never inferred from integrity PASS. See the [field contract](reporting/README.md#post-pilot-public-fields).
+
 ## Current gaps
 
 - Only the configured public variables/relationships are evaluated, not all profiler columns or categories.
@@ -94,6 +100,6 @@ Weaknesses use only NEEDS_REVIEW checks, sorted by descending `score / acceptabl
 
 The version-1 schema/example are preserved as `pipeline-report-v1.schema.json` and `example-v1.json`; the primary schema/example now document version 2. Examples are fabricated and are never loaded as production results. The publication script accepts both contract versions, validates the closed schema, and stages the new HTML/JS/config files explicitly. No source code, internal reports or row exports are included in the Pages artifact.
 
-When a version-2 report already exists, deploy only the updated static assets using **Publish validated showcase**; no Databricks rerun or reporting repair is needed for this change. To migrate an older artifact, deploy the reporting bundle and repair **only reporting** in a still-current validated execution, or run the full workflow normally. Existing lineage/version checks must still pass. Invalid exports preserve the previous report and site.
+For existing version-2 results, historical fields still render. To populate the new mean/tail and privacy sections, deploy the updated reporting bundle and repair **only reporting** in a still-current validated execution, or run the full workflow normally. The task must receive the exact `privacy_assessment_id` from `privacy_check`. Existing lineage/version checks must still pass. This reporting-only repair was verified against the completed pilot; it did not change generated tables or privacy status. Invalid exports preserve the previous report and site.
 
 Local checks: run the Python suite with NumPy, pandas and jsonschema installed, then `node --test tests/test_results.cjs tests/test_validation_page.cjs tests/test_executive_showcase.cjs`. Browser review should confirm navigation, percentile/cardinality selectors, sort controls, scrolling tables, unavailable states and mobile layout. Tests also confirm that removing/changing rule-execution metadata does not change the quality report.

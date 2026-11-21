@@ -23,9 +23,12 @@ for name in ("source_run_id", "batch_id", "generation_id", "generated_run_id", "
 execution = {name: required_id(dbutils.widgets.get(name).strip(), name)
              for name in ("source_run_id", "batch_id", "generation_id", "generated_run_id", "validation_status", "validated_at")}
 dbutils.widgets.text("workflow_run_id", "")
+dbutils.widgets.text("privacy_assessment_id", "")
+execution["privacy_assessment_id"] = dbutils.widgets.get("privacy_assessment_id").strip()
 workflow_run_id = dbutils.widgets.get("workflow_run_id").strip()
 output_dir = dbutils.widgets.get("report_output_dir").strip()
 if workflow_run_id:
+    required_id(execution["privacy_assessment_id"], "privacy assessment_id")
     if not workflow_run_id.isascii() or not workflow_run_id.isdigit():
         raise ValueError("A numeric Databricks workflow run ID is required.")
     # Bind the downloaded artifact to this job execution, including repaired runs.

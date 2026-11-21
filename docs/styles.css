@@ -1183,6 +1183,17 @@ td {
 }
 @media (prefers-reduced-motion: reduce) { .exec-page *, .exec-page *::before, .exec-page *::after { scroll-behavior: auto; transition: none; animation: none; } }
 /* Final-cohort fidelity: maintain executive hierarchy without an overall score. */
+.exec-page .release-notice { border-left: 3px solid var(--red); padding: .8rem 1rem; background: var(--soft, #f4f4f4); color: var(--ink); font-size: .95rem; font-weight: 600; }
+.exec-page #privacy [aria-label="Aggregate privacy screening"] table { min-width: 0; table-layout: fixed; }
+.exec-page #privacy [aria-label="Aggregate privacy screening"] th:first-child { min-width: 0; width: 58%; }
+.exec-page #privacy [aria-label="Aggregate privacy screening"] th, .exec-page #privacy [aria-label="Aggregate privacy screening"] td { white-space: normal; overflow-wrap: anywhere; }
+.exec-page .mean-comparisons { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 1.5rem 2.5rem; }
+.exec-page .mean-series { display: grid; grid-template-columns: 85px minmax(40px,1fr) 90px; gap: .7rem; align-items: center; margin: .65rem 0; font-size: .9rem; }
+.exec-page .mean-series strong { text-align: right; font-weight: 500; font-variant-numeric: tabular-nums; }
+.exec-page .mean-series .chart-track { display: block; height: .6rem; }
+.exec-page .mean-source { display: block; background: #25272b; }
+.exec-page .mean-synthetic { display: block; background: var(--red); }
+@media (max-width:650px) { .exec-page .mean-comparisons { grid-template-columns: 1fr; } .exec-page .mean-series { grid-template-columns: 72px minmax(35px,1fr) 76px; gap: .5rem; } }
 .exec-page .quality-metrics { grid-template-columns: repeat(4,minmax(0,1fr)); }
 .exec-page .quality-metrics dt { font-size: .9rem; }
 .exec-page .report-nav a { font-size: .875rem; }
