@@ -38,6 +38,7 @@ test('difference table toggles sort direction without losing focus; unavailable 
   assert.equal(rows(p)[0].children[0].textContent,'Available credit');assert.equal(rows(p).at(-1).children[0].textContent,'Overlimit amount');
   header.focus();header.events.click();assert.equal(rows(p)[0].children[0].textContent,'Credit limit');assert.equal(rows(p).at(-1).children[0].textContent,'Overlimit amount');assert.equal(s.doc.activeElement,header);
   const th=all(p).find(n=>n.tagName==='TH'&&n.children.includes(header));assert.equal(th.attributes['aria-sort'],'ascending');
+  assert.equal(header.dataset.sortLabel,'Smallest first');
   assert.match(table(p).textContent,/SOURCE median \(P50\)/);assert.match(table(p).textContent,/Worst percentile gap \/ IQR/);
 });
 test('strongest and weakest reuse published status without treating unavailable rows as weak',()=>{
@@ -48,6 +49,7 @@ test('strongest and weakest reuse published status without treating unavailable 
 });
 test('categorical exploration honestly exposes the one published variable and measured category shares',()=>{
   const s=setup(),p=s.panel('categorical'),picker=select(p,'Categorical variable');assert.equal(picker.children.length,1);assert.equal(picker.disabled,true);
+  assert.match(p.textContent,/Only one published variable matches this view/);assert.equal(picker.attributes['aria-describedby'],'explore-variable-help-categorical');
   assert.match(p.textContent,/one categorical variable/);assert.equal(rows(p).length,2);assert.match(table(p).textContent,/SOURCE share/);assert.match(table(p).textContent,/pp/);
 });
 test('dependency charts switch between measured conditional rates and Pearson coefficients',()=>{
@@ -61,6 +63,13 @@ test('metric guides work on focus, hover, tap and Escape without adding statisti
   assert.equal(tip.hidden,true);b.focus();assert.equal(tip.hidden,false);assert.match(tip.textContent,/IQR/);
   b.events.click();assert.equal(tip.hidden,false);b.events.keydown({key:'Escape',preventDefault(){}});assert.equal(tip.hidden,true);assert.equal(s.doc.activeElement,b);
   const wrap=all(p).find(n=>n.className==='metric-guide');s.doc.activeElement=null;wrap.events.pointerenter({pointerType:'touch'});assert.equal(tip.hidden,true);wrap.events.pointerenter({pointerType:'mouse'});assert.equal(tip.hidden,false);wrap.events.pointerleave();assert.equal(tip.hidden,true);
+});
+
+test('hover help is dismissible without focus and repeated rendering keeps one document Escape listener',()=>{
+  const s=setup(),handlers=[];s.doc.addEventListener=(name,handler)=>handlers.push([name,handler]);
+  const root=exploreValidation(s.doc,s.view),p=all(root).find(n=>n.id==='validation-panel-numeric'),wrap=all(p).find(n=>n.className==='metric-guide'),tip=all(p).find(n=>n.attributes.role==='tooltip');
+  wrap.events.pointerenter({pointerType:'mouse'});assert.equal(tip.hidden,false);handlers[0][1]({key:'Escape'});assert.equal(tip.hidden,true);
+  exploreValidation(s.doc,s.view);assert.equal(handlers.length,1);
 });
 test('missing distributions display an informative unavailable state without axes or invented points',()=>{
   const s=setup();for(const point of s.view.v.numeric[0].percentiles){point.source=null;point.generated=null;point.difference=null;}

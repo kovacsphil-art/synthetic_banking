@@ -13,12 +13,12 @@
     const values=[...original,...generated].filter(finite), lo=domain?domain[0]:percent?0:Math.min(0,...values), upper=Math.max(1,...values)*1.08, unit=10**Math.floor(Math.log10(upper)), hi=domain?domain[1]:percent?100:Math.ceil(upper/unit)*unit;
     const x=i=>labels.length===1?390:80+620*(positions?(positions[i]-positions[0])/(positions[positions.length-1]-positions[0]):i/Math.max(1,labels.length-1)), y=n=>255-(n-lo)/(hi-lo)*215;
     for(let i=0;i<=4;i++){const value=lo+(hi-lo)*i/4, yy=y(value),label=percent?fmt(value)+"%":Math.abs(value)>=1000?fmt(value/1000)+"k":fmt(value);chart.append(svg(doc,"line",{x1:80,x2:700,y1:yy,y2:yy,class:"viz-grid"}),svg(doc,"text",{x:68,y:yy+5,"text-anchor":"end",class:"viz-axis"},label));}
-    labels.forEach((label,i)=>chart.append(svg(doc,"text",{x:x(i),y:285,"text-anchor":"middle",class:"viz-axis"},label)));
+    labels.forEach((label,i)=>chart.append(svg(doc,"text",{x:x(i),y:300,"text-anchor":"middle",class:"viz-axis"},label)));
     for(const [series,cls] of [[original,"original"],[generated,"synthetic"]]){
       let previous=null;
       series.forEach((value,i)=>{if(!finite(value)){previous=null;return;}if(previous!==null)chart.append(svg(doc,"line",{x1:x(previous),y1:y(series[previous]),x2:x(i),y2:y(value),class:"viz-line viz-"+cls}));const point=svg(doc,"circle",{cx:x(i),cy:y(value),r:5,class:"viz-point viz-"+cls+(sparse.includes(i)?" viz-sparse":"")});point.append(svg(doc,"title",{},labels[i]+" · "+cls+": "+fmt(value)+(percent?"%":"")+(sparse.includes(i)?" · comparison pending":"")));chart.append(point);previous=i;});
     }
-    figure.append(legend(doc),chart,dataTable(doc,["Measured point","Original / Source","Synthetic"],labels.map((label,i)=>[label,fmt(original[i])+(percent&&finite(original[i])?"%":""),fmt(generated[i])+(percent&&finite(generated[i])?"%":"")])));return figure;
+    figure.append(legend(doc),chart,dataTable(doc,["Measured point","SOURCE baseline","Synthetic cohort"],labels.map((label,i)=>[label,fmt(original[i])+(percent&&finite(original[i])?"%":""),fmt(generated[i])+(percent&&finite(generated[i])?"%":"")])));return figure;
   }
   function distribution(doc,v,{key="credit_limit",showSelector=true}={}) {
     const root=el(doc,"div"),label=el(doc,"label","Compare a variable ","viz-select"),select=el(doc,"select"),body=el(doc,"div");select.setAttribute("aria-label","Distribution variable");

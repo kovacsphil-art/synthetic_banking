@@ -170,15 +170,19 @@
     if(kind==='categorical')return v.categorical.map(r=>({key:r.category,label:r.category==='Y'?'Past due (Y)':'Not past due (N)',source:r.source,generated:r.generated,gap:r.absolute_difference_pp,rank:r.status==='UNAVAILABLE'?null:r.absolute_difference_pp,status:r.status,reason:null}));
     return v.assessments.filter(a=>key==='correlation'?a.key==='correlation.balance_limit':a.family==='conditional').map(a=>({...a,label:key==='correlation'?a.label:a.label.replace('Past due · utilization ',''),gap:key==='correlation'?a.score:a.difference===null?null:Math.abs(a.difference)*100,rank:a.status==='UNAVAILABLE'?null:a.score}));
   }
+  const guideDocuments=new WeakSet(),openGuides=new WeakMap();
   function metricGuide(doc,id) {
     const wrap=el(doc,'div',undefined,'metric-guide'),button=el(doc,'button','Metric guide'),tip=el(doc,'div',undefined,'metric-tooltip');
     button.type='button';button.setAttribute('aria-controls',id);button.setAttribute('aria-expanded','false');tip.id=id;tip.hidden=true;tip.setAttribute('role','tooltip');button.setAttribute('aria-describedby',id);wrap.append(button,tip);let pinned=false;
-    const show=open=>{tip.hidden=!open;button.setAttribute('aria-expanded',String(open));};
+    const close=()=>{pinned=false;show(false);};
+    const show=open=>{if(open){const previous=openGuides.get(doc);if(previous&&previous!==close)previous();openGuides.set(doc,close);}else if(openGuides.get(doc)===close)openGuides.delete(doc);tip.hidden=!open;button.setAttribute('aria-expanded',String(open));};
     wrap.addEventListener('pointerenter',e=>{if(e.pointerType!=='touch')show(true);});
     wrap.addEventListener('pointerleave',()=>{if(!pinned&&doc.activeElement!==button)show(false);});
     button.addEventListener('focus',()=>show(true));button.addEventListener('blur',()=>{pinned=false;show(false);});
     button.addEventListener('click',()=>{pinned=!pinned;show(pinned);});
     button.addEventListener('keydown',e=>{if(e.key==='Escape'){pinned=false;show(false);e.preventDefault();}});
+    // Dismiss hover help with Escape even when keyboard focus is elsewhere.
+    if(doc.addEventListener&&!guideDocuments.has(doc)){doc.addEventListener('keydown',e=>{if(e.key==='Escape')openGuides.get(doc)?.();});guideDocuments.add(doc);}
     return {wrap,tip};
   }
   function exploreValidation(doc,view) {
@@ -194,7 +198,8 @@
       function picker(text,node,id){const l=el(doc,'label',text);node.id=id;l.setAttribute('for',id);const field=el(doc,'div');field.append(l,node);return field;}
       variable.setAttribute('aria-label',label+' variable');mode.setAttribute('aria-label',label+' match view');
       for(const [value,text] of [['all','All comparisons'],['strong','Strongest matches'],['weak','Weakest matches']]){const o=el(doc,'option',text);o.value=value;mode.append(o);}mode.value='all';
-      controls.append(picker(kind==='dependency'?'Relationship':'Variable',variable,'explore-variable-'+kind),picker('Show matches',mode,'explore-matches-'+kind));
+      const variableField=picker(kind==='dependency'?'Relationship':'Variable',variable,'explore-variable-'+kind),variableHelp=el(doc,'p',undefined,'control-help');variableHelp.id='explore-variable-help-'+kind;variable.setAttribute('aria-describedby',variableHelp.id);variableField.append(variableHelp);
+      controls.append(variableField,picker('Show matches',mode,'explore-matches-'+kind));
       const guide=metricGuide(doc,'metric-guide-'+kind),chart=el(doc,'div',undefined,'exploration-chart'),summary=el(doc,'p',undefined,'exploration-status'),tableRoot=el(doc,'div');summary.setAttribute('role','status');summary.setAttribute('aria-live','polite');
       controls.append(guide.wrap);panel.append(controls,el(doc,'p','Strongest uses the published Strong match classification; weakest uses Needs review. These describe the displayed metric, not overall variable quality. Missing or sparse evidence is never counted as a weak match.','measurement-note'),summary,chart,tableRoot);root.append(panel);
       let selected=kind==='numeric'?'credit_limit':kind==='categorical'?'past_due':'utilization',sort='gap',direction='descending';
@@ -206,6 +211,7 @@
         if(!eligible.some(n=>n.key===selected))selected=eligible[0]?.key||'';
         if(!eligible.length){const o=el(doc,'option','No matching variables');o.value='';variable.append(o);}
         variable.value=selected;variable.disabled=eligible.length<=1;
+        variableHelp.textContent=eligible.length===1?'Only one published variable matches this view.':eligible.length===0?'No published variables match this view.':'';variableHelp.hidden=eligible.length>1;
         const descriptor=eligible.find(n=>n.key===selected),rows=explorationRows(v,kind,selected).filter(r=>matches(r,mode.value));
         const rates=kind==='categorical'||kind==='dependency'&&selected!=='correlation';
         const unit=kind==='numeric'?'% of SOURCE IQR':rates?'pp':'correlation units';
@@ -235,7 +241,7 @@
           for(const r of ordered){const row=el(doc,'tr'),name=el(doc,'th',r.label);name.setAttribute('scope','row');row.append(name);
             for(const value of [rates?pct(r.source):fmt(r.source),rates?pct(r.generated):fmt(r.generated),measure(r.gap,unit)])row.append(el(doc,'td',value));
             const statusCell=el(doc,'td');statusCell.append(badge(doc,r.status));if(r.reason)statusCell.append(el(doc,'span',REASONS[r.reason]||'Comparison evidence unavailable.','exploration-reason'));row.append(statusCell);tbody.append(row);}
-          for(const s of sortable)s.th.setAttribute('aria-sort',sort===s.key?direction:'none');
+          for(const s of sortable){s.th.setAttribute('aria-sort',sort===s.key?direction:'none');s.th.children[0].dataset.sortLabel=sort===s.key?(sort==='name'?(direction==='ascending'?'A–Z':'Z–A'):direction==='descending'?'Largest first':'Smallest first'):'Sort';}
           summary.textContent=label+' · '+descriptor.label+'. Showing '+rows.length+' comparison'+(rows.length===1?'':'s')+'. Sorted by '+(sort==='name'?(direction==='ascending'?'name A–Z':'name Z–A'):direction==='descending'?'largest comparable gap':'smallest comparable gap')+'.';
         }
         t.append(el(doc,'caption',label+' statistical differences'),thead,tbody);wrap.append(t);tableRoot.replaceChildren(el(doc,'p','Sort using the first or gap column heading. Only comparable rows are ranked; missing or sparse comparisons stay last even when raw values are shown. All gaps are published measurements, not an overall accuracy score.','measurement-note'),wrap);drawRows();
@@ -353,9 +359,9 @@
   }
   function mountValidation(root,{fetcher=globalThis.fetch,location=globalThis.location,timeoutMs=10000}={}){
     const doc=root.ownerDocument,status=el(doc,"p","Validation results pending","results-notice"),body=el(doc,"div"),button=el(doc,"button","Refresh validation report","button button-secondary");button.type="button";status.setAttribute("role","status");status.setAttribute("aria-live","polite");const toolbar=el(doc,"div",undefined,"report-toolbar");toolbar.append(status,button);root.replaceChildren(toolbar,body);let loading=false;
-    async function refresh(){if(loading)return;loading=true;button.disabled=true;root.setAttribute("aria-busy","true");status.textContent="Loading validation report";const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),timeoutMs);
+    async function refresh(){if(loading)return;loading=true;button.disabled=true;button.textContent="Loading report…";root.setAttribute("aria-busy","true");status.textContent="Loading validation report";const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),timeoutMs);
       try{const url=new URL(root.dataset.reportUrl||"latest-pipeline.json",doc.baseURI);if(!["http:","https:"].includes(url.protocol)||url.origin!==location.origin)throw new Error("Invalid report URL");const response=await fetcher(url.href,{cache:"no-store",credentials:"omit",redirect:"error",signal:controller.signal});if(!response.ok)throw new Error("Unavailable");const text=await response.text();if(text.length>1024*1024)throw new Error("Oversize");const view=normalizeValidation(JSON.parse(text));if(!view)throw new Error("Pending");body.replaceChildren(renderValidation(doc,view));status.textContent="Latest validated pipeline results loaded";
-      }catch(_){body.replaceChildren(el(doc,"p","A complete version-2 validation report has not been published here or could not be read. The project methodology and existing summary remain available.","measurement-note"));status.textContent="Validation results pending";}finally{clearTimeout(timer);loading=false;button.disabled=false;root.setAttribute("aria-busy","false");}}
+      }catch(_){body.replaceChildren(el(doc,"p","The latest validation report is unavailable or incomplete. Use Refresh validation report to try again. Pipeline methodology and the verified demo explorer remain accessible from the navigation; no substitute statistics are shown.","measurement-note"));status.textContent="Validation results pending";}finally{clearTimeout(timer);loading=false;button.disabled=false;button.textContent="Refresh validation report";root.setAttribute("aria-busy","false");}}
     button.addEventListener("click",refresh);return {ready:refresh(),refresh};
   }
   const api={normalizeValidation,normalizePrivacy,renderValidation,mountValidation,executiveSummary,executiveFindings,exploreValidation,explorationRows};

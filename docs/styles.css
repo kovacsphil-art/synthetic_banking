@@ -1331,3 +1331,55 @@ td {
   .exec-page .cardinality-chart { grid-template-columns: 1fr; gap: .5rem; }
   .exec-page .baseline-notice { font-size: .875rem; }
 }
+
+/* Shared interaction language: visible controls, explicit states, quiet feedback. */
+.exec-page :is(section, main) { scroll-margin-top: 1.5rem; }
+.exec-page a { text-underline-offset: .22em; }
+.exec-page .exec-header nav, .exec-page .exec-footer nav, .section-exits { display: flex; flex-wrap: wrap; gap: .25rem 1.5rem; }
+.exec-page .exec-header nav a, .exec-page .exec-footer nav a, .section-exits a { display: inline-flex; align-items: center; min-height: 44px; font-size: .875rem; }
+.exec-page .exec-header nav a { padding: .35rem 0; border-bottom: 2px solid transparent; color: var(--ink); }
+.exec-page .exec-header nav a[aria-current="page"] { border-bottom-color: var(--red); color: var(--red-dark); font-weight: 650; }
+.section-exits { border-top: 1px solid var(--line); margin-top: 1.5rem; padding-top: .8rem; }
+.section-exits a { color: var(--red-dark); font-weight: 600; }
+.exec-page .button { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; line-height: 1.5; }
+.exec-page :is(button,select,a,summary) { transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease; }
+.exec-page button:disabled, .exec-page select:disabled, #explore-records select:disabled { cursor: not-allowed; opacity: 1; color: #646464; background-color: #ededed; border-color: #c6c6c6; }
+.exec-page select:disabled, #explore-records select:disabled { border-style: dashed; }
+.exec-page select, #explore-records select { min-height: 44px; appearance: none; padding-right: 2.4rem; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='%235b6068' stroke-width='1.8' d='m4 6 4 4 4-4'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right .8rem center; }
+.exec-page :is(summary,.text-link,.pipeline-reset) { min-height: 44px; }
+.exec-page summary { display: flex; align-items: center; gap: 1rem; }
+.exec-page :is(a,button,select,summary,[tabindex="0"]):focus-visible { outline: 3px solid var(--red); outline-offset: 3px; }
+.exec-page .pipeline-stage[data-pinned="true"] .stage-more { text-decoration: underline; text-underline-offset: .25em; }
+.exec-page .report-nav { padding: .5rem .5rem .65rem; scrollbar-color: #999 var(--soft); }
+.exec-page .report-nav a { display: inline-flex; align-items: center; min-height: 44px; padding-block: .4rem; }
+.report-nav-help, .control-help { color: var(--muted); font-size: .875rem; line-height: 1.6; }
+.report-nav-help { margin-bottom: .35rem; }
+.validation-controls { align-items: start; }
+.validation-controls .metric-guide { align-self: start; margin-top: 1.9rem; }
+.control-help { margin-top: .4rem; }
+.metric-tooltip { top: 100%; }
+.exploration-sort::after { content: attr(data-sort-label); display: block; font-size: .875rem; font-weight: 400; color: var(--muted); margin-top: .2rem; }
+.exec-page .strip-label span, .exec-page .hero-metrics dt, .exec-page .viz-legend, .exec-page .category-line, .exec-page .category-chart figcaption, .exec-page .measurement-note, .exec-page .small-label, .exec-page .match-badge { font-size: .875rem; }
+.exec-page .viz-axis { font-size: 16px; }
+.exec-page .record-context, .exec-page .download-context { overflow-wrap: anywhere; }
+.exec-page .text-link { display: inline-flex; align-items: center; }
+#explore-records .record-table caption, #explore-records .record-table thead th, #explore-records .record-metrics dt { font-size: .875rem; }
+@media (hover:hover) {
+  .exec-page .exec-header nav a:hover, .exec-page .exec-footer nav a:hover, .section-exits a:hover { color: var(--red-dark); text-decoration: underline; }
+  .exec-page select:not(:disabled):hover { border-color: var(--red-dark); }
+  .validation-tabs button:not([aria-selected="true"]):hover { background: var(--soft); border-bottom-color: #858990; }
+  .exec-page :is(.metric-guide > button,.exploration-sort,.pipeline-reset):not(:disabled):hover { background: var(--red-soft); }
+  .exec-page .pipeline-stage button:not(:disabled):hover { border-color: var(--red); }
+}
+.exec-page .button:not(:disabled):active, .validation-tabs button:active { box-shadow: inset 0 0 0 2px currentColor; }
+@media (max-width:650px) {
+  .exec-page .exec-header nav { gap: .1rem 1.2rem; }
+  .exec-page .exec-header nav a { font-size: .875rem; }
+  .exec-page .exec-section { padding-block: 3.5rem; }
+  .validation-controls .metric-guide { margin-top: 0; }
+  .exec-page .category-line { grid-template-columns: 64px minmax(0,1fr) 64px; }
+  .exec-page .viz-axis { font-size: 32px; }
+  .exec-page .exec-footer nav { gap: .25rem 1rem; }
+}
+@media (max-width:360px) { .exec-page .viz-axis { font-size: 40px; } }
+@media (prefers-reduced-motion:reduce) { .exec-page *, .exec-page *::before, .exec-page *::after { transition: none; animation: none; scroll-behavior: auto; } }

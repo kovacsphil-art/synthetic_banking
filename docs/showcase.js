@@ -11,7 +11,7 @@
     function render(){
       const current=preview||pinned;overview.hidden=!!current;reset.hidden=!current;
       for(const s of stages){const active=s===current;s.stage.dataset.open=String(active);s.stage.dataset.pinned=String(s===pinned);
-        s.button.setAttribute('aria-expanded',String(active));s.detail.hidden=!active;s.more.textContent=s===pinned?'Selected':active?'Preview':'Explore';}
+        s.button.setAttribute('aria-expanded',String(active));s.button.setAttribute('aria-pressed',String(s===pinned));s.detail.hidden=!active;s.more.textContent=s===pinned?'Selected':active?'Preview':'Explore';}
       status.textContent=current?'Stage '+String(stages.indexOf(current)+1).padStart(2,'0')+' of '+String(stages.length).padStart(2,'0')+' · '+current.stage.dataset.title+' · '+(current===pinned?'Selected':'Preview'):'The complete process · Explore any stage';
       if(current)last=current;
     }
@@ -36,7 +36,7 @@
   async function mountShowcase(doc,{fetcher=globalThis.fetch,location=globalThis.location,timeoutMs=10000}={}) {
     const root=doc.getElementById("executive-results");if(!root)return;
     const status=doc.getElementById("hero-status"),plot=doc.getElementById("distribution-preview"),controller=new AbortController(),timer=setTimeout(()=>controller.abort(),timeoutMs);
-    const text=(id,value)=>{const n=doc.getElementById(id);if(n)n.textContent=value;};root.setAttribute("aria-busy","true");
+    const text=(id,value)=>{const n=doc.getElementById(id);if(n)n.textContent=value;};root.setAttribute("aria-busy","true");status.textContent="Loading latest results…";
     try{const url=new URL(root.dataset.reportUrl||"latest-pipeline.json",doc.baseURI);if(!["https:","http:"].includes(url.protocol)||url.origin!==location.origin)throw new Error("Unavailable");
       const response=await fetcher(url.href,{cache:"no-store",credentials:"omit",redirect:"error",signal:controller.signal});if(!response.ok)throw new Error("Unavailable");const raw=await response.text();if(raw.length>1024*1024)throw new Error("Unavailable");const report=JSON.parse(raw),brief=window.SageResults.normalizeReport(report),view=window.SageValidation.normalizeValidation(report);
       if(!view)throw new Error("Pending");const f=window.SageViz.fmt;
@@ -44,7 +44,7 @@
       status.textContent="Integrity checks passed · "+new Date(report.pipeline_completed_at).toLocaleDateString("en",{timeZone:"UTC",year:"numeric",month:"short",day:"numeric"})+" · Privacy "+(report.privacy?.status||"UNAVAILABLE");
       const stamp=doc.createElement("p");stamp.className="small-label";stamp.textContent="Measured results · "+new Date(report.pipeline_completed_at).toLocaleString("en",{timeZone:"UTC"})+" UTC";
       root.replaceChildren(stamp,window.SageValidation.executiveSummary(doc,view),window.SageValidation.executiveFindings(doc,view));plot.replaceChildren(window.SageViz.distribution(doc,view.v));
-    }catch(_){status.textContent="Latest results unavailable";["hero-customers","hero-accounts","hero-rules"].forEach(id=>text(id,"—"));const p=doc.createElement("p");p.className="results-notice";p.setAttribute("role","status");p.textContent="Latest results unavailable. The methodology remains available; publish a complete validated report to populate these measures.";root.replaceChildren(p);const note=doc.createElement("p");note.className="results-notice";note.textContent="Measured distribution results pending. No illustrative values are substituted.";plot.replaceChildren(note);
+    }catch(_){status.textContent="Latest results unavailable";["hero-customers","hero-accounts","hero-rules"].forEach(id=>text(id,"—"));const p=doc.createElement("p");p.className="results-notice";p.setAttribute("role","status");p.textContent="Latest results could not be loaded. Try again; the project methodology remains available.";const retry=doc.createElement('button');retry.type='button';retry.className='button button-secondary';retry.textContent='Retry latest results';retry.addEventListener('click',()=>{retry.disabled=true;return mountShowcase(doc,{fetcher,location,timeoutMs});});root.replaceChildren(p,retry);const note=doc.createElement("p");note.className="results-notice";note.textContent="Measured distribution results pending. No illustrative values are substituted.";plot.replaceChildren(note);
     }finally{clearTimeout(timer);root.setAttribute("aria-busy","false");}
   }
   if(typeof module!=="undefined"&&module.exports)module.exports={setupPipeline,mountShowcase};

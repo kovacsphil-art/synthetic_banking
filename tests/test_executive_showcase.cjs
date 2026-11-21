@@ -69,10 +69,12 @@ test('hover previews one stage without moving the page; leaving restores the ove
 });
 test('click keeps a stage selected through pointer leave and outside focus; second click clears',()=>{
   const p=pipeline(),s=p.stages[2];s.button.focus();s.button.events.click();assert.equal(s.more.textContent,'Selected');
+  assert.equal(s.button.attributes['aria-pressed'],'true');assert.ok(p.stages.filter(other=>other!==s).every(other=>other.button.attributes['aria-pressed']==='false'));
   p.explorer.events.pointerleave();assert.equal(s.detail.hidden,false);p.explorer.events.focusout({relatedTarget:new Node(p.doc,'p')});assert.equal(s.detail.hidden,false);
   const other=p.stages[4];other.stage.events.pointerenter({pointerType:'mouse'});assert.equal(other.detail.hidden,false);assert.equal(s.detail.hidden,true);
   p.explorer.events.pointerleave();assert.equal(s.detail.hidden,false);assert.equal(other.detail.hidden,true);
   s.button.events.click();assert.equal(p.overview.hidden,false);assert.ok(p.stages.every(s=>s.button.attributes['aria-expanded']==='false'));
+  assert.ok(p.stages.every(s=>s.button.attributes['aria-pressed']==='false'));
 });
 test('keyboard previews, arrows, Home/End, Escape and Back to stages keep focus predictable',()=>{
   const p=pipeline(),s=p.stages[2];s.button.focus();assert.equal(s.detail.hidden,false);
@@ -105,4 +107,24 @@ test("overview loads real aggregate fields and fails safely without exposing pay
 });
 test("public pages use SAGE, concise process naming and only the versioned local assets",()=>{
   for(const name of ["index.html","validation.html"]){const html=fs.readFileSync(require.resolve("../docs/"+name),"utf8");assert.match(html,/SAGE/);assert.doesNotMatch(html,/RCAR|notebook/i);assert.doesNotMatch(html,/<script[^>]+https?:/i);for(const m of html.matchAll(/(?:src|href)="([^"?#]+\.(?:js|css))[^\"]*"/g))assert.ok(fs.existsSync(require.resolve("../docs/"+m[1])));}
+});
+
+test('both pages offer the same named routes between the three exploration experiences',()=>{
+  for(const name of ['index.html','validation.html']){
+    const html=fs.readFileSync(require.resolve('../docs/'+name),'utf8'),nav=html.match(/<nav aria-label="Main navigation">(.*?)<\/nav>/s)[1];
+    assert.deepEqual([...nav.matchAll(/<a[^>]*>(.*?)<\/a>/g)].map(m=>m[1]),['Overview','Pipeline','Validation Report','Synthetic Data Explorer','Downloads']);
+    assert.equal((nav.match(/aria-current="page"/g)||[]).length,1);
+    assert.match(nav,/href="(?:index.html)?#process"/);assert.match(nav,/href="(?:index.html)?#explore-records"/);
+    assert.match(html,/aria-label="Explore SAGE"/);
+  }
+});
+
+test('overview offers an in-place retry after unavailable results without substituting measurements',async()=>{
+  const doc=document(),ids={};for(const name of ['executive-results','hero-status','distribution-preview','hero-customers','hero-accounts','hero-rules'])ids[name]=new Node(doc,'div');doc.getElementById=id=>ids[id];
+  const previous=global.window;global.window={SageResults:results,SageValidation:validation,SageViz:viz};let available=false,calls=0;
+  try{await mountShowcase(doc,{location:{origin:'https://example.invalid'},fetcher:async()=>{calls++;return available?{ok:true,text:async()=>JSON.stringify(fixture)}:{ok:false};}});
+    const retry=all(ids['executive-results']).find(n=>n.tagName==='BUTTON');assert.equal(retry.textContent,'Retry latest results');assert.equal(ids['hero-customers'].textContent,'—');
+    available=true;const recovering=retry.events.click();assert.equal(retry.disabled,true);assert.match(ids['hero-status'].textContent,/Loading/);await recovering;
+    assert.equal(calls,2);assert.equal(ids['hero-customers'].textContent,viz.fmt(fixture.generation.customers.value));assert.equal(ids['executive-results'].attributes['aria-busy'],'false');
+  }finally{global.window=previous;}
 });

@@ -1,0 +1,25 @@
+# Showcase interaction review
+
+This polish preserves the executive layout, red/charcoal palette, measured reporting JSON, preview records, validation calculations and privacy/download gates. Both pages remain static, without new libraries, external fonts or backend services.
+
+| Change | Design principle applied |
+| --- | --- |
+| The same Overview / Pipeline / Validation Report / Synthetic Data Explorer / Downloads links on both pages, with page indicators and footer exits | Norman: mapping and conceptual model. Nielsen: consistency, recognition and user control. |
+| Consistent focus outlines, touch targets, dropdown chevrons, restrained hover feedback and explicit selected/disabled states | Norman: signifiers and feedback. Nielsen: consistency and error prevention. |
+| Visible sort direction and an adjacent explanation when a variable selector is disabled | Nielsen: system status and help in context. |
+| Metric help opens on focus/click/tap as well as hover; Escape dismisses it, including hover-only previews | Norman: discoverability. Nielsen: user control and freedom. |
+| Clear loading labels, retry actions and missing-data messages with no substitute records or statistics | Nielsen: visibility and recovery from errors. |
+| More readable chart labels, SOURCE/Synthetic table headings, expandable chart values, scrollable wide tables and reduced-motion support | Nielsen: minimalist presentation and flexible access. |
+
+Reference principles: [Don Norman, The Design of Everyday Things](https://jnd.org/books/the-design-of-everyday-things-revised-and-expanded-edition/) and [Nielsen Norman Group, 10 Usability Heuristics](https://www.nngroup.com/articles/ten-usability-heuristics/). These are design guidelines, not a claim of usability certification.
+
+## Verification
+
+- JavaScript checks cover pipeline hover/focus/click/touch/reset, tabs and keyboard movement, variable/match selection, sorting, help dismissal, loading/retry and missing/sparse evidence.
+- Existing tests retain malformed-metadata, withdrawn-export, preview/version/hash mismatch, missing Release assets and privacy/provenance rejection cases.
+- Browser checks cover desktop and narrow mobile layouts, navigation between the three experiences, all six preview tables, expandable descriptions/chart values, keyboard table scrolling and missing-JSON states. Missing-data QA uses temporary copies of public UI assets without JSON; the saved reporting/preview artifacts are unchanged.
+- Switching tables or validation variables reuses loaded data. Preview/Release verification remains bounded and shared between the two demo sections; full CSVs and ZIPs are never fetched for exploration. No background polling, new frameworks or external UI resources are added.
+
+## Remaining limits
+
+Wide data tables intentionally need horizontal scrolling on phones. The explorer shows only 15 saved rows and selected columns per table; linked records may fall outside that preview. The public validation contract covers selected variables and measured points, rather than full distribution detail. Release API outages or rate limits can temporarily disable downloads. Testing here covers the available Chromium browser and automated interaction checks, not a full browser/device matrix, assistive-technology audit or stakeholder usability study.
