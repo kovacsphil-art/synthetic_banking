@@ -70,6 +70,23 @@ test('enabled links provide ZIP, dictionary and six labelled CSV downloads',asyn
   assert.equal(links.filter(n=>n.attributes.download.endsWith('.csv')).length,6);assert.ok(links.some(n=>n.attributes.download==='data_dictionary.md'));
   assert.ok(links.some(n=>n.textContent==='Download complete dataset (ZIP)'));assert.ok(links.filter(n=>n.attributes.download.endsWith('.csv')).every(n=>n.attributes['aria-label']));
 });
+
+test('package guide explains included metadata, imports and relationships without adding unverified URLs',async()=>{
+  const f=fixture(),{d}=document(),state=await downloads.loadDownloadState(d,{location,crypto:webcrypto,fetcher:transport(f)});
+  const view=downloads.renderDownloads(d,state),nodes=all(view),guide=nodes.find(n=>n.className==='download-guide');
+  assert.equal(guide.children[0].textContent,'Using the demo files');assert.equal(guide.open,undefined);
+  for(const phrase of ['metadata.json','random seed','file checksums','both Account ID and Effective date','Import identifiers as text','\\N means a missing value','Related records can fall outside the preview'])assert.ok(guide.textContent.includes(phrase));
+  assert.equal(all(guide).filter(n=>n.tagName==='DT').length,4);
+  const times=nodes.filter(n=>n.tagName==='TIME');assert.deepEqual(times.map(n=>n.attributes.datetime),[f.m.generation_date,f.m.verified_at]);
+  assert.ok(times.every(n=>n.textContent.endsWith('UTC')));assert.equal(nodes.filter(n=>n.tagName==='A').length,8);
+});
+
+test('unavailable packages never invent dates or bypass disabled controls through the guide',()=>{
+  const {d}=document(),view=downloads.renderDownloads(d,{status:'unavailable'}),nodes=all(view);
+  assert.equal(nodes.filter(n=>n.tagName==='TIME'||n.tagName==='A').length,0);
+  assert.equal(nodes.filter(n=>n.tagName==='BUTTON'&&n.disabled).length,8);
+  assert.ok(nodes.some(n=>n.className==='download-guide'));
+});
 test('missing manifests, rate limits and timeouts fail safely without displaying response content',async()=>{
   const {d,root}=document();await downloads.mountDownloads(d,{location,crypto:webcrypto,fetcher:async()=>({ok:false,text:async()=>'PRIVATE_SOURCE_RECORD'})});
   assert.match(root.textContent,/Downloads unavailable/);assert.ok(!root.textContent.includes('PRIVATE'));assert.equal(all(root).filter(n=>n.tagName==='A').length,0);

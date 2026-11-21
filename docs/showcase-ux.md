@@ -20,7 +20,7 @@ Reference principles: [Don Norman, The Design of Everyday Things](https://jnd.or
 ## Verification
 
 - JavaScript checks cover pipeline hover/focus/click/touch/reset, tabs and keyboard movement, variable/match selection, sorting, help dismissal, loading/retry and missing/sparse evidence.
-- Additional checks lock the executive reading order, all evidence-link destinations, delayed report anchors, focus preservation, and the separate privacy/demo explanation. The frontend suite contains 82 passing checks.
+- Additional checks lock the executive reading order, all evidence-link destinations, delayed report anchors, focus preservation, and the separate privacy/demo explanation.
 - Existing tests retain malformed-metadata, withdrawn-export, preview/version/hash mismatch, missing Release assets and privacy/provenance rejection cases.
 - Browser checks cover desktop and narrow mobile layouts, navigation between the three experiences, all six preview tables, expandable descriptions/chart values, keyboard table scrolling and missing-JSON states. Missing-data QA uses temporary copies of public UI assets without JSON; the saved reporting/preview artifacts are unchanged.
 - Switching tables or validation variables reuses loaded data. Preview/Release verification remains bounded and shared between the two demo sections; full CSVs and ZIPs are never fetched for exploration. No background polling, new frameworks or external UI resources are added.

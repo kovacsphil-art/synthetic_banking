@@ -115,17 +115,35 @@
     status.textContent=state.status==='ready'?'Both downloads use the same verified DEMO_ONLY version as these records.':(STATES[state.status]||STATES.unavailable).join('. ');
     root.append(actions,status);return root;
   }
+  function packageGuide(doc){
+    const guide=el(doc,'details',undefined,'download-guide');guide.append(el(doc,'summary','Using the demo files'));
+    guide.append(el(doc,'p','The ZIP contains all six complete CSV tables, data_dictionary.md and metadata.json. The dictionary explains every field. Generation metadata includes the date, random seed, dataset version, row counts, file checksums and unchanged privacy findings.'));
+    const links=el(doc,'dl');
+    for(const [title,description] of [
+      ['Customers and accounts','The customer–account links table connects customers to their internal accounts using synthetic customer and account IDs.'],
+      ['Account balances','Match both Account ID and Effective date to connect an account snapshot to its balance.'],
+      ['Customer relationships','From customer and To customer both refer to the customer table. The relationship codes describe each direction.'],
+      ['Tradelines','External-credit-style records refer to customers. Their tradeline IDs are separate from internal account IDs.']
+    ]){const row=el(doc,'div');row.append(el(doc,'dt',title),el(doc,'dd',description));links.append(row);}
+    guide.append(links,el(doc,'p','Import identifiers as text to preserve their formatting. In the CSVs, \\N means a missing value; empty text remains empty text. Dates use ISO 8601. Timestamp handling is described in the dictionary.'),
+      el(doc,'p','Previews show 15 saved records and selected fields per table. Related records can fall outside the preview; the complete files preserve their relationships. Demo availability is verified separately from the privacy screening status.'));
+    return guide;
+  }
   function renderDownloads(doc,state){
     const root=el(doc,'div'),[title,note]=STATES[state.status]||STATES.unavailable,m=state.manifest;root.dataset.downloadState=state.status;
     const heading=el(doc,'p',title,'download-status');heading.id='dataset-download-status';heading.setAttribute('role','status');heading.setAttribute('aria-live','polite');root.append(heading,el(doc,'p',note,'download-note'));
     const control=(key,label,cls)=>downloadControl(doc,state,key,label,heading.id,cls);
-    if(m){root.append(el(doc,'p','DEMO_ONLY · '+m.dataset_version+' · Privacy screening: '+m.privacy_status+'. Demo eligibility is separate from the standard privacy release status in the Validation Report. This is not formal anonymization certification.','download-context'));}
+    if(m){root.append(el(doc,'p','DEMO_ONLY · '+m.dataset_version+' · Privacy screening: '+m.privacy_status+'. Demo eligibility is separate from the standard privacy release status in the Validation Report. This is not formal anonymization certification.','download-context'));
+      const facts=el(doc,'dl',undefined,'download-facts'),dateFormat=new Intl.DateTimeFormat('en',{dateStyle:'medium',timeStyle:'short',timeZone:'UTC'});
+      for(const [label,value] of [['Generated',m.generation_date],['Export verified',m.verified_at]]){const item=el(doc,'div'),time=el(doc,'time',dateFormat.format(new Date(value))+' UTC');time.setAttribute('datetime',value);item.append(el(doc,'dt',label),el(doc,'dd'));item.children[1].append(time);facts.append(item);}
+      root.append(facts);
+    }
     const bundle=el(doc,'div',undefined,'download-bundle'),zip=m?.assets.find(a=>a.key==='ZIP'),dictionary=m?.assets.find(a=>a.key==='DICTIONARY');
     bundle.append(el(doc,'div',undefined,'download-bundle-copy'));
     const copy=bundle.children[0];copy.append(el(doc,'h3','The complete six-table demo'),el(doc,'p','One ZIP with all six CSVs, the data dictionary and generation metadata.'),
       el(doc,'p',zip?size(zip.bytes)+' · '+new Intl.NumberFormat('en').format(m.assets.reduce((n,a)=>n+(a.rows||0),0))+' records across six tables':'ZIP size and record counts unavailable','download-size'));
     const actions=el(doc,'div',undefined,'download-bundle-actions');actions.append(control('ZIP','Download complete dataset (ZIP)','button button-primary'),control('DICTIONARY','Download data dictionary'),
-      el(doc,'span',dictionary?'Dictionary · '+size(dictionary.bytes):'Dictionary size unavailable','download-size'));bundle.append(actions);root.append(bundle);
+      el(doc,'span',dictionary?'Dictionary · '+size(dictionary.bytes):'Dictionary size unavailable','download-size'));bundle.append(actions);root.append(bundle,packageGuide(doc));
     const grid=el(doc,'div',undefined,'download-files');
     for(const [name,spec] of Object.entries(catalog.tables)){const file=m?.assets.find(a=>a.key===name),card=el(doc,'article',undefined,'download-file');
       card.append(el(doc,'h3',spec.label),el(doc,'code',name+'.csv'),el(doc,'p',spec.description),
