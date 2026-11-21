@@ -151,6 +151,26 @@ class PublicationTests(unittest.TestCase):
         self.output["notebook_output"]["result"]=json.dumps(dict(report_path=self.path,schema_version="1.0"))
         with self.assertRaises(ValueError): retrieve(self.client(),10,"/Volumes/public/reports/showcase",20)
 
+    def test_demo_reference_requires_verified_task_and_matching_report_checksum(self):
+        import hashlib
+        self.report['demo_dataset']=dict(dataset_version='sage-demo-v123',release_mode='DEMO_ONLY',preview_sha256='a'*64)
+        checksum=hashlib.sha256(json.dumps(self.report).encode()).hexdigest()
+        receipt=dict(report_path=self.path,schema_version='2.0',report_sha256=checksum,demo_export_status='VERIFIED_DEMO_ONLY')
+        self.output['notebook_output']['result']=json.dumps(receipt)
+        self.assertEqual(retrieve(self.client(),10,'/Volumes/public/reports/showcase',20)['demo_dataset']['dataset_version'],'sage-demo-v123')
+        for change in ({'report_sha256':'0'*64},{'demo_export_status':'DISABLED'},{'report_sha256':None}):
+            self.output['notebook_output']['result']=json.dumps({**receipt,**change})
+            with self.assertRaises(ValueError):retrieve(self.client(),10,'/Volumes/public/reports/showcase',20)
+        self.output['notebook_output']['result']=json.dumps(receipt)
+        self.run['tasks']=[t for t in self.run['tasks'] if t['task_key']!='demo_export_verification']
+        with self.assertRaises(ValueError):retrieve(self.client(),10,'/Volumes/public/reports/showcase',20)
+
+    def test_legacy_eight_task_aggregate_run_still_publishes_without_demo_files(self):
+        self.run['tasks']=[t for t in self.run['tasks'] if t['task_key']!='demo_export_verification']
+        report=retrieve(self.client(),10,'/Volumes/public/reports/showcase',20)
+        self.assertNotIn('demo_dataset',report)
+        self.assertEqual(self.downloads,[self.path])
+
     def test_private_nested_validation_fields_and_labels_cannot_be_published(self):
         for field in ("secret", "label"):
             report=deepcopy(self.report)

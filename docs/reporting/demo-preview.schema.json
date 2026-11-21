@@ -1,0 +1,677 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "release_mode": {
+      "const": "DEMO_ONLY"
+    },
+    "baseline": {
+      "const": "FABRICATED_DEVELOPMENT"
+    },
+    "dataset_version": {
+      "type": "string",
+      "pattern": "^sage-demo-v[1-9][0-9]*(\\.[0-9]+)*$"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "privacy_status": {
+      "enum": [
+        "PASS",
+        "REVIEW_REQUIRED"
+      ]
+    },
+    "preview_row_limit": {
+      "const": 15
+    },
+    "tables": {
+      "type": "array",
+      "prefixItems": [
+        {
+          "type": "object",
+          "properties": {
+            "name": {
+              "const": "PERSON"
+            },
+            "total_rows": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 250000
+            },
+            "total_columns": {
+              "const": 19
+            },
+            "columns": {
+              "const": [
+                "PARTY_ID",
+                "CLIENT_STAT_CD",
+                "CUST_TYPE_CD",
+                "EMP_TYPE_CD",
+                "OCCUP_CAT_CD",
+                "PREF_LANG_CD"
+              ]
+            },
+            "rows": {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "prefixItems": [
+                  {
+                    "type": "string",
+                    "pattern": "^P[0-9]{8}$"
+                  },
+                  {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9 _/.-]{1,32}$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9 _/.-]{1,32}$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9 _/.-]{1,32}$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9 _/.-]{1,32}$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9 _/.-]{1,32}$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                ],
+                "items": false,
+                "minItems": 6,
+                "maxItems": 6
+              },
+              "maxItems": 15
+            }
+          },
+          "required": [
+            "name",
+            "total_rows",
+            "total_columns",
+            "columns",
+            "rows"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "name": {
+              "const": "CUSTOMER_ACCOUNT_REL"
+            },
+            "total_rows": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 250000
+            },
+            "total_columns": {
+              "const": 6
+            },
+            "columns": {
+              "const": [
+                "PARTY_ID",
+                "ACCT_ID",
+                "ACCT_SUBSYS_MNEMONIC_CD",
+                "PRIMARY_OWNERSHIP_FLAG",
+                "PROD_CD",
+                "RELATN_TYPE_CD"
+              ]
+            },
+            "rows": {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "prefixItems": [
+                  {
+                    "type": "string",
+                    "pattern": "^P[0-9]{8}$"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^A[0-9]{9}$"
+                  },
+                  {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9 _/.-]{1,32}$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9 _/.-]{1,32}$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9 _/.-]{1,32}$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9 _/.-]{1,32}$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                ],
+                "items": false,
+                "minItems": 6,
+                "maxItems": 6
+              },
+              "maxItems": 15
+            }
+          },
+          "required": [
+            "name",
+            "total_rows",
+            "total_columns",
+            "columns",
+            "rows"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "name": {
+              "const": "CUSTOMER_RELATIONSHIP"
+            },
+            "total_rows": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 250000
+            },
+            "total_columns": {
+              "const": 9
+            },
+            "columns": {
+              "const": [
+                "FROM_PARTY_ID",
+                "TO_PARTY_ID",
+                "FROM_TO_CUST_RELATN_CD",
+                "TO_FROM_CUST_RELATN_CD",
+                "ownership_percentage",
+                "OWNED_BUS_SINCE_DT"
+              ]
+            },
+            "rows": {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "prefixItems": [
+                  {
+                    "type": "string",
+                    "pattern": "^P[0-9]{8}$"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^P[0-9]{8}$"
+                  },
+                  {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9 _/.-]{1,32}$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9 _/.-]{1,32}$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}(T[0-9:.]+(Z|\\+00:00)?)?$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                ],
+                "items": false,
+                "minItems": 6,
+                "maxItems": 6
+              },
+              "maxItems": 15
+            }
+          },
+          "required": [
+            "name",
+            "total_rows",
+            "total_columns",
+            "columns",
+            "rows"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "name": {
+              "const": "TKQ_ACCOUNT"
+            },
+            "total_rows": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 250000
+            },
+            "total_columns": {
+              "const": 100
+            },
+            "columns": {
+              "const": [
+                "ACCOUNT_ID",
+                "ACCOUNT_TYPE_CD",
+                "CLIENT_PRODUCT_CD",
+                "TSYS_PRODUCT_CD",
+                "CREDIT_LIMIT_AMT",
+                "PAST_DUE_INDICATO_CD",
+                "OPEN_DT",
+                "BUSINESSEFFECTIVEDATE"
+              ]
+            },
+            "rows": {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "prefixItems": [
+                  {
+                    "type": "string",
+                    "pattern": "^A[0-9]{9}$"
+                  },
+                  {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9 _/.-]{1,32}$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9 _/.-]{1,32}$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9 _/.-]{1,32}$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9 _/.-]{1,32}$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}(T[0-9:.]+(Z|\\+00:00)?)?$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}(T[0-9:.]+(Z|\\+00:00)?)?$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                ],
+                "items": false,
+                "minItems": 8,
+                "maxItems": 8
+              },
+              "maxItems": 15
+            }
+          },
+          "required": [
+            "name",
+            "total_rows",
+            "total_columns",
+            "columns",
+            "rows"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "name": {
+              "const": "TKQ_ACCOUNT_BALANCE"
+            },
+            "total_rows": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 250000
+            },
+            "total_columns": {
+              "const": 48
+            },
+            "columns": {
+              "const": [
+                "ACCOUNT_ID",
+                "BUSINESSEFFECTIVEDATE",
+                "CURRENT_BALANCE_AMT",
+                "AVAILABLE_TO_BUY_AMT",
+                "OVERLIMIT_AMT"
+              ]
+            },
+            "rows": {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "prefixItems": [
+                  {
+                    "type": "string",
+                    "pattern": "^A[0-9]{9}$"
+                  },
+                  {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}(T[0-9:.]+(Z|\\+00:00)?)?$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                ],
+                "items": false,
+                "minItems": 5,
+                "maxItems": 5
+              },
+              "maxItems": 15
+            }
+          },
+          "required": [
+            "name",
+            "total_rows",
+            "total_columns",
+            "columns",
+            "rows"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "name": {
+              "const": "TRADELINES"
+            },
+            "total_rows": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 250000
+            },
+            "total_columns": {
+              "const": 38
+            },
+            "columns": {
+              "const": [
+                "account_number",
+                "REQ-CIF-KEY",
+                "account_type_code",
+                "credit_limit_amount",
+                "current_balance_amount",
+                "account_open_date",
+                "account_closed_indicator"
+              ]
+            },
+            "rows": {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "prefixItems": [
+                  {
+                    "type": "string",
+                    "pattern": "^TL[0-9]{10}$"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^P[0-9]{8}$"
+                  },
+                  {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9 _/.-]{1,32}$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}(T[0-9:.]+(Z|\\+00:00)?)?$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9 _/.-]{1,32}$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                ],
+                "items": false,
+                "minItems": 7,
+                "maxItems": 7
+              },
+              "maxItems": 15
+            }
+          },
+          "required": [
+            "name",
+            "total_rows",
+            "total_columns",
+            "columns",
+            "rows"
+          ],
+          "additionalProperties": false
+        }
+      ],
+      "items": false,
+      "minItems": 6,
+      "maxItems": 6
+    }
+  },
+  "required": [
+    "schema_version",
+    "release_mode",
+    "baseline",
+    "dataset_version",
+    "generated_at",
+    "privacy_status",
+    "preview_row_limit",
+    "tables"
+  ],
+  "additionalProperties": false
+}

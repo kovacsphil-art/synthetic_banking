@@ -10,7 +10,8 @@ source_profile (01, SOURCE)
   → privacy_check (07; row-release decision)
   → generated_profile (01, GENERATED)
   → validate (05)
-  → reporting (06, aggregate JSON only)
+  → demo_export_verification (10; opt-in DEMO_ONLY or DISABLED)
+  → reporting (06, aggregate JSON + optional public demo reference)
 ```
 
 ## Tasks and handoffs
@@ -24,6 +25,7 @@ source_profile (01, SOURCE)
 | `privacy_check` | Notebook 07; `privacy.py`, `privacy_checks.py`, SOURCE snapshots and validated Delta versions | SOURCE/batch/generation, `privacy_assessment_id`, `privacy_status`, technical `row_level_release_allowed` |
 | `generated_profile` | Notebook 01 in GENERATED mode; same profiler modules | Same SOURCE/batch/generation, completed `generated_run_id` |
 | `validate` | Notebook 05; saved Delta-version checks and `fidelity.create_fidelity_report` | All four exact IDs, `validation_status=PASS`, UTC `validated_at` |
+| `demo_export_verification` | Notebook 10; existing demo exporter and download verification modules | Eligibility status and opaque dataset version; private readiness receipt binds all five IDs and artifact hashes |
 | `reporting` | Notebook 06; `reporting.py`; numeric `workflow_run_id={{job.run_id}}` | Per-execution public report path, schema version, `pipeline_status=COMPLETED`; notebook-exit receipt for GitHub |
 
 The YAML uses `{{tasks.<task>.values.<key>}}` to pass outputs as notebook parameters. Missing/unresolved IDs fail instead of defaulting to a latest run. [Databricks task-value documentation](https://docs.databricks.com/aws/en/jobs/task-values)
@@ -68,7 +70,7 @@ The bundle has no schedule. Alternatively open **Jobs & Pipelines → synthetic-
 
 ### Databricks Free Edition
 
-Use the `free` target for serverless compute. It keeps the same eight tasks and ID handoffs and removes existing-cluster selection; the `dev` target retains its existing cluster configuration. With an authenticated CLI profile, set only the reporting directory:
+Use the `free` target for serverless compute. It keeps the nine-task graph and exact ID handoffs and removes existing-cluster selection; the `dev` target retains its existing cluster configuration. With an authenticated CLI profile, set only the reporting directory:
 
 ```powershell
 $env:BUNDLE_VAR_report_output_dir = "/Volumes/workspace/default/showcase_reports/pipeline_reporting"
@@ -96,3 +98,7 @@ The final `reporting` task also receives `privacy_assessment_id` directly from `
 - Configure the [GitHub publication workflow](publication.md) once to retrieve successful reports and deploy Pages automatically. Manual report downloads remain available; see [the reporting contract](reporting/README.md).
 
 Local tests cover handoff/provenance/review behavior using fabricated metadata. The first pilot verified live bundle deployment, approval repair, Spark/Delta generation/profiling/validation and reporting-only repair. New configurations still need a Databricks test-destination smoke test; historical success is not evidence that a changed environment will pass.
+
+## Optional automated demo distribution
+
+The new verification task follows `validate` and precedes `reporting`. Default `demo_release_mode=DISABLED` permits ordinary aggregate-only execution. Explicit DEMO_ONLY runs the existing complete fabricated SOURCE/generated replay and content checks; it never uses catalog paths as origin evidence or overrides privacy status. GitHub separately requires `SAGE_PUBLISH_DEMO_DATASETS=true` for public Release uploads. See [the complete trigger, handoff, repair and disable runbook](automated-demo-publication.md). Existing eight-task live results above are historical evidence, not evidence that the new task has run.

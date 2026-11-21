@@ -1,0 +1,398 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "release_mode": {
+      "const": "DEMO_ONLY"
+    },
+    "baseline": {
+      "const": "FABRICATED_DEVELOPMENT"
+    },
+    "verification": {
+      "const": "VERIFIED_DEMO_ONLY"
+    },
+    "dataset_version": {
+      "type": "string",
+      "pattern": "^sage-demo-v[1-9][0-9]*(\\.[0-9]+)*$"
+    },
+    "generation_date": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "exported_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "verified_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "privacy_status": {
+      "enum": [
+        "PASS",
+        "REVIEW_REQUIRED"
+      ]
+    },
+    "preview_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "repository": {
+      "const": "kovacsphil-art/synthetic_banking"
+    },
+    "publication_status": {
+      "enum": [
+        "UNPUBLISHED",
+        "PUBLISHED",
+        "WITHDRAWN"
+      ]
+    },
+    "publication_checked_at": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "assets": {
+      "type": "array",
+      "prefixItems": [
+        {
+          "type": "object",
+          "properties": {
+            "key": {
+              "const": "ZIP"
+            },
+            "file": {
+              "const": "SAGE_DEMO_ONLY.zip"
+            },
+            "bytes": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 536870912
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "rows": {
+              "type": "null"
+            }
+          },
+          "required": [
+            "key",
+            "file",
+            "bytes",
+            "sha256",
+            "rows"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "key": {
+              "const": "DICTIONARY"
+            },
+            "file": {
+              "const": "data_dictionary.md"
+            },
+            "bytes": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 536870912
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "rows": {
+              "type": "null"
+            }
+          },
+          "required": [
+            "key",
+            "file",
+            "bytes",
+            "sha256",
+            "rows"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "key": {
+              "const": "PERSON"
+            },
+            "file": {
+              "const": "PERSON.csv"
+            },
+            "bytes": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 536870912
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "rows": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 250000
+            }
+          },
+          "required": [
+            "key",
+            "file",
+            "bytes",
+            "sha256",
+            "rows"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "key": {
+              "const": "CUSTOMER_ACCOUNT_REL"
+            },
+            "file": {
+              "const": "CUSTOMER_ACCOUNT_REL.csv"
+            },
+            "bytes": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 536870912
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "rows": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 250000
+            }
+          },
+          "required": [
+            "key",
+            "file",
+            "bytes",
+            "sha256",
+            "rows"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "key": {
+              "const": "CUSTOMER_RELATIONSHIP"
+            },
+            "file": {
+              "const": "CUSTOMER_RELATIONSHIP.csv"
+            },
+            "bytes": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 536870912
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "rows": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 250000
+            }
+          },
+          "required": [
+            "key",
+            "file",
+            "bytes",
+            "sha256",
+            "rows"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "key": {
+              "const": "TKQ_ACCOUNT"
+            },
+            "file": {
+              "const": "TKQ_ACCOUNT.csv"
+            },
+            "bytes": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 536870912
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "rows": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 250000
+            }
+          },
+          "required": [
+            "key",
+            "file",
+            "bytes",
+            "sha256",
+            "rows"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "key": {
+              "const": "TKQ_ACCOUNT_BALANCE"
+            },
+            "file": {
+              "const": "TKQ_ACCOUNT_BALANCE.csv"
+            },
+            "bytes": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 536870912
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "rows": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 250000
+            }
+          },
+          "required": [
+            "key",
+            "file",
+            "bytes",
+            "sha256",
+            "rows"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "key": {
+              "const": "TRADELINES"
+            },
+            "file": {
+              "const": "TRADELINES.csv"
+            },
+            "bytes": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 536870912
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "rows": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 250000
+            }
+          },
+          "required": [
+            "key",
+            "file",
+            "bytes",
+            "sha256",
+            "rows"
+          ],
+          "additionalProperties": false
+        }
+      ],
+      "items": false,
+      "minItems": 8,
+      "maxItems": 8
+    },
+    "download_urls": {
+      "type": "object",
+      "properties": {
+        "ZIP": {
+          "type": "string",
+          "pattern": "^https://github\\.com/kovacsphil\\-art/synthetic_banking/releases/download/sage-demo-v[1-9][0-9]*(?:\\.[0-9]+)*/SAGE_DEMO_ONLY\\.zip$"
+        },
+        "DICTIONARY": {
+          "type": "string",
+          "pattern": "^https://github\\.com/kovacsphil\\-art/synthetic_banking/releases/download/sage-demo-v[1-9][0-9]*(?:\\.[0-9]+)*/data_dictionary\\.md$"
+        },
+        "PERSON": {
+          "type": "string",
+          "pattern": "^https://github\\.com/kovacsphil\\-art/synthetic_banking/releases/download/sage-demo-v[1-9][0-9]*(?:\\.[0-9]+)*/PERSON\\.csv$"
+        },
+        "CUSTOMER_ACCOUNT_REL": {
+          "type": "string",
+          "pattern": "^https://github\\.com/kovacsphil\\-art/synthetic_banking/releases/download/sage-demo-v[1-9][0-9]*(?:\\.[0-9]+)*/CUSTOMER_ACCOUNT_REL\\.csv$"
+        },
+        "CUSTOMER_RELATIONSHIP": {
+          "type": "string",
+          "pattern": "^https://github\\.com/kovacsphil\\-art/synthetic_banking/releases/download/sage-demo-v[1-9][0-9]*(?:\\.[0-9]+)*/CUSTOMER_RELATIONSHIP\\.csv$"
+        },
+        "TKQ_ACCOUNT": {
+          "type": "string",
+          "pattern": "^https://github\\.com/kovacsphil\\-art/synthetic_banking/releases/download/sage-demo-v[1-9][0-9]*(?:\\.[0-9]+)*/TKQ_ACCOUNT\\.csv$"
+        },
+        "TKQ_ACCOUNT_BALANCE": {
+          "type": "string",
+          "pattern": "^https://github\\.com/kovacsphil\\-art/synthetic_banking/releases/download/sage-demo-v[1-9][0-9]*(?:\\.[0-9]+)*/TKQ_ACCOUNT_BALANCE\\.csv$"
+        },
+        "TRADELINES": {
+          "type": "string",
+          "pattern": "^https://github\\.com/kovacsphil\\-art/synthetic_banking/releases/download/sage-demo-v[1-9][0-9]*(?:\\.[0-9]+)*/TRADELINES\\.csv$"
+        }
+      },
+      "required": [
+        "ZIP",
+        "DICTIONARY",
+        "PERSON",
+        "CUSTOMER_ACCOUNT_REL",
+        "CUSTOMER_RELATIONSHIP",
+        "TKQ_ACCOUNT",
+        "TKQ_ACCOUNT_BALANCE",
+        "TRADELINES"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "schema_version",
+    "release_mode",
+    "baseline",
+    "verification",
+    "dataset_version",
+    "generation_date",
+    "exported_at",
+    "verified_at",
+    "privacy_status",
+    "preview_sha256",
+    "repository",
+    "publication_status",
+    "publication_checked_at",
+    "assets"
+  ],
+  "additionalProperties": false
+}

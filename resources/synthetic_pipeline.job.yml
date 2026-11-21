@@ -5,6 +5,8 @@ resources:
       description: Explicit SOURCE lineage, manual rule review, privacy row-release screening and sanitized reporting.
       max_concurrent_runs: 1
       parameters:
+        - name: demo_release_mode
+          default: DISABLED
         - name: reuse_source_run_id
           default: ""
         - name: reuse_batch_id
@@ -94,9 +96,27 @@ resources:
               batch_id: "{{tasks.llm_proposal.values.batch_id}}"
               generation_id: "{{tasks.synthetic_generation.values.generation_id}}"
               generated_run_id: "{{tasks.generated_profile.values.generated_run_id}}"
-        - task_key: reporting
+        - task_key: demo_export_verification
           depends_on:
             - task_key: validate
+          existing_cluster_id: ${var.cluster_id}
+          max_retries: 0
+          timeout_seconds: 3600
+          notebook_task:
+            notebook_path: ../notebooks/10_Verify_Demo_Export.py
+            base_parameters:
+              release_mode: "{{job.parameters.demo_release_mode}}"
+              source_run_id: "{{tasks.validate.values.source_run_id}}"
+              batch_id: "{{tasks.validate.values.batch_id}}"
+              generation_id: "{{tasks.validate.values.generation_id}}"
+              generated_run_id: "{{tasks.validate.values.generated_run_id}}"
+              validation_status: "{{tasks.validate.values.validation_status}}"
+              privacy_assessment_id: "{{tasks.privacy_check.values.privacy_assessment_id}}"
+              workflow_run_id: "{{job.run_id}}"
+              report_output_dir: ${var.report_output_dir}
+        - task_key: reporting
+          depends_on:
+            - task_key: demo_export_verification
           existing_cluster_id: ${var.cluster_id}
           max_retries: 0
           notebook_task:
@@ -111,3 +131,5 @@ resources:
               report_output_dir: ${var.report_output_dir}
               workflow_run_id: "{{job.run_id}}"
               privacy_assessment_id: "{{tasks.privacy_check.values.privacy_assessment_id}}"
+              demo_export_status: "{{tasks.demo_export_verification.values.demo_export_status}}"
+              demo_dataset_version: "{{tasks.demo_export_verification.values.demo_dataset_version}}"

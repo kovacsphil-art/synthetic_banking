@@ -1,0 +1,36 @@
+resources:
+  jobs:
+    demo_dataset_export:
+      name: sage-private-demo-dataset-export
+      description: Opt-in DEMO_ONLY packaging of six verified fabricated-development tables. Never publishes.
+      max_concurrent_runs: 1
+      parameters:
+        - name: release_mode
+          default: DISABLED
+        - name: dataset_version
+          default: ""
+        - name: source_run_id
+          default: ""
+        - name: batch_id
+          default: ""
+        - name: generation_id
+          default: ""
+        - name: generated_run_id
+          default: ""
+        - name: privacy_assessment_id
+          default: ""
+      tasks:
+        - task_key: demo_dataset_export
+          # Standalone serverless task, with no schedule or publication dependency.
+          max_retries: 0
+          timeout_seconds: 3600
+          notebook_task:
+            notebook_path: ../notebooks/08_Demo_Dataset_Export.py
+            base_parameters:
+              release_mode: "{{job.parameters.release_mode}}"
+              dataset_version: "{{job.parameters.dataset_version}}"
+              source_run_id: "{{job.parameters.source_run_id}}"
+              batch_id: "{{job.parameters.batch_id}}"
+              generation_id: "{{job.parameters.generation_id}}"
+              generated_run_id: "{{job.parameters.generated_run_id}}"
+              privacy_assessment_id: "{{job.parameters.privacy_assessment_id}}"

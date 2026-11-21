@@ -37,3 +37,5 @@ targets:
               existing_cluster_id: ""
             - task_key: reporting
               existing_cluster_id: ""
+            - task_key: demo_export_verification
+              existing_cluster_id: ""

@@ -83,7 +83,11 @@ SOURCE is fabricated development data. These signals do not prove real-customer 
 
 ## Mandatory guard for future row-level publication
 
-Any future CSV/Parquet/ZIP exporter, download endpoint or publication task must call this immediately before emitting records:
+The optional [automated demo branch](automated-demo-publication.md) is limited to the separately proven fabricated workflow. It requires both Databricks `demo_release_mode=DEMO_ONLY` and GitHub `SAGE_PUBLISH_DEMO_DATASETS=true`; neither is enabled by this implementation. Complete six-table SOURCE/generated replay and full content checks precede transport to the reporting Volume, and a complete matching draft Release precedes publication. Privacy REVIEW_REQUIRED remains visible and unchanged. This branch cannot authorize uncertain or production-derived inputs. Disable both switches for ordinary aggregate-only operation; general row release still uses the mandatory guard below.
+
+The separate [DEMO_ONLY exporter](demo-dataset-export.md) permits **private packaging only** after exact six-table reproduction proves the approved fabricated development origin. It does not call or weaken `require_row_level_release`, overwrite privacy status, grant production-data clearance, or publish rows. Complete REVIEW_REQUIRED findings remain in the demo metadata. Unknown/actual banking origins, incomplete checks or failed replay stop the demo export. General row-level publication still uses the guard below. The prepared website controls require a separately verified fabricated DEMO_ONLY export and a later explicit Release publication decision; they are currently disabled. See the [download contract](dataset-downloads.md).
+
+Any general-purpose CSV/Parquet/ZIP release, download endpoint or publication task must call this immediately before emitting records. The explicitly scoped private fabricated-origin packaging above is not general release clearance:
 
 ```python
 from synthetic_banking.privacy import require_row_level_release
@@ -97,7 +101,7 @@ clearance = require_row_level_release(
 
 The guard rejects missing/in-progress/failed/review-required assessments, a nonlatest assessment ID, changed policy, incomplete check coverage, altered SOURCE snapshot evidence, replaced source identities, or changed generated tables/audits. It verifies the explicit generation and all stored Delta versions, not a Boolean supplied by a caller. A later incomplete/blocked assessment cannot be bypassed with an older passing ID. The default policy must match the assessment; a deliberately configured alternative must be supplied consistently to both calls.
 
-The old `zip_existing_csvs` utility is disabled: arbitrary existing CSVs have no manifest proving they came from the checked generation. Even a passing Delta assessment cannot authorize unrelated CSV files. No archive is created or copied by that helper. This repository has no approved generation-bound row-level exporter yet.
+The old `zip_existing_csvs` utility is disabled: arbitrary existing CSVs have no manifest proving they came from the checked generation. Even a passing Delta assessment cannot authorize unrelated CSV files. No archive is created or copied by that helper. Notebook 08 is limited to the separately verified private DEMO_ONLY workflow; no automatic row-release/publication stage exists. Preparing download metadata does not publish files or clear privacy findings.
 
 This gate is an application safeguard, not access-control enforcement against workspace owners or users who can directly copy tables. Restrict raw/generated-table access and independently review purpose, recipient, auxiliary-data risks, sensitive fields and any repeated releases before external sharing. These checks do not test membership inference, attribute inference, attacks using other tables/variables, or cumulative disclosure across releases; they neither implement nor certify formal anonymization.
 

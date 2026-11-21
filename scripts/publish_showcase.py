@@ -1,6 +1,7 @@
 """Retrieve one successful job's public report; never download tables or job logs."""
 
 import json
+import hashlib
 import os
 import re
 from pathlib import Path, PurePosixPath
@@ -9,7 +10,7 @@ from datetime import datetime
 
 ROOT = Path(__file__).resolve().parents[1]
 TASKS = {"source_profile", "llm_proposal", "approval_check", "synthetic_generation",
-         "privacy_check", "generated_profile", "validate", "reporting"}
+         "privacy_check", "generated_profile", "validate", "demo_export_verification", "reporting"}
 MAX_BYTES = 1024 * 1024
 WARNINGS = {
     "FIDELITY_THRESHOLDS_NOT_CONFIGURED": "Integrity passed. Statistical differences are observations for review, without an overall acceptance score.",
@@ -61,10 +62,10 @@ def validated_tasks(run, job_id):
     """Check final attempts, including API responses containing retry history."""
     tasks = run.get("tasks") or []
     if (run.get("job_id") != job_id or not successful(run)
-            or {t.get("task_key") for t in tasks} != TASKS):
+            or {t.get("task_key") for t in tasks} not in (TASKS, TASKS - {'demo_export_verification'})):
         raise ValueError("All expected pipeline tasks must have succeeded for this job.")
     latest = []
-    for name in sorted(TASKS):
+    for name in sorted({t['task_key'] for t in tasks}):
         attempts = [t for t in tasks if t["task_key"] == name]
         if len(attempts) > 1:
             # Repairs can reset attempt_number; start_time identifies chronology.
@@ -101,7 +102,7 @@ def report_path(run, output, job_id, base_dir):
     return expected
 
 
-def retrieve(client, job_id, base_dir, run_id=None):
+def retrieve(client, job_id, base_dir, run_id=None, with_receipt=False):
     if run_id:
         run = client.jobs.get_run(run_id=run_id).as_dict()
     else:
@@ -124,9 +125,76 @@ def retrieve(client, job_id, base_dir, run_id=None):
     finally:
         response.contents.close()
     report = validate_report(raw)
-    if report["schema_version"] != json.loads(output["notebook_output"]["result"])["schema_version"]:
+    receipt = json.loads(output["notebook_output"]["result"])
+    if report["schema_version"] != receipt["schema_version"]:
         raise ValueError("Report and execution receipt versions differ.")
-    return report
+    if receipt.get('report_sha256') is not None and hashlib.sha256(raw).hexdigest() != receipt['report_sha256']:
+        raise ValueError('Report checksum differs from its execution receipt.')
+    if 'demo_dataset' in report and (receipt.get('demo_export_status') != 'VERIFIED_DEMO_ONLY' or
+            not receipt.get('report_sha256') or 'demo_export_verification' not in {t['task_key'] for t in tasks}):
+        raise ValueError('Verified execution-bound demo receipt required.')
+    return (report, run, receipt) if with_receipt else report
+
+
+def retrieve_demo(client, report, run, receipt, base_dir, destination):
+    """Only fixed filenames inside this successful execution's reporting folder.
+
+    No SOURCE/Delta reads. Local files stay ignored and are never Git-staged.
+    """
+    from jsonschema import Draft202012Validator, FormatChecker
+    reference = report.get('demo_dataset')
+    if not reference or receipt.get('demo_export_status') != 'VERIFIED_DEMO_ONLY':
+        raise ValueError('This execution has no eligible demo export.')
+    folder = PurePosixPath(base_dir) / 'runs' / str(run['run_id']) / 'demo'
+    destination = Path(destination)
+    destination.mkdir(parents=True, exist_ok=True)
+
+    def read(name, maximum, expected=None):
+        response = client.files.download(str(folder / name))
+        target = destination / name
+        size, digest = 0, hashlib.sha256()
+        try:
+            with target.open('wb') as stream:
+                while True:
+                    chunk = response.contents.read(min(1024*1024, maximum-size+1))
+                    if not chunk:
+                        break
+                    size += len(chunk)
+                    if size > maximum:
+                        raise ValueError('Demo artifact exceeds its limit.')
+                    digest.update(chunk)
+                    stream.write(chunk)
+        finally:
+            response.contents.close()
+        if expected and (size != expected['bytes'] or digest.hexdigest() != expected['sha256']):
+            raise ValueError('Demo artifact changed after verification.')
+        return target
+
+    manifest_path = read('dataset-downloads.json', 16*1024)
+    if hashlib.sha256(manifest_path.read_bytes()).hexdigest() != receipt.get('demo_manifest_sha256'):
+        raise ValueError('Demo manifest differs from the reporting receipt.')
+    manifest = json.loads(manifest_path.read_bytes())
+    schema = json.loads((ROOT / 'docs/reporting/dataset-downloads.schema.json').read_text())
+    if (not Draft202012Validator(schema, format_checker=FormatChecker()).is_valid(manifest) or
+            manifest.get('publication_status') != 'UNPUBLISHED' or manifest.get('publication_checked_at') is not None or
+            {k:manifest.get(k) for k in ('dataset_version','release_mode','preview_sha256')} != reference or
+            manifest.get('privacy_status') != report.get('privacy',{}).get('status')):
+        raise ValueError('Demo download metadata differs from the validated report.')
+    counts = {r['table']:r['value'] if r['status']=='AVAILABLE' else None for r in report['generation']['table_rows']}
+    if sum(a['bytes'] for a in manifest['assets'][2:]) > 512*1024*1024:
+        raise ValueError('Demo package exceeds its reviewed byte budget.')
+    if any(a['rows'] != counts.get(a['key']) for a in manifest['assets'][2:]):
+        raise ValueError('Demo table counts differ from the report.')
+    preview_path = read('demo-preview.json', 96*1024)
+    if hashlib.sha256(preview_path.read_bytes()).hexdigest() != manifest['preview_sha256']:
+        raise ValueError('Demo preview differs from this execution.')
+    for asset in manifest['assets']:
+        read(asset['file'], asset['bytes'], asset)
+    if str(ROOT/'src') not in sys.path:
+        sys.path.insert(0,str(ROOT/'src'))
+    from synthetic_banking.demo_artifact_validation import verify_demo_package
+    verify_demo_package(destination,manifest)
+    return destination
 
 
 def save_report(report, target):
@@ -148,14 +216,21 @@ def main():
     from databricks.sdk import WorkspaceClient
     job_id = int(os.environ["DATABRICKS_JOB_ID"])
     run_id = os.environ.get("PIPELINE_RUN_ID", "").strip()
-    report = retrieve(WorkspaceClient(), job_id, os.environ["REPORT_OUTPUT_DIR"], int(run_id) if run_id else None)
-    if report is None:
+    client = WorkspaceClient()
+    result = retrieve(client, job_id, os.environ["REPORT_OUTPUT_DIR"], int(run_id) if run_id else None, with_receipt=True)
+    if result is None:
         print("No successful pipeline execution is available; published site retained.")
         return
+    report, run, receipt = result
+    demo_ready = False
+    if os.environ.get('SAGE_PUBLISH_DEMO_DATASETS') == 'true' and report.get('demo_dataset'):
+        retrieve_demo(client, report, run, receipt, os.environ['REPORT_OUTPUT_DIR'], ROOT / '.databricks/publication/demo')
+        demo_ready = True
     save_report(report, ROOT / "docs/latest-pipeline.json")
     print("Validated sanitized report ready for publication.")
     with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
         output.write("ready=true\n")
+        output.write('demo_ready=' + str(demo_ready).lower() + '\n')
 
 
 if __name__ == "__main__":

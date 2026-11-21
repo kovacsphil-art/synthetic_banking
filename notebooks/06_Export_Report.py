@@ -27,12 +27,21 @@ dbutils.widgets.text("privacy_assessment_id", "")
 execution["privacy_assessment_id"] = dbutils.widgets.get("privacy_assessment_id").strip()
 workflow_run_id = dbutils.widgets.get("workflow_run_id").strip()
 output_dir = dbutils.widgets.get("report_output_dir").strip()
+dbutils.widgets.text("demo_export_status", "DISABLED")
+dbutils.widgets.text("demo_dataset_version", "")
+from synthetic_banking.demo_workflow import reporting_demo_context, IDS
+demo_status = dbutils.widgets.get("demo_export_status").strip()
+demo_dataset, demo_manifest_sha256 = reporting_demo_context(output_dir, workflow_run_id, demo_status,
+    dbutils.widgets.get("demo_dataset_version").strip(), {k: execution[k] for k in IDS}, include_manifest_hash=True)
 if workflow_run_id:
     required_id(execution["privacy_assessment_id"], "privacy assessment_id")
     if not workflow_run_id.isascii() or not workflow_run_id.isdigit():
         raise ValueError("A numeric Databricks workflow run ID is required.")
     # Bind the downloaded artifact to this job execution, including repaired runs.
     output_dir = str(PurePosixPath(output_dir) / "runs" / workflow_run_id)
-report_path = export_public_report(spark, output_dir, **execution)
+report_path = export_public_report(spark, output_dir, demo_dataset=demo_dataset, **execution)
 publish_values(dbutils, report_path=str(report_path), report_schema_version=SCHEMA_VERSION, pipeline_status="COMPLETED")
-dbutils.notebook.exit(json.dumps({"report_path": str(report_path), "schema_version": SCHEMA_VERSION}))
+from synthetic_banking.demo_export import digest_file
+dbutils.notebook.exit(json.dumps({"report_path": str(report_path), "schema_version": SCHEMA_VERSION,
+    "report_sha256": digest_file(report_path), "demo_export_status": demo_status,
+    "demo_manifest_sha256": demo_manifest_sha256}))

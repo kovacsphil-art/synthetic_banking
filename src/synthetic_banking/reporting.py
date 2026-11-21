@@ -175,9 +175,11 @@ def load_public_report(spark, source_run_id, batch_id, generation_id, generated_
     return report
 
 
-def export_public_report(spark, output_dir, **execution):
+def export_public_report(spark, output_dir, demo_dataset=None, **execution):
     """Replace one latest-success artifact only after all validation/build steps succeed."""
     report = load_public_report(spark, **execution)
+    if demo_dataset is not None:
+        report['demo_dataset'] = demo_dataset
     destination = Path(output_dir)
     if not destination.is_absolute():
         raise ValueError("Use an absolute writable report directory, such as a Databricks Volume.")

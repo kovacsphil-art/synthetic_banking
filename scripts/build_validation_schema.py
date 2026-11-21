@@ -89,6 +89,9 @@ def build_schema():
     schema["description"] = "Sanitized aggregates and prototype validation screening; no execution IDs or row records."
     schema["properties"]["schema_version"] = {"const": "2.0"}
     schema["properties"]["validation_report"] = report
+    schema['properties']['demo_dataset'] = obj(dict(
+        dataset_version={'type':'string','pattern':r'^sage-demo-v[1-9][0-9]*(\.[0-9]+)*$'},
+        release_mode={'const':'DEMO_ONLY'}, preview_sha256={'type':'string','pattern':'^[0-9a-f]{64}$'}))
     privacy_policy=obj(dict(rare_min_count={'type':'integer','minimum':1},max_synthetic_rare_fraction=rate,
         min_complete_fraction={'type':'number','exclusiveMinimum':0,'maximum':1},
         near_date_days={'type':'integer','minimum':0,'maximum':366},max_similarity_candidates={'type':'integer','minimum':1}))

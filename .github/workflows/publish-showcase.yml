@@ -45,18 +45,28 @@ jobs:
           DATABRICKS_JOB_ID: ${{ vars.DATABRICKS_JOB_ID }}
           REPORT_OUTPUT_DIR: ${{ vars.REPORT_OUTPUT_DIR }}
           PIPELINE_RUN_ID: ${{ inputs.pipeline_run_id }}
+          SAGE_PUBLISH_DEMO_DATASETS: ${{ vars.SAGE_PUBLISH_DEMO_DATASETS }}
         run: python scripts/publish_showcase.py
       - name: Check webpage contract
         if: steps.report.outputs.ready == 'true'
         run: |
           node -e "require('./docs/results.js').normalizeReport(require('./docs/latest-pipeline.json'))"
           node -e "const r=require('./docs/latest-pipeline.json'); const v=require('./docs/validation.js').normalizeValidation(r); if(r.schema_version==='2.0' && r.validation_report.status==='AVAILABLE' && !v) process.exit(1)"
-      - name: Commit only the sanitized report
+      - name: Publish only this execution's verified fabricated demo
+        if: steps.report.outputs.demo_ready == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SAGE_PUBLISH_DEMO_DATASETS: ${{ vars.SAGE_PUBLISH_DEMO_DATASETS }}
+        run: node scripts/publish_demo_release.cjs
+      - name: Commit only verified public reporting metadata and bounded preview
         if: steps.report.outputs.ready == 'true'
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -- docs/latest-pipeline.json
+          if [ '${{ steps.report.outputs.demo_ready }}' = 'true' ]; then
+            git add -- docs/dataset-downloads.json docs/demo-preview.json
+          fi
           if ! git diff --cached --quiet; then
             git commit -m "Update sanitized showcase results"
             git push
@@ -66,6 +76,11 @@ jobs:
         run: |
           mkdir _site
           cp docs/index.html docs/styles.css docs/results.js docs/validation.html docs/validation.js docs/validation-config.js docs/executive-viz.js docs/showcase.js docs/latest-pipeline.json _site/
+          cp docs/records.js docs/records-config.js _site/
+          cp docs/downloads.js _site/
+          if [ '${{ steps.report.outputs.demo_ready }}' = 'true' ]; then
+            cp docs/demo-preview.json docs/dataset-downloads.json _site/
+          fi
           touch _site/.nojekyll
       - uses: actions/upload-pages-artifact@v3
         if: steps.report.outputs.ready == 'true'

@@ -10,7 +10,8 @@ The orchestrated workflow keeps one SOURCE baseline through generation, validati
 01 SOURCE profile → 02 LLM proposal batch → 04 Manual approval check
   → 03 Synthetic generation → 07 Privacy screening
   → 01 GENERATED profile → 05 SOURCE-vs-GENERATED validation
-  → 06 Sanitized reporting JSON → GitHub Actions → Static GitHub Pages site
+  → 10 Demo export verification (opt-in; otherwise DISABLED)
+  → 06 Sanitized reporting JSON → optional verified GitHub Release → Static GitHub Pages site
 ```
 
 Notebook 03 uses the selected SOURCE statistics and predefined Python implementations. Reviewed proposals can select two balance formulas, utilization-conditioned delinquency, two account-product categorical dependencies and credit-limit/balance rank coupling. Generation retains the previous path when a target has no unique eligible, sufficiently evidenced approval. See [phase-one methods and results](docs/statistical-fidelity-phase1.md) and [local checks](#local-checks).
@@ -81,7 +82,19 @@ The first live pilot completed after individual review, isolated validation and 
 
 The job runs Notebook 07 after generation and saves separate aggregate privacy metrics: identifier-domain overlap, exact SOURCE-row matches, payload copying with regenerated IDs, curated rare categorical patterns and bounded PERSON date/gender similarity. SOURCE snapshots are recorded and verified by Notebook 01; older SOURCE runs without that evidence cannot clear row release. See [privacy checks, thresholds and limitations](docs/privacy.md).
 
-`PASS`, `REVIEW_REQUIRED` and `BLOCKED` describe this basic screen, not anonymization certification. Unresolved findings, missing inputs, errors or resource limits block any future row exporter through `require_row_level_release`. The existing unbound-CSV ZIP helper is disabled. Aggregate fidelity JSON and the HTML showcase continue independently, and their validation PASS must not be read as privacy approval. No dataset download/publication feature is enabled.
+`PASS`, `REVIEW_REQUIRED` and `BLOCKED` describe this basic screen, not anonymization certification. Unresolved findings, missing inputs, errors or resource limits block any future row exporter through `require_row_level_release`. The existing unbound-CSV ZIP helper is disabled. Aggregate fidelity JSON and the HTML showcase continue independently, and their validation PASS must not be read as privacy approval. General row-level publication remains blocked. The separately verified fabricated DEMO_ONLY download controls are prepared but unpublished; they do not change privacy clearance.
+
+### Private DEMO_ONLY dataset export
+
+Notebook 08 and the separate unscheduled `demo_dataset_export` job package the six existing generated Delta tables into CSVs and one ZIP, with a data dictionary and versioned metadata. The stage requires exact reproduction of the pinned fabricated SOURCE and generated cohort, reviewed schema/content checks and matching validation/privacy provenance. `DEMO_ONLY` must be selected explicitly; uncertain origin stops export. Privacy REVIEW_REQUIRED is retained. The standalone export keeps files in the private development Volume. The opt-in automated verification task below can copy a fully verified package to its run-scoped reporting folder; publication remains separately controlled. See [parameters, safeguards and output format](docs/demo-dataset-export.md).
+
+The export also creates a separate, sanitized `demo-preview.json`: the first 15 generated records per table with a small fixed column selection. The overview's **Explore synthetic records** section reads only this bounded file, with table selection, full-table counts, a column guide and relationship explanations. No full dataset is loaded into the browser; privacy status and disabled dataset downloads remain explicit. Its versioned demo snapshot is separate from the latest Validation Report. See the [preview contract and preparation steps](docs/records-preview.md). Preview preparation does not publish or deploy the website.
+
+### Automated demo export and downloads — opt-in
+
+The main job now includes `demo_export_verification` after validation (nine tasks). It reuses the existing exporter and verification modules for the exact validated cohort. Set job parameter `demo_release_mode=DEMO_ONLY` to opt in; DISABLED continues aggregate reporting. A full six-table replay must prove the approved fabricated SOURCE and generated origin. Privacy REVIEW_REQUIRED remains separate and unchanged.
+
+Public dataset distribution additionally requires GitHub Actions variable `SAGE_PUBLISH_DEMO_DATASETS=true`. Actions uploads the eight verified assets to a draft versioned Release, publishes only a complete matching set, and updates the report, small preview and public download manifest together. The browser checks their common version/fingerprint/counts before enabling ZIP/CSV/dictionary links. Missing or mismatched evidence disables links. CSVs/ZIPs never enter Git or Pages assets. Failure retains previous valid downloads; an intentional disable omits demo metadata on subsequent site deployments. See [triggering, lineage, failure recovery and disable controls](docs/automated-demo-publication.md). The implementation is local; live bundle/Actions configuration and an opt-in execution still require deployment.
 
 ### Optional setup for fake SOURCE inputs
 
@@ -91,7 +104,7 @@ Set `SCHEMA_XLSX` and `OUTPUT_DIR` for your workspace. The output directory must
 
 ### Project showcase and GitHub Pages
 
-Open [docs/index.html](docs/index.html) in a browser to view the static showcase. Automated publishing uses [Publish validated showcase](.github/workflows/publish-showcase.yml): GitHub polls for a successful Databricks job every 15 minutes, validates its run-specific sanitized JSON, commits only `docs/latest-pipeline.json`, and deploys an explicit list of static assets using GitHub Pages. Choose **Settings → Pages → GitHub Actions**, then configure the secrets and variables in the [publication runbook](docs/publication.md). Failed runs and invalid reports leave the published site intact. **Actions → Publish validated showcase → Run workflow** provides a manual trigger.
+Open [docs/index.html](docs/index.html) in a browser to view the static showcase. Automated publishing uses [Publish validated showcase](.github/workflows/publish-showcase.yml): GitHub polls for a successful Databricks job every 15 minutes, validates its run-specific sanitized JSON, commits the sanitized report (plus the matching bounded preview/download manifest when demo publication is enabled), and deploys an explicit list of static assets using GitHub Pages. Choose **Settings → Pages → GitHub Actions**, then configure the secrets and variables in the [publication runbook](docs/publication.md). Failed runs and invalid reports leave the published site intact. **Actions → Publish validated showcase → Run workflow** provides a manual trigger.
 
 The SAGE showcase presents the process as an executive overview, with keyboard/touch-accessible stage explanations and measured results separated from static methodology. `showcase.js` loads `docs/latest-pipeline.json`, reusing the existing report checks; `executive-viz.js` draws the published aggregates. Architecture, profiling methodology and review explanations remain static. Missing/invalid files show a professional unavailable state. The documentation example is never loaded as live results.
 
@@ -101,7 +114,7 @@ The dedicated [Validation Report — Original vs Synthetic Data](docs/validation
 
 Reporting is now **schema version 2.0**. The SAGE executive views require version 2; the publisher and legacy summary loader still accept version 1. Numeric fidelity bars use average absolute P25/P50/P75/P95 differences relative to SOURCE IQR, while classifications use the worst percentile difference. Categories/nulls use percentage points; date/cardinality distributions use total variation; correlations use absolute differences. The displayed tolerances are prototype screening settings, not an overall quality score or calibrated release criteria. Integrity PASS and privacy clearance remain separate from statistical similarity.
 
-The reporting task writes `<report_output_dir>/runs/<job-run-id>/latest-pipeline.json`. GitHub retrieves only that exact successful run's report, validates the closed public schema, updates `docs/latest-pipeline.json`, and deploys the explicitly listed static website files. It does not start Databricks jobs or approve rules. Credentials belong in GitHub Actions Secrets (`DATABRICKS_HOST`, `DATABRICKS_CLIENT_ID`, `DATABRICKS_CLIENT_SECRET`); job/path settings are Actions variables (`DATABRICKS_JOB_ID`, `REPORT_OUTPUT_DIR`). The reporting identity has job CAN VIEW and read access to the dedicated report Volume. Rotate its OAuth secret before expiry; the current setup uses a 90-day lifetime. No credential values or row exports belong in Git.
+The reporting task writes `<report_output_dir>/runs/<job-run-id>/latest-pipeline.json`. GitHub retrieves that exact successful run's report and, only with the explicit demo-publication switch, its verified run-scoped demo assets. It validates the closed contracts, updates the public metadata and deploys the explicitly listed static website files. It does not start Databricks jobs or approve rules. Credentials belong in GitHub Actions Secrets (`DATABRICKS_HOST`, `DATABRICKS_CLIENT_ID`, `DATABRICKS_CLIENT_SECRET`); job/path settings are Actions variables (`DATABRICKS_JOB_ID`, `REPORT_OUTPUT_DIR`). The reporting identity has job CAN VIEW and read access to the dedicated report Volume. Rotate its OAuth secret before expiry; the current setup uses a 90-day lifetime. No credential values or row exports belong in Git.
 
 The configured public repository uses GitHub Free for Pages; GitHub Pro is not needed for this public setup. Full configuration and failure/retry behavior are in the [publication runbook](docs/publication.md).
 
@@ -1165,7 +1178,7 @@ Publication tests additionally use `jsonschema==4.23.0` (`python -m pip install 
 ```powershell
 node --check docs/results.js
 node --check docs/validation.js
-node --test tests/test_results.cjs tests/test_validation_page.cjs
+node --test tests/test_results.cjs tests/test_validation_page.cjs tests/test_executive_showcase.cjs tests/test_records.cjs tests/test_downloads.cjs tests/test_demo_release.cjs
 ```
 
 The tests use fabricated inputs to check date distributions/nulls/order/repeatability, categorical statistics and limits, aggregate-only prompt context, provenance filtering, rule dispatch, generated output validation, and fidelity metrics/history. Refactor checks cover SOURCE selection, preflight, proposal batches, unchanged profiler aggregations/SQL/prompts, and generator parity with two pre-refactor fabricated baselines (six tables, audits, graph plan, and RNG state). Workflow/report checks cover approval stops, changed review metadata, strict handoffs, sanitized output and preservation of the last successful export. Privacy checks execute against fabricated rows in an in-memory SQL adapter and exercise overlap, copying, rarity, similarity, snapshot and release-guard behavior. Install pandas alongside NumPy to run all generator integration checks locally; those checks skip when pandas is unavailable. Databricks provides these runtime libraries. Verify bundle deployment, task values/repair, notebook execution and Delta/Volume writes separately in a Databricks test destination.
@@ -1174,9 +1187,9 @@ The tests use fabricated inputs to check date distributions/nulls/order/repeatab
 
 # Showcase boundary
 
-The implemented static showcase explains methodology in `docs/index.html` and presents measured results in `docs/validation.html`. Both read sanitized aggregate reporting data; neither connects directly to Databricks or offers row-level dataset downloads. Missing evidence remains visible as unavailable/pending, and strengths/weaknesses are computed from measured results rather than editorial claims.
+The implemented static showcase explains methodology in `docs/index.html` and presents measured results in `docs/validation.html`. Validation uses sanitized aggregate reporting data; the overview separately loads a bounded, verified fabricated demo preview. Neither page connects directly to Databricks. The overview separately offers version-pinned GitHub Release links only for a matching verified, published DEMO_ONLY export; the current files remain unpublished. Missing evidence remains visible as unavailable/pending, and strengths/weaknesses are computed from measured results rather than editorial claims.
 
-The Pages deployment includes only explicitly listed public HTML/CSS/JavaScript and `latest-pipeline.json`. Notebook outputs, internal fidelity/privacy reports, source/generated tables, credentials and documentation fixtures are not website assets. See the [public report contract](docs/reporting/README.md) and [publication boundary](docs/publication.md).
+The Pages deployment includes only explicitly listed public HTML/CSS/JavaScript, the sanitized report, and, when enabled and verified, matching small preview/download metadata. Full dataset files use versioned GitHub Releases. Notebook outputs, internal fidelity/privacy reports, source/generated tables, credentials and documentation fixtures are not website assets. See the [public report contract](docs/reporting/README.md) and [publication boundary](docs/publication.md).
 
 ---
 

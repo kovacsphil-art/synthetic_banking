@@ -118,7 +118,7 @@ class ReportingTests(unittest.TestCase):
         schema = json.loads((folder / "pipeline-report.schema.json").read_text())
         actual = build_public_report([], {}, validation_passed=True)
         self.assertEqual(set(example), set(schema["required"]))
-        self.assertEqual(set(actual), set(schema["properties"]))
+        self.assertEqual(set(actual), set(schema["properties"]) - {'demo_dataset'})
         self.assertEqual(set(example["generation"]), set(actual["generation"]))
         self.assertEqual(example["schema_version"], "2.0")
         for field in ("numeric_differences", "categorical_differences"):

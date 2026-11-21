@@ -3,7 +3,8 @@
 
 # COMMAND ----------
 
-dbutils.library.restartPython()
+if __name__ == "__main__":
+    dbutils.library.restartPython()
 
 # COMMAND ----------
 

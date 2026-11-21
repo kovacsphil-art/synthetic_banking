@@ -1,0 +1,73 @@
+{
+  "schema_version": "1.0",
+  "release_mode": "DEMO_ONLY",
+  "baseline": "FABRICATED_DEVELOPMENT",
+  "verification": "VERIFIED_DEMO_ONLY",
+  "dataset_version": "sage-demo-v1.1",
+  "generation_date": "2026-11-21T00:06:18.449782+00:00",
+  "exported_at": "2026-11-21T01:49:07.598308+00:00",
+  "verified_at": "2026-11-21T02:09:22.430456+00:00",
+  "privacy_status": "REVIEW_REQUIRED",
+  "preview_sha256": "8f9d150433be7f57f6acdcaa7fdcfd18cd963dfe576076428935adbe59e2235f",
+  "repository": "kovacsphil-art/synthetic_banking",
+  "publication_status": "UNPUBLISHED",
+  "publication_checked_at": null,
+  "assets": [
+    {
+      "key": "ZIP",
+      "file": "SAGE_DEMO_ONLY.zip",
+      "bytes": 9631148,
+      "sha256": "d604a73f955bf48d05e81728ec25b5821155a0a66e9ec8b7b863c76677a3b06d",
+      "rows": null
+    },
+    {
+      "key": "DICTIONARY",
+      "file": "data_dictionary.md",
+      "bytes": 23548,
+      "sha256": "b8f6b58b3d41867d1771f1ecdae082ff4f030eaa7b61702d71a5286d2dc7bb92",
+      "rows": null
+    },
+    {
+      "key": "PERSON",
+      "file": "PERSON.csv",
+      "bytes": 1236687,
+      "sha256": "d2a4e5d671afe76e0f18169dfa482846dee91a2b4dbebe800060fa496e725629",
+      "rows": 10000
+    },
+    {
+      "key": "CUSTOMER_ACCOUNT_REL",
+      "file": "CUSTOMER_ACCOUNT_REL.csv",
+      "bytes": 695302,
+      "sha256": "13a0499fb0725e227acdf3f8ec14d91bbb95e2986d817e99a90b1653f190fbd9",
+      "rows": 17313
+    },
+    {
+      "key": "CUSTOMER_RELATIONSHIP",
+      "file": "CUSTOMER_RELATIONSHIP.csv",
+      "bytes": 60068,
+      "sha256": "b2aa0f458f6f28233793e34b4cbf81db728aae4dbe4a77e6a589ef6706a7b51a",
+      "rows": 1120
+    },
+    {
+      "key": "TKQ_ACCOUNT",
+      "file": "TKQ_ACCOUNT.csv",
+      "bytes": 12821558,
+      "sha256": "bd1a137a7f3067381c256ca3e207432e8eb0695d5f7afe95933f99e4fd6afbbc",
+      "rows": 17313
+    },
+    {
+      "key": "TKQ_ACCOUNT_BALANCE",
+      "file": "TKQ_ACCOUNT_BALANCE.csv",
+      "bytes": 8225414,
+      "sha256": "4d00f8174a5f2f18f7019e77c8a865a0188e0db0a61100ba9d1f9f85bdb1ef23",
+      "rows": 17313
+    },
+    {
+      "key": "TRADELINES",
+      "file": "TRADELINES.csv",
+      "bytes": 10900444,
+      "sha256": "2bb573d732ba90e23f408a8dd153d0030cf1d1104846503da36b9b3fdd72b896",
+      "rows": 30000
+    }
+  ]
+}

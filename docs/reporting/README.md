@@ -105,3 +105,7 @@ Set bundle variable `report_output_dir` to an absolute writable Volume directory
 ```
 
 The task returns that path as a notebook-exit receipt and task value. Download the JSON through Databricks Catalog Explorer when needed. A failed or approval-blocked execution leaves prior successful reports in place. The [GitHub publication workflow](../publication.md) verifies job success, retrieves this exact file, updates `docs/latest-pipeline.json` and deploys the static site. See [the webpage field reference and preview instructions](../results-data.md).
+
+## Optional verified demo cohort reference
+
+After the dedicated demo verification task succeeds, reporting adds the optional closed `demo_dataset` object: `dataset_version` (opaque immutable public version), `release_mode` (DEMO_ONLY), and `preview_sha256` (64 lowercase hexadecimal characters). This object contains no private run IDs. Reporting verifies the private readiness receipt against all five handoff IDs and all file checksums before adding it. Actions and the download UI require the same reference, privacy status and six table counts as the manifest/preview. Aggregate-only or historical reports omit the object and cannot authorize downloads. Privacy fields and statistical metrics are unchanged. See [automated demo publication](../automated-demo-publication.md).

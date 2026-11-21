@@ -1194,6 +1194,63 @@ td {
 .exec-page .mean-source { display: block; background: #25272b; }
 .exec-page .mean-synthetic { display: block; background: var(--red); }
 @media (max-width:650px) { .exec-page .mean-comparisons { grid-template-columns: 1fr; } .exec-page .mean-series { grid-template-columns: 72px minmax(35px,1fr) 76px; gap: .5rem; } }
+
+/* The records explorer is scoped away from the existing Validation Report. */
+#explore-records [hidden] { display: none !important; }
+#explore-records .record-designation { border-left: 3px solid var(--red); background: var(--soft); padding: 1rem 1.25rem; margin: 1.8rem 0; }
+#explore-records .record-designation strong, #explore-records .record-designation span { display: block; }
+#explore-records .record-designation span { color: var(--muted); margin-top: .4rem; font-size: .95rem; }
+#explore-records .record-controls { display: grid; grid-template-columns: max-content minmax(15rem,27rem) max-content; align-items: center; gap: 1rem; margin: 1.5rem 0; }
+#explore-records .record-controls label { font-weight: 650; }
+#explore-records select { width: 100%; max-width: 100%; min-height: 2.9rem; padding: .65rem 2rem .65rem .8rem; border: 1px solid var(--line); background: #fff; color: var(--ink); font: inherit; }
+#explore-records .record-context, #explore-records .record-footnote, #explore-records .record-scroll-help { font-size: .9rem; color: var(--muted); line-height: 1.65; }
+#explore-records .record-view { margin-top: 2rem; }
+#explore-records .record-view h3 { font-size: clamp(1.45rem,3vw,2rem); margin-bottom: .4rem; }
+#explore-records .record-purpose { color: var(--muted); }
+#explore-records .record-metrics { display: flex; flex-wrap: wrap; gap: 1rem 3rem; padding: 1rem 0; border-block: 1px solid var(--line); margin: 1rem 0; }
+#explore-records .record-metrics dt { color: var(--muted); font-size: .85rem; }
+#explore-records .record-metrics dd { margin: .3rem 0 0; font-size: 1.6rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+#explore-records .record-relationship { max-width: 75ch; line-height: 1.7; }
+#explore-records .record-guide { border-block: 1px solid var(--line); padding: .6rem 0; margin: 1rem 0; }
+#explore-records .record-guide summary { cursor: pointer; font-weight: 650; color: var(--red); padding: .3rem 0; }
+#explore-records .record-guide dl { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 1.2rem 2rem; margin-top: 1.3rem; }
+#explore-records .record-guide dt { font-weight: 650; }
+#explore-records .record-guide dd { color: var(--muted); margin: .35rem 0 0; font-size: .95rem; line-height: 1.6; }
+#explore-records .record-guide code { display: block; margin-top: .3rem; font-size: .8rem; overflow-wrap: anywhere; }
+#explore-records .record-scroll { width: 100%; max-height: 35rem; overflow: auto; border: 1px solid var(--line); scrollbar-color: #969696 #f3f3f3; }
+#explore-records .record-table { min-width: 45rem; width: 100%; border-collapse: separate; border-spacing: 0; font-size: .9rem; }
+#explore-records .record-table caption { text-align: left; padding: .9rem 1rem; color: var(--muted); font-size: .85rem; }
+#explore-records .record-table th, #explore-records .record-table td { white-space: nowrap; padding: .8rem 1rem; }
+#explore-records .record-table thead th { position: sticky; top: 0; background: #f2f2f2; z-index: 2; font-size: .85rem; }
+#explore-records .record-table th:first-child { position: sticky; left: 0; background: #fff; border-right: 1px solid var(--line); z-index: 1; }
+#explore-records .record-table thead th:first-child { background: #f2f2f2; z-index: 3; }
+#explore-records .record-table tbody tr:nth-child(even) td, #explore-records .record-table tbody tr:nth-child(even) th { background: #fafafa; }
+#explore-records .record-table .record-id { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-weight: 500; }
+#explore-records .record-null { color: #707070; font-style: italic; }
+#explore-records :is(select,button,summary,.record-scroll):focus-visible { outline: 3px solid var(--red); outline-offset: 3px; }
+@media (max-width:650px) { #explore-records .record-controls { grid-template-columns: minmax(0,1fr); gap: .6rem; } #explore-records .record-guide dl { grid-template-columns: 1fr; } #explore-records .record-metrics { gap: 1rem 1.5rem; } #explore-records .record-metrics dd { font-size: 1.4rem; } }
+
+/* Download controls are separate from the final-cohort Validation Report. */
+#download-dataset .download-disclaimer { border-left: 3px solid var(--red); padding: .85rem 1.2rem; max-width: 85ch; font-size: .95rem; line-height: 1.7; }
+#download-dataset .download-status { font-size: 1.1rem; font-weight: 650; margin-top: 2rem; }
+#download-dataset [data-download-state="ready"] .download-status { color: #285f48; }
+#download-dataset .download-note, #download-dataset .download-context { color: var(--muted); font-size: .9rem; line-height: 1.7; max-width: 90ch; }
+#download-dataset .download-bundle { display: grid; grid-template-columns: minmax(0,1fr) minmax(17rem,auto); gap: 2rem; padding: 1.8rem 0; margin: 1.5rem 0 2.5rem; border-block: 1px solid var(--line); }
+#download-dataset .download-bundle h3 { font-size: 1.5rem; margin-bottom: .7rem; }
+#download-dataset .download-bundle-copy p { max-width: 60ch; }
+#download-dataset .download-bundle-actions { display: grid; gap: .7rem; align-content: start; }
+#download-dataset .download-size { font-size: .9rem; font-variant-numeric: tabular-nums; color: var(--muted); }
+#download-dataset .download-files { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 2rem 2.5rem; margin-bottom: 2rem; }
+#download-dataset .download-file { display: flex; flex-direction: column; align-items: flex-start; border-top: 1px solid var(--line); padding-top: 1.2rem; }
+#download-dataset .download-file h3 { font-size: 1.15rem; margin-bottom: .4rem; }
+#download-dataset .download-file code { color: var(--muted); font-size: .8rem; overflow-wrap: anywhere; }
+#download-dataset .download-file p { font-size: .95rem; line-height: 1.65; }
+#download-dataset .download-file .button { margin-top: auto; }
+#download-dataset .download-file-facts { font-weight: 600; font-variant-numeric: tabular-nums; }
+#download-dataset button:disabled { background: #e9e9e9; border-color: #c6c6c6; color: #646464; cursor: not-allowed; opacity: 1; }
+#download-dataset :is(a,button):focus-visible { outline: 3px solid var(--red); outline-offset: 3px; }
+@media (max-width:900px) { #download-dataset .download-files { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media (max-width:650px) { #download-dataset .download-bundle, #download-dataset .download-files { grid-template-columns: minmax(0,1fr); } #download-dataset .download-bundle { gap: 1rem; } #download-dataset .download-bundle-actions .button { width: 100%; } }
 .exec-page .quality-metrics { grid-template-columns: repeat(4,minmax(0,1fr)); }
 .exec-page .quality-metrics dt { font-size: .9rem; }
 .exec-page .report-nav a { font-size: .875rem; }
