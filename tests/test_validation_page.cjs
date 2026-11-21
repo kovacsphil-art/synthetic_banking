@@ -1,6 +1,6 @@
 "use strict";
 const test=require("node:test"),assert=require("node:assert/strict"),fs=require("node:fs"),path=require("node:path");
-const {normalizeValidation,renderValidation,mountValidation,classifyNull,nullSummary,normalizeNullAudit,executiveSummary,scopeCounts,findingCopy}=require("../docs/validation.js");
+const {normalizeValidation,renderValidation,mountValidation,classifyNull,nullSummary,normalizeNullAudit,executiveSummary,scopeCounts,findingCopy,findingEvidence,headlineFindings,metricGuide,TERMS}=require("../docs/validation.js");
 const nullConfig=require('../docs/validation-config.js').null_rates;
 const fixture=JSON.parse(fs.readFileSync(path.join(__dirname,"../docs/reporting/example.json"),"utf8"));
 
@@ -136,7 +136,7 @@ test("legacy or unavailable evidence stays pending instead of inventing a report
   const r=clone();r.validation_report.status="PENDING";assert.equal(normalizeValidation(r),null);
   const doc=document(),root=new Node(doc,"div");
   const loader=mountValidation(root,{fetcher:async()=>response(old),location});await loader.ready;
-  assert.match(root.textContent,/Validation results pending/);assert.doesNotMatch(root.textContent,/Strongest measured areas/);
+  assert.match(root.textContent,/Validation results pending/);assert.doesNotMatch(root.textContent,/What SAGE reproduced well/);
 });
 
 test("refresh failures clear previous figures and recover; fetch is public same-origin only",async()=>{
@@ -144,8 +144,8 @@ test("refresh failures clear previous figures and recover; fetch is public same-
   const loader=mountValidation(root,{location,fetcher:async(url,options)=>{calls.push({url,options});if(fail)throw new Error("PRIVATE_PAYLOAD");return response(fixture);}});
   await loader.ready;assert.match(root.textContent,/Latest validated pipeline results loaded/);
   assert.equal(calls[0].url,"https://example.invalid/project/latest-pipeline.json");assert.equal(calls[0].options.credentials,"omit");
-  fail=true;await loader.refresh();assert.match(root.textContent,/Validation results pending/);assert.ok(!root.textContent.includes("PRIVATE_PAYLOAD"));assert.doesNotMatch(root.textContent,/Strongest measured areas/);
-  fail=false;await loader.refresh();assert.match(root.textContent,/Strongest measured areas/);
+  fail=true;await loader.refresh();assert.match(root.textContent,/Validation results pending/);assert.ok(!root.textContent.includes("PRIVATE_PAYLOAD"));assert.doesNotMatch(root.textContent,/What SAGE reproduced well/);
+  fail=false;await loader.refresh();assert.match(root.textContent,/What SAGE reproduced well/);
   root.dataset.reportUrl="https://elsewhere.invalid/private.json";await loader.refresh();assert.equal(calls.length,3);
 });
 
@@ -263,13 +263,13 @@ test('missingness details retain every observation and support reversible native
   toggle.checked=false;toggle.events.change();assert.equal(count(),nullConfig.fields.filter(([t])=>t==='PERSON').length);
   select.value='all';select.events.change();assert.equal(count(),nullConfig.fields.length);
   const noMatches=normalizeValidation(clone());noMatches.v.null_rate_audit=nullAudit({'null_field.PERSON.BIRTH_DT':{source_count:0,source_n:100,generated_count:0,generated_n:200}});
-  assert.match(renderValidation(document(),noMatches).textContent,/No qualifying meaningful null-rate strengths/);
+  assert.match(renderValidation(document(),noMatches).textContent,/No independently supported missingness strengths/);
 });
 
 test('summary leads with variable outcomes and separates the three reporting scopes',()=>{
   const report=JSON.parse(fs.readFileSync(path.join(__dirname,'../docs/latest-pipeline.json'),'utf8'));
   const original=structuredClone(report),view=normalizeValidation(report),counts=scopeCounts(view.v),root=executiveSummary(document(),view);
-  const scope=name=>all(root).find(n=>n.attributes['aria-label']===name),core=scope('Core variable validation');
+  const scope=name=>all(root).find(n=>n.attributes['aria-label']===name),core=scope('Key variable validation');
   const outcomes=core.children.find(n=>n.className==='variable-outcomes');
   assert.deepEqual(all(outcomes).filter(n=>n.tagName==='DD').map(n=>n.textContent),[
     String(counts.core.variables_within_tolerance),String(counts.core.variables_requiring_review),String(counts.core.variables_incomplete)]);
@@ -285,7 +285,7 @@ test('summary leads with variable outcomes and separates the three reporting sco
   const missing=scope('Full-dataset missingness audit');assert.ok(missing.textContent.includes(n.meaningful_matches+' of '+n.eligible_nontrivial+' nontrivial comparisons'));
   assert.ok(missing.children.find(n=>n.tagName==='DETAILS').textContent.includes(n.trivial_zero_null+' zero-null observations'));
   const privacy=scope('Separate privacy assessment');assert.match(privacy.textContent,/REVIEW_REQUIRED/);assert.match(privacy.textContent,/Statistical similarity does not establish privacy clearance/);
-  assert.ok(!all(outcomes).some(n=>n.textContent.includes('%')));assert.deepEqual(report,original);
+  assert.ok(!all(outcomes).filter(n=>n.tagName==='DD').some(n=>n.textContent.includes('%')));assert.deepEqual(report,original);
 });
 
 test('summary numbers follow supplied JSON and unavailable scopes never imply success',()=>{
@@ -308,11 +308,12 @@ test('business findings lead with interpretation then preserve measured values a
   const range=findingCopy(available,{numeric:[{key:'available_credit',percentiles:[{name:'P50',source:200,generated:200,difference:0},{name:'P95',source:400,generated:500,difference:100}]}]});
   assert.match(range.title,/gaps at key points/);assert.match(range.source,/high-end point \(P95\)/);assert.match(range.why,/available spending capacity/);
   const birth=findingCopy(view.v.assessments.find(a=>a.key==='date.birth'),view.v);
-  assert.match(birth.title,/age mix/);assert.match(birth.source,/not published/);assert.match(birth.why,/time-based segments/);
+  assert.match(birth.title,/birth-date patterns/);assert.match(birth.source,/not published/);assert.match(birth.why,/time-based segments/);
   const rendered=renderValidation(document(),view),panel=all(rendered).find(n=>n.id==='findings');
   const first=all(panel).find(n=>n.tagName==='LI');assert.equal(first.children[0].tagName,'STRONG');
-  assert.equal(first.children[1].className,'finding-scope');assert.equal(first.children[2].className,'finding-values');
-  assert.equal(first.children[3].className,'finding-meaning');assert.equal(first.children[4].tagName,'DETAILS');assert.ok(!first.children[4].open);
+  assert.equal(first.children[1].className,'finding-explanation');assert.equal(first.children[2].className,'finding-scope');
+  assert.equal(first.children[4].className,'finding-values');assert.equal(first.children[6].className,'finding-meaning');
+  assert.equal(first.children[8].tagName,'DETAILS');assert.ok(!first.children[8].open);
 });
 
 test("sparse conditional evidence keeps rates and counts without a passing label",()=>{
@@ -325,4 +326,106 @@ test("sparse conditional evidence keeps rates and counts without a passing label
   const t=all(root).find(n=>n.tagName==="TABLE"&&n.children[0].textContent==="Past-due rates by utilization bucket");
   assert.match(t.textContent,/0-30% 10% 11% 1 pp 29 200 Not comparable/);
   assert.match(root.textContent,/at least 30 records per bucket/);
+});
+
+test('headline evidence separates trivial, constant, constructed, boundary and supported zero gaps',()=>{
+  const v=normalizeValidation(structuredClone(postFixture)).v;
+  const sample={key:'conditional.0',family:'conditional',status:'STRONG',score:0,source:.2,generated:.2,source_n:100,generated_n:200};
+  assert.equal(findingEvidence(v,sample).eligible,true);
+  assert.equal(findingEvidence(v,{...sample,source:0,generated:0}).kind,'limited');
+  assert.equal(findingEvidence(v,{...sample,source:1,generated:1}).eligible,false);
+  assert.equal(findingEvidence(v,{...sample,source_n:29}).kind,'insufficient');
+  assert.equal(findingEvidence(v,{...sample,source_n:null}).eligible,false);
+  assert.equal(findingEvidence(v,{...sample,status:'UNAVAILABLE',score:null}).eligible,false);
+  assert.equal(findingEvidence(v,{...sample,key:'integrity.available_formula',family:'integrity'}).kind,'integrity');
+  assert.equal(findingEvidence(v,{...sample,key:'date_bounds.account_open',family:'date_bounds'}).kind,'boundary');
+  assert.equal(findingEvidence(v,{...sample,key:'graph.directed_dyads_proportion',family:'graph',source:1,generated:1}).kind,'constructed');
+  const counts={source_count:0,source_n:100,generated_count:0,generated_n:200};
+  const nullRow={...sample,key:'null_field.TRADELINES.payment_pattern',table:'TRADELINES',column:'payment_pattern',family:'nulls',...classifyNull(counts)};
+  assert.equal(findingEvidence(v,nullRow).eligible,false);
+  assert.equal(findingEvidence(v,{...nullRow,...classifyNull({...counts,source_count:100,generated_count:200})}).eligible,false);
+  const mixed={...nullRow,...classifyNull({...counts,source_count:20,generated_count:40})};
+  assert.equal(findingEvidence(v,mixed).eligible,true);
+  assert.equal(findingEvidence(v,{...mixed,table:'PERSON',column:'BANKRUPTCY_DT'}).kind,'constructed');
+  const numeric={...sample,key:'mean.overlimit',family:'mean',source:0,generated:0};
+  v.post_pilot.numeric_details.find(r=>r.key==='overlimit').source_stddev=0;
+  assert.equal(findingEvidence(v,numeric).kind,'limited');
+});
+
+test('nontrivial exact distribution matches qualify with variation and paired evidence; constants do not',()=>{
+  const v=normalizeValidation(clone()).v,a={key:'cardinality.accounts_per_customer',family:'cardinality',status:'STRONG',score:0,source_n:100,generated_n:200};
+  const r=v.cardinality.find(r=>r.key==='accounts_per_customer');
+  r.bins.forEach((b,i)=>{b.source=i<2?.5:0;b.generated=b.source;});
+  assert.equal(findingEvidence(v,a).eligible,true);
+  assert.equal(findingEvidence(v,{...a,source_n:null}).eligible,false);
+  r.bins.forEach((b,i)=>{b.source=i===0?1:0;});assert.equal(findingEvidence(v,a).kind,'limited');
+  const c=v.assessments.find(r=>r.key==='categorical.past_due');
+  Object.assign(v.assessments.find(r=>r.key==='null.past_due'),{source_count:0,source_n:100,generated_count:0,generated_n:200});
+  v.categorical.forEach(r=>{r.source=.5;r.generated=.5;});c.score=0;
+  assert.equal(findingEvidence(v,c).eligible,true);
+  v.categorical.forEach((r,i)=>{r.source=i===0?1:0;r.generated=r.source;});assert.equal(findingEvidence(v,c).eligible,false);
+  const d={...a,key:'categorical_conditional.account_type_product',family:'categorical_conditional'};
+  assert.match(findingEvidence(v,d).reason,/per-group support/);
+});
+
+test('headline selections audit every excluded match without changing measurements, grades or counts',()=>{
+  const report=JSON.parse(fs.readFileSync(path.join(__dirname,'../docs/latest-pipeline.json'),'utf8')),view=normalizeValidation(report),before=structuredClone(view),selection=headlineFindings(view.v);
+  assert.ok(selection.strengths.length>0);assert.ok(selection.strengths.every(a=>findingEvidence(view.v,a).eligible));
+  assert.ok(!selection.strengths.some(a=>['integrity','graph','date_bounds','categorical_conditional'].includes(a.family)));
+  for(const key of view.v.post_pilot.strengths){assert.ok([...selection.strengths,...selection.audit].some(a=>a.key===key));}
+  const allWeak=[...view.v.assessments,...view.v.post_pilot.assessments,...view.v.null_rate_audit.rows].filter(a=>a.status==='NEEDS_REVIEW'&&a.family!=='nulls'||a.status==='NEEDS_REVIEW'&&a.key.startsWith('null_field.'));
+  for(const a of allWeak)assert.ok(selection.weaknesses.some(r=>r.key===a.key));
+  assert.ok(selection.weaknesses.some(a=>a.key==='mean.overlimit')); // Native-unit alert remains visible without an invented rank divisor.
+  const rendered=renderValidation(document(),view),findings=all(rendered).find(n=>n.id==='findings');
+  for(const panel of all(findings).filter(n=>n.className==='finding-panel')){const list=panel.children.find(n=>n.tagName==='OL');assert.ok(list.children.length<=3);}
+  assert.match(findings.textContent,/Why some matches are not headline strengths/);assert.match(findings.textContent,/Integrity check passed/);
+  assert.deepEqual(view,before);assert.deepEqual(report,view.report);
+});
+
+test('large missingness gaps preserve direction, true values, all five omissions and code-path context',()=>{
+  const v=normalizeValidation(clone()).v,base={key:'null_field.PERSON.DOMICILE_TRANSIT_NUM',table:'PERSON',column:'DOMICILE_TRANSIT_NUM',family:'nulls',label:'Customer transit',policy:'proportion_pp',status:'NEEDS_REVIEW',score:100};
+  const missing=findingCopy({...base,source:0,generated:1},v);assert.equal(missing.source,'0% missing');assert.equal(missing.synthetic,'100% missing');assert.match(missing.comparison,/100 percentage points higher/);assert.match(missing.explanation,/No synthetic records contain/);
+  const restored=findingCopy({...base,source:1,generated:0},v);assert.match(restored.comparison,/100 percentage points lower/);assert.match(restored.explanation,/SOURCE baseline/);assert.doesNotMatch(restored.title,/absent/);
+  const r=JSON.parse(fs.readFileSync(path.join(__dirname,'../docs/latest-pipeline.json'),'utf8')),view=normalizeValidation(r),node=renderValidation(document(),view),findings=all(node).find(n=>n.id==='findings');
+  for(const col of ['DOMICILE_TRANSIT_NUM','BRANCH_NUM','OFFICER_NBR','amount_past_due','subscriber_code'])assert.ok(headlineFindings(view.v).weaknesses.some(a=>a.column===col));
+  assert.match(findings.textContent,/pads unsupported schema columns with nulls/);
+  const rates=all(findings).filter(n=>n.className==='finding-values'&&n.attributes.role==='group');assert.ok(rates.length>0);
+  assert.ok(rates.every(n=>n.attributes['aria-label'].includes('shared 0–100% scale')));
+});
+
+test('all contextual help shares accessible focus, tap, outside-click, blur and Escape behaviour',()=>{
+  const doc=document(),handlers={};doc.addEventListener=(type,fn)=>{(handlers[type]??=[]).push(fn);};
+  const first=metricGuide(doc,'test-key',{label:'Key Variables Evaluated',description:TERMS.key,icon:true}),second=metricGuide(doc,'test-null',{label:'Null-rate differences',description:TERMS.nulls,icon:true});
+  assert.equal(first.tip.hidden,true);assert.equal(first.tip.attributes.role,'tooltip');assert.equal(first.button.attributes['aria-describedby'],'test-key');assert.equal(first.button.attributes['aria-label'],'About Key Variables Evaluated');
+  first.button.events.focus();assert.equal(first.tip.hidden,false);first.button.events.click();assert.equal(first.tip.hidden,false);
+  handlers.pointerdown[0]({target:first.button});assert.equal(first.tip.hidden,false);
+  handlers.pointerdown[0]({target:{}});assert.equal(first.tip.hidden,true);assert.equal(first.button.attributes['aria-expanded'],'false');
+  first.wrap.events.pointerenter({pointerType:'touch'});assert.equal(first.tip.hidden,true);
+  first.button.events.click();assert.equal(first.tip.hidden,false);first.button.events.click();assert.equal(first.tip.hidden,true);
+  first.wrap.events.pointerenter({pointerType:'mouse'});assert.equal(first.tip.hidden,false);first.wrap.events.pointerleave();assert.equal(first.tip.hidden,true);
+  first.button.events.focus();second.button.events.focus();assert.equal(first.tip.hidden,true);assert.equal(second.tip.hidden,false);
+  handlers.keydown[0]({key:'Escape'});assert.equal(second.tip.hidden,true);
+  first.button.events.focus();first.button.events.blur();assert.equal(first.tip.hidden,true);
+  assert.equal(handlers.keydown.length,1);assert.equal(handlers.pointerdown.length,1);
+  const view=normalizeValidation(structuredClone(postFixture)),node=renderValidation(doc,view),tips=all(node).filter(n=>n.attributes.role==='tooltip');
+  assert.equal(tips.length,12);assert.equal(new Set(tips.map(n=>n.id)).size,tips.length);
+  for(const name of ['key','within','review','unavailable','fidelity','conditional','nulls','variation','correlation'])assert.ok(tips.some(n=>n.textContent===TERMS[name]));
+});
+
+test('findings explain supplied tail points and keep very small nonzero rates visible',()=>{
+  const v=normalizeValidation(structuredClone(postFixture)).v,tail=v.post_pilot.assessments.find(a=>a.key==='tail.available_credit');
+  const detail=v.post_pilot.numeric_details.find(r=>r.key==='available_credit');
+  detail.tail_points=[{name:'P01',source:10,generated:1,difference:-9},{name:'P05',source:20,generated:8,difference:-12},{name:'P99',source:99,generated:100,difference:1}];
+  const copy=findingCopy(tail,v);assert.equal(copy.source,'20 at the lowest 5% point');assert.equal(copy.synthetic,'8 at the lowest 5% point');assert.match(copy.comparison,/12 amount units lower/);
+  const tiny=findingCopy({key:'null_field.TRADELINES.payment_pattern',column:'payment_pattern',family:'nulls',status:'NEEDS_REVIEW',source:0,generated:.000001,score:.0001},v);
+  assert.equal(tiny.synthetic,'0.0001% missing');assert.match(tiny.comparison,/0\.0001 percentage points higher/);
+});
+
+test('a strong saved grade cannot fill missing paired numeric or category evidence',()=>{
+  const v=normalizeValidation(structuredClone(postFixture)).v,a=v.assessments.find(a=>a.key==='numeric.credit_limit');
+  v.numeric.find(n=>n.key==='credit_limit').percentiles[0].source=null;assert.equal(findingEvidence(v,a).eligible,false);
+  const category=v.assessments.find(a=>a.key==='categorical.past_due');v.assessments.find(a=>a.key==='null.past_due').source_count=null;
+  assert.equal(findingEvidence(v,category).eligible,false);
+  const t=v.post_pilot.assessments.find(a=>a.key==='tail.current_balance');v.post_pilot.numeric_details.find(n=>n.key==='current_balance').tail_points=[];
+  assert.equal(findingEvidence(v,t).eligible,false);
 });

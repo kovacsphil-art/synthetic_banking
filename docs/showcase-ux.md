@@ -34,3 +34,8 @@ The Validation Report now leads with selected-variable outcomes, with separate s
 The three primary counts were checked within the initial viewport at desktop and 390 × 844 mobile dimensions. Native disclosures work with Enter, table filters remain reversible, and wide evidence tables remain keyboard-focusable scroll regions. Automated checks reconcile the current three scopes, verify data-driven rendering and confirm that rendering leaves the report unchanged. This is interface verification, not evidence from a stakeholder comprehension study.
 
 Wide data tables intentionally need horizontal scrolling on phones. The explorer shows only 15 saved rows and selected columns per table; linked records may fall outside that preview. The public validation contract covers selected variables and measured points, rather than full distribution detail. Release API outages or rate limits can temporarily disable downloads. Testing here covers the available Chromium browser and automated interaction checks, not a full browser/device matrix, assistive-technology audit or stakeholder usability study.
+
+
+## Interpretation and contextual help
+
+The findings now separate evidence qualification from unchanged tolerance grades. Three plain-language strengths and three gaps are visible, with labeled SOURCE/synthetic values, signed differences and business implications; remaining findings and exclusion explanations are native disclosures. Shared help opens on hover, keyboard focus or tap, closes with Escape/blur/outside interaction, and expands in flow to avoid obscuring measured values. Primary counts keep separate denominators and privacy remains an independent assessment. No full distribution is implied by endpoints, constant values or selected percentiles.

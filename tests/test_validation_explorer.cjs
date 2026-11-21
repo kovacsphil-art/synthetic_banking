@@ -69,7 +69,7 @@ test('hover help is dismissible without focus and repeated rendering keeps one d
   const s=setup(),handlers=[];s.doc.addEventListener=(name,handler)=>handlers.push([name,handler]);
   const root=exploreValidation(s.doc,s.view),p=all(root).find(n=>n.id==='validation-panel-numeric'),wrap=all(p).find(n=>n.className==='metric-guide'),tip=all(p).find(n=>n.attributes.role==='tooltip');
   wrap.events.pointerenter({pointerType:'mouse'});assert.equal(tip.hidden,false);handlers[0][1]({key:'Escape'});assert.equal(tip.hidden,true);
-  exploreValidation(s.doc,s.view);assert.equal(handlers.length,1);
+  exploreValidation(s.doc,s.view);assert.equal(handlers.filter(([name])=>name==='keydown').length,1);assert.equal(handlers.filter(([name])=>name==='pointerdown').length,1);
 });
 test('missing distributions display an informative unavailable state without axes or invented points',()=>{
   const s=setup();for(const point of s.view.v.numeric[0].percentiles){point.source=null;point.generated=null;point.difference=null;}

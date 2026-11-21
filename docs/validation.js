@@ -15,7 +15,8 @@
   const nf = new Intl.NumberFormat("en", {maximumFractionDigits: 2});
   const fmt = value => typeof value === "number" && Number.isFinite(value) ? nf.format(value) : "Unavailable";
   const measure = (value,unit) => typeof value === "number" && Number.isFinite(value) ? fmt(value)+(unit.startsWith("%")?"":" ")+unit : "Unavailable";
-  const pct = value => typeof value === "number" && Number.isFinite(value) ? nf.format(value*100)+"%" : "Unavailable";
+  const preciseGap=value=>typeof value==='number'&&Number.isFinite(value)&&value!==0&&Math.abs(value)<.005?new Intl.NumberFormat('en',{maximumSignificantDigits:4}).format(value):fmt(value);
+  const pct = value => typeof value === "number" && Number.isFinite(value) ? preciseGap(value*100)+"%" : "Unavailable";
   const state = value => LABELS[value] || "Unavailable";
   const signed = value => typeof value === "number" && Number.isFinite(value) ? (value > 0 ? "+" : "")+fmt(value) : "Unavailable";
   function el(doc, tag, text, cls) { const node=doc.createElement(tag); if (text !== undefined) node.textContent=text; if (cls) node.className=cls; return node; }
@@ -222,6 +223,94 @@
       unavailable:screens.filter(a=>a.status==='UNAVAILABLE').length}:null,missingness:v.null_rate_audit?.summary||null};
   }
 
+  // Presentation eligibility, not a new grade or threshold. Raw grades stay intact.
+  // Verified generator context: exact date masks and graph-degree allocations are
+  // constructed in dates.py/customer_relationships.py, rather than independent tests.
+  const PLANNED_DATE_NULLS=new Set(['PERSON.BIRTH_DT','PERSON.SINCE_DT','PERSON.BANKRUPTCY_DT','PERSON.DECEASED_DT','PERSON.LEFT_DT','TKQ_ACCOUNT.OPEN_DT','TKQ_ACCOUNT.CLOSE_DT','TKQ_ACCOUNT.CLOSE_STATUS_DT','TKQ_ACCOUNT.FIRST_DLQ_DATE','TKQ_ACCOUNT.LAST_CASH_ADVANCE_DT','TKQ_ACCOUNT.LAST_PAST_DUE_DT','TRADELINES.account_closed_date','TRADELINES.account_paid_out_date']);
+  const TERMS={
+    key:'Key variables are a fixed, developer-selected group: four account amounts, the past-due indicator and three customer/account dates. They provide a focused assessment, not a representative sample of every field. Additional statistical and data-quality checks assess other characteristics.',
+    within:'The difference falls within the existing predefined screening tolerance for this measurement. A key variable passes only when all its core checks are within tolerance and none lacks evidence. These provisional tolerances are not business acceptance certification.',
+    review:'At least one measured difference exceeds its existing tolerance, or missingness appears or disappears. Review the evidence and intended use; this is not a significance test.',
+    unavailable:'Not comparable means evidence is missing, undefined or too sparse to judge. It is neither a pass nor a measured failure. A variable with no review finding but unavailable evidence is incomplete.',
+    fidelity:'Statistical fidelity describes how closely measured distributions and relationships resemble the pinned baseline. It does not establish production representativeness, privacy clearance or an overall accuracy percentage.',
+    conditional:'A conditional dependency describes how the distribution of one field changes across groups of another, such as past-due rates at different levels of credit usage. Association alone does not establish cause.',
+    nulls:'A null-rate difference is the difference in the percentage of records with missing values. One percentage point means, for example, 2% versus 3%. Exact counts determine zero; displayed rounding does not.',
+    variation:'Total variation summarizes differences between category or time-bin proportions. Zero means the measured proportions match; 100% means no shared probability mass. It does not by itself establish meaningful variation, adequate samples or a full distribution match beyond the published bins.',
+    correlation:'Correlation measures how two amounts vary together on a scale from −1 to +1. The report compares the measured coefficients; a similar coefficient does not prove causation or a matching joint distribution.'
+  };
+  function termHelp(doc,key,label,id){return metricGuide(doc,id||'term-'+key,{label,description:TERMS[key],icon:true}).wrap;}
+
+  function findingEvidence(v,a){
+    const result=(kind,reason,source_n=a.source_n,generated_n=a.generated_n)=>({kind,reason,source_n,generated_n,eligible:kind==='statistical'&&a.status==='STRONG'});
+    if(a.status==='UNAVAILABLE'||a.score===null)return result('insufficient','The saved comparison is missing, undefined or has insufficient observations.');
+    if(a.family==='integrity')return result('integrity','A predefined structural or business constraint, not distributional fidelity.');
+    if(a.family==='graph'||a.key.startsWith('cardinality.relationships_'))return result('constructed','The graph planner allocates these relationship patterns explicitly. A match verifies that construction, not independent distributional fidelity.');
+    if(a.family==='date_bounds')return result('boundary','Only the earliest/latest dates are compared. Their agreement does not establish that the date frequencies match.');
+    if(a.status==='TRIVIAL')return result('limited','Both exact null counts are zero; no missingness variation is tested.');
+    const paired=(s,g)=>Number.isFinite(s)&&Number.isFinite(g)&&s>0&&g>0;
+    if(a.family==='nulls'){
+      const r=classifyNull(a);
+      if(r.reason?.includes('invalid')||r.status==='UNAVAILABLE')return result('insufficient','Paired exact null counts are unavailable or invalid.');
+      if(r.source===0&&r.generated===0||r.source===1&&r.generated===1)return result('limited','Missingness is constant in both populations; observed-value fidelity is not tested.');
+      const field=(a.table? a.table+'.'+a.column : (CONFIG.null_rates.core_fields[a.key]||[]).join('.'));
+      if(PLANNED_DATE_NULLS.has(field))return result('constructed','The date planner sets a rounded SOURCE-derived null count explicitly. This verifies a constructed missingness target, not independent statistical evidence.');
+      return result('statistical','Exact counts show both observed and missing values; only the missingness pattern is assessed.');
+    }
+    if(['numeric','mean','tail'].includes(a.family)){
+      const key=a.key.split('.')[1],n=v.numeric.find(r=>r.key===key),detail=v.post_pilot?.numeric_details.find(r=>r.key===key),counts=v.assessments.find(r=>r.key==='numeric.'+key);
+      const sn=a.source_n??counts?.source_n,gn=a.generated_n??counts?.generated_n;
+      if(detail?.source_stddev===0||detail?.source_minimum!==null&&detail?.source_minimum!==undefined&&detail.source_minimum===detail.source_maximum)return result('limited','The SOURCE amount is constant; a zero gap provides no evidence about a varied distribution.',sn,gn);
+      if(!n||!(n.source_iqr>0)||!paired(sn,gn))return result('insufficient','Paired field sample counts or a nonzero SOURCE middle range are unavailable.',sn,gn);
+      const points=a.family==='numeric'?n.percentiles:a.family==='tail'?detail?.tail_points:null;
+      if(a.family==='numeric'&&points?.length!==4||a.family==='tail'&&points?.length!==3||
+        (points?points.some(p=>![p.source,p.generated,p.difference].every(Number.isFinite)):a.family==='tail'||![a.source,a.generated].every(Number.isFinite)))return result('insufficient','Paired measurements are incomplete; a saved tolerance grade alone cannot establish a headline strength.',sn,gn);
+      return result('statistical','The SOURCE amount varies and paired field sample counts are published. Only the measured percentiles or moment are assessed.',sn,gn);
+    }
+    if(a.family==='conditional'){
+      if(!paired(a.source_n,a.generated_n)||Math.min(a.source_n,a.generated_n)<v.min_conditional_rows)return result('insufficient','At least one bucket lacks the existing minimum number of observations.');
+      if(!(a.source>0&&a.source<1))return result('limited','The SOURCE outcome is constant within this bucket; no within-bucket outcome variation is demonstrated.');
+      return result('statistical','Both outcomes occur in the SOURCE bucket and paired bucket counts meet the existing minimum.');
+    }
+    if(a.family==='categorical'){
+      const q=v.assessments.find(r=>r.key==='null.past_due'),sn=q?.source_n-q?.source_count,gn=q?.generated_n-q?.generated_count;
+      if(!q||classifyNull(q).status==='UNAVAILABLE'||!paired(sn,gn)||!v.categorical.every(r=>Number.isFinite(r.source)&&Number.isFinite(r.generated)))return result('insufficient','Paired category proportions or exact non-null field counts are unavailable.',sn,gn);
+      if(v.categorical.filter(r=>r.source>0).length<2)return result('limited','Only one SOURCE outcome occurs; the observed category mix is constant.',sn,gn);
+      return result('statistical','Multiple SOURCE outcomes and exact non-null field counts support the category comparison.',sn,gn);
+    }
+    if(a.family==='categorical_conditional')return result('insufficient','The aggregate distance and association are published, but category-level variation and per-group support are not. A headline strength is withheld; the measured match remains in dependencies.');
+    if(a.family==='cardinality'){
+      const r=v.cardinality.find(r=>'cardinality.'+r.key===a.key);
+      if(r&&r.bins.filter(b=>b.source>0).length<2)return result('limited','Only one SOURCE relationship-count category occurs; the measured distribution is constant.');
+      if(!paired(a.source_n,a.generated_n))return result('insufficient','The binned distribution is published, but paired profiled-population counts are not. Total table rows are not a substitute for this denominator.');
+      return result('statistical','Multiple SOURCE count categories and paired profiled-population counts support this comparison.');
+    }
+    if(a.family==='correlation'){
+      if(!paired(a.source_n,a.generated_n))return result('insufficient','Paired correlation sample counts are not published.');
+      return result('statistical','A defined measured coefficient and paired sample counts support a linear-association comparison.');
+    }
+    return result('insufficient','The public summary does not publish enough distribution or sample evidence for a headline statistical strength.');
+  }
+  function findingPool(v){return [...v.assessments.filter(a=>a.family!=='nulls'||!v.null_rate_audit),...(v.post_pilot?.assessments||[]),...(v.null_rate_audit?.rows||[])];}
+  function headlineFindings(v){
+    const pool=findingPool(v),limits={...v.thresholds,...v.post_pilot?.thresholds};
+    const relative=a=>limits[a.policy]?.acceptable>0?a.score/limits[a.policy].acceptable:null;
+    const rank=(rows,worst=false)=>{
+      const sorted=[...rows].sort((a,b)=>{const x=relative(a),y=relative(b);return x===null?y===null?a.key.localeCompare(b.key):1:y===null?-1:(worst?-1:1)*(x-y)||a.key.localeCompare(b.key);});
+      const chosen=[],counts={};for(const cap of [1,2,Infinity])for(const a of sorted){if(chosen.includes(a)|| (counts[a.family]||0)>=cap)continue;chosen.push(a);counts[a.family]=(counts[a.family]||0)+1;}return chosen;
+    };
+    return {strengths:rank(pool.filter(a=>findingEvidence(v,a).eligible)),weaknesses:rank(pool.filter(a=>a.status==='NEEDS_REVIEW'),true),audit:pool.filter(a=>a.status==='STRONG'&&!findingEvidence(v,a).eligible)};
+  }
+  const EVIDENCE_LABELS={statistical:'Strong statistical match',integrity:'Integrity check passed',constructed:'Constructed pattern preserved',boundary:'Range boundaries only',limited:'Limited variation evidence',insufficient:'Insufficient headline evidence'};
+  function evidenceBadge(doc,v,a){const e=findingEvidence(v,a);return el(doc,'span',a.status==='NEEDS_REVIEW'?'Needs review':a.status==='UNAVAILABLE'?'Insufficient evidence':e.kind==='statistical'&&a.status==='ACCEPTABLE'?'Acceptable statistical match':EVIDENCE_LABELS[e.kind], 'match-badge '+(a.status==='NEEDS_REVIEW'?'match-needs_review':a.status==='UNAVAILABLE'?'match-unavailable':'evidence-'+e.kind));}
+  function findingComparison(doc,a,copy){
+    const root=el(doc,'div',undefined,'finding-values');
+    if(['nulls','conditional'].includes(a.family)&&[a.source,a.generated].every(x=>Number.isFinite(x)&&x>=0&&x<=1)){
+      root.setAttribute('role','group');root.setAttribute('aria-label',copy.metric+' · shared 0–100% scale');
+      for(const [value,label] of [[a.source,'SOURCE'],[a.generated,'Synthetic']]){const row=el(doc,'div',undefined,'finding-rate'),track=el(doc,'div',undefined,'finding-rate-track'),fill=el(doc,'span',undefined,label==='SOURCE'?'rate-source':'rate-synthetic');fill.style.width=String(value*100)+'%';track.setAttribute('aria-hidden','true');track.append(fill);row.append(el(doc,'span',label),track,el(doc,'strong',pct(value)));root.append(row);}
+    }else root.append(el(doc,'p','SOURCE '+copy.source),el(doc,'p','Synthetic '+copy.synthetic));
+    return root;
+  }
+
   function missingnessScopeDetails(doc,n){
     return details(doc,'Scope, exclusions and missing evidence',
       el(doc,'p','The full missingness audit covers '+fmt(n.variables_total)+' reviewed fields. '+fmt(n.variables_evaluated)+' have valid paired counts: '+fmt(n.trivial_zero_null)+' are trivial zero-to-zero matches and '+fmt(n.eligible_nontrivial)+' are nontrivial comparisons. '+fmt(n.unavailable)+' cannot be compared.','measurement-note'),
@@ -231,8 +320,8 @@
 
   function executiveSummary(doc,view,{compact=false}={}) {
     const {v}=view,{core:s,additional:p,missingness:n}=scopeCounts(v),root=el(doc,'div',undefined,'validation-brief');
-    const core=el(doc,'article',undefined,'core-outcome');core.setAttribute('aria-label','Core variable validation');
-    core.append(el(doc,'p','Core variable validation · '+fmt(s.variables_total)+' selected variables','eyebrow'));
+    const core=el(doc,'article',undefined,'core-outcome');core.setAttribute('aria-label','Key variable validation');
+    core.append(termHelp(doc,'key','Key Variables Evaluated · '+fmt(s.variables_total)+' selected fields'));
     const conclusion=fmt(s.variables_within_tolerance)+' of '+fmt(s.variables_total)+' selected variables meet every core tolerance.';
     core.append(el(doc,'p',conclusion,'validation-takeaway'));
     const metrics=el(doc,'dl',undefined,'variable-outcomes');
@@ -249,6 +338,7 @@
       el(doc,'p',fmt(s.trivial_zero_null||0)+' of the measured core checks are trivial zero-null observations. They remain recorded but do not count as statistical strengths.'),
       el(doc,'p','Not comparable means evidence is missing, undefined or too sparse to judge. It is neither a pass nor a measured failure. These counts are not an overall accuracy score.'),
       dimensionTable(doc,v));
+    counts.append(termHelp(doc,'within','Within tolerance'),termHelp(doc,'review','Needs review'),termHelp(doc,'unavailable','Not comparable'));
     core.append(counts);root.append(core);
     const privacy=el(doc,'aside',undefined,'privacy-separation');privacy.setAttribute('aria-label','Separate privacy assessment');
     const privacyLink=el(doc,'a','Read the separate privacy assessment','text-link');privacyLink.setAttribute('href',compact?'validation.html#privacy':'#privacy');
@@ -263,7 +353,7 @@
         table(doc,'Additional checks · separate scope',['Within tolerance','Need review','Not comparable','Total checks'],[[fmt(p.within),fmt(p.review),fmt(p.unavailable),fmt(p.total)]])));
     }else extra.append(el(doc,'p','Additional statistical checks are unavailable in this reporting artifact.','measurement-note'));
     const missing=el(doc,'article',undefined,'validation-scope');missing.setAttribute('aria-label','Full-dataset missingness audit');
-    missing.append(el(doc,'h3','Full-dataset missingness audit'));
+    missing.append(el(doc,'h3','Missing-data assessment'));
     if(n){missing.append(el(doc,'p',n.eligible_nontrivial?fmt(n.meaningful_matches)+' of '+fmt(n.eligible_nontrivial)+' nontrivial comparisons preserve missingness within tolerance.':'No nontrivial missingness comparisons are available.','scope-takeaway'),
       el(doc,'p',fmt(n.requiring_review)+' need review. Scope: '+fmt(n.variables_total)+' reviewed fields; '+fmt(n.unavailable)+' unavailable comparison'+(n.unavailable===1?'':'s')+'.','measurement-note'),missingnessScopeDetails(doc,n));
     }else missing.append(el(doc,'p','Full six-table null-rate audit unavailable in this historical report. Selected zero-null observations are excluded from strengths; missing comparisons are not invented.','measurement-note'));
@@ -274,58 +364,91 @@
 
   function findingCopy(a,v){
     const strong=a.status==='STRONG',copy={title:a.label,why:strong?'This characteristic supports closer baseline-like test scenarios.':'Review this characteristic before relying on baseline-like test scenarios.',
-      source:fmt(a.source),synthetic:fmt(a.generated),gap:measure(a.score,UNITS[a.policy]||UNITS.integrity)};
+      source:fmt(a.source),synthetic:fmt(a.generated),gap:measure(a.score,UNITS[a.policy]||UNITS.integrity),explanation:'The comparison assesses this measured characteristic against the development baseline.',metric:'Measured comparison',comparison:'Difference: '+measure(a.score,UNITS[a.policy]||UNITS.integrity)};
     const fieldNames={DOMICILE_TRANSIT_NUM:['Customer home-branch codes','customer segmentation by home branch'],BRANCH_NUM:['Account branch codes','account segmentation by branch'],OFFICER_NBR:['Account officer codes','officer-based account scenarios'],amount_past_due:['Tradeline past-due amounts','past-due credit scenarios'],subscriber_code:['Tradeline subscriber codes','credit-provider segmentation']};
     if(a.family==='nulls'){
-      const field=fieldNames[a.column],label=field?field[0]:a.label.replace(' · null rate','');
+      const name=a.column||CONFIG.null_rates.core_fields[a.key]?.[1],field=fieldNames[name],friendly={payment_pattern:'Credit-payment histories',collateral_text:'Collateral descriptions'},label=field?field[0]:friendly[name]||a.label.replace(' · null rate','');
       copy.title=strong?label+' preserve their missing-value pattern':a.generated===1&&a.source<1?label+' are absent from the synthetic cohort':a.generated>a.source?label+' are missing more often':label+' are missing less often';
       copy.source=pct(a.source)+' missing';copy.synthetic=pct(a.generated)+' missing';
+      copy.metric='Records with missing information';copy.comparison='Synthetic missingness is '+preciseGap(Math.abs(a.generated-a.source)*100)+' percentage points '+(a.generated>a.source?'higher':a.generated<a.source?'lower':'different')+' than SOURCE.';
+      if(a.generated===a.source)copy.comparison='The measured missing-value rates match.';
+      copy.explanation=strong?'The share of records without this information closely matches; this does not assess the values that are present.':'More information is missing from '+(a.generated>a.source?'the synthetic cohort':'the SOURCE baseline')+'. This changes which records can support analysis.';
+      if(a.generated===1&&a.source<1)copy.explanation='No synthetic records contain this field, although it is populated in the SOURCE baseline.';
       copy.why=field?'Could affect tests involving '+field[1]+'.':'Missing values can change which records remain in analysis.';
     }else if(a.family==='numeric'){
       copy.title=a.label+(strong?' has closely matching measured percentiles':' has gaps at key points in its range');
       const r=v.numeric.find(r=>'numeric.'+r.key===a.key),points=r?.percentiles.filter(p=>p.difference!==null)||[];
       const worst=points.sort((a,b)=>Math.abs(b.difference)-Math.abs(a.difference))[0];
       if(worst){const point={P25:'lower-quarter point (P25)',P50:'median (P50)',P75:'upper-quarter point (P75)',P95:'high-end point (P95)'}[worst.name];copy.source=fmt(worst.source)+' at the '+point;copy.synthetic=fmt(worst.generated)+' at the '+point;}
+      copy.explanation=strong?'The measured points across the amount range are close to the baseline. This does not establish a complete distribution match.':'At least one measured point in the amount range differs beyond the existing tolerance.';
+      copy.metric='Largest measured percentile difference';copy.comparison=worst?'Synthetic is '+fmt(Math.abs(worst.difference))+' amount units '+(worst.difference>0?'higher':worst.difference<0?'lower':'different')+' at this point.':'Paired percentile values are unavailable.';
+      if(worst?.difference===0)copy.comparison='The measured percentile values match.';
       copy.why=a.key==='numeric.available_credit'?'Could affect scenarios based on available spending capacity.':'The range of amounts matters for dashboard totals and threshold-based scenarios.';
+    }else if(a.family==='tail'){
+      const r=v.post_pilot?.numeric_details.find(r=>'tail.'+r.key===a.key),points=r?.tail_points.filter(p=>Number.isFinite(p.difference))||[],worst=[...points].sort((a,b)=>Math.abs(b.difference)-Math.abs(a.difference))[0];
+      copy.title=a.label.replace(' tail percentiles','')+(strong?' closely matches at the measured extremes':' differs at the measured extremes');
+      copy.explanation='The measured low and high points reveal gaps that an average can hide. These selected points do not describe the entire tail.';
+      copy.metric='Largest measured low/high percentile difference';copy.why='Extreme amounts can affect stress scenarios and threshold-based tests.';
+      if(worst){const point={P01:'lowest 1% point',P05:'lowest 5% point',P99:'highest 1% point'}[worst.name];copy.source=fmt(worst.source)+' at the '+point;copy.synthetic=fmt(worst.generated)+' at the '+point;copy.comparison=worst.difference===0?'These measured values match.':'Synthetic is '+fmt(Math.abs(worst.difference))+' amount units '+(worst.difference>0?'higher':'lower')+' at this point.';}
+      else copy.comparison='Paired low/high percentile values are not published.';
     }else if(a.family==='mean'){
       copy.title=a.label.replace(' mean','')+(strong?' has a close average':a.generated>a.source?' has a higher average':' has a lower average');
+      copy.explanation='The average uses every measured value, including unusually large or small amounts.';copy.metric='Average amount';copy.comparison='Synthetic average is '+fmt(Math.abs(a.generated-a.source))+' amount units '+(a.generated>a.source?'higher':a.generated<a.source?'lower':'different')+' than SOURCE.';
+      if(a.generated===a.source)copy.comparison='The measured averages match.';
       copy.why='A different average can change exposure or balance summaries in analytical tests.';
     }else if(a.family==='dates'){
-      copy.title=a.key==='date.birth'?'The customer age mix needs review':a.key==='date.customer_since'?'The customer tenure mix needs review':a.label+' needs review';
+      copy.title=a.key==='date.birth'?'Customer birth-date patterns differ from the baseline':a.key==='date.customer_since'?'Customer tenure patterns differ from the baseline':a.label+' needs review';
       if(strong)copy.title=a.label+' closely matches';copy.source='Monthly proportions not published';copy.synthetic='Monthly proportions not published';
       copy.why='Date patterns can change the mix of customers represented in time-based segments.';
+      copy.explanation='Some calendar-month groups occur at different frequencies. Paired monthly shares are not published in this report.';copy.metric='Calendar-month distribution distance';copy.comparison=fmt(a.score)+'% total variation on a 0–100% distance scale. The distance has no higher/lower direction; individual monthly differences are unavailable.';
     }else if(a.family==='date_bounds'){
       copy.title=a.label.replace(' distribution bounds',' date bounds')+(strong?' closely match':' differ');
       copy.source='Absolute dates not published';copy.synthetic='Absolute dates not published';
       copy.why='Matching boundaries supports date-range scenarios; it does not establish a matching distribution inside that range.';
+      copy.explanation='Only the earliest and latest recorded dates are assessed.';copy.metric='Largest endpoint shift';copy.comparison=fmt(a.score)+' days; date-frequency similarity is not established by this check.';
     }else if(a.family==='cardinality'){
       const r=v.cardinality.find(r=>'cardinality.'+r.key===a.key);copy.title=a.label+(strong?' closely match':' need review');
       copy.source=fmt(r?.source_mean)+' on average';copy.synthetic=fmt(r?.generated_mean)+' on average';
       copy.why='Record links determine the workload and joins exercised by relational tests.';
+      copy.metric='Related records per customer';copy.explanation='The measured comparison covers how related-record counts are distributed.';
     }else if(a.family==='categorical_conditional'){
       const r=v.dependency_fidelity?.categorical.find(r=>'categorical_conditional.'+r.key===a.key);
       copy.title=a.key.endsWith('client_tsys_product')?'Product-code relationships '+(strong?'closely match':'need review'):'Account-type and product pairings '+(strong?'closely match':'need review');
       copy.source=fmt(r?.source_cramers_v)+' association strength';copy.synthetic=fmt(r?.generated_cramers_v)+' association strength';
       copy.why='Consistent combinations matter when testing related account and product fields.';
+      copy.explanation='This distance compares the measured distribution of product categories within parent groups. It does not establish causation.';copy.metric='Conditional category-distribution distance';copy.comparison=fmt(a.score)+'% conditional total variation. Per-category shares and support are not published.';
     }else if(a.family==='correlation'){
       copy.title=strong?'Balances and credit limits retain a similar relationship':'The balance–credit-limit relationship differs';
       copy.why='Independent-looking amounts can misrepresent scenarios that depend on the two fields varying together.';
+      copy.metric='Linear association';copy.explanation='This compares how balances and credit limits vary together, rather than their separate distributions.';copy.comparison='Synthetic coefficient is '+fmt(Math.abs(a.generated-a.source))+' '+(a.generated>a.source?'higher':a.generated<a.source?'lower':'different')+' than SOURCE.';
     }else if(a.family==='conditional'){
-      copy.title=strong?'Past-due rates closely match in this utilization group':'Past-due rates differ in this utilization group';copy.source=pct(a.source);copy.synthetic=pct(a.generated);
+      copy.title=(strong?'Past-due rates closely match':'Past-due rates differ')+' for '+a.label.replace('Past due · utilization ','')+' credit usage';copy.source=pct(a.source);copy.synthetic=pct(a.generated);
       copy.why='This relationship matters for scenarios that segment accounts by credit usage.';
+      copy.explanation='The share of accounts flagged past due is compared within the same credit-usage group.';copy.metric='Accounts flagged past due';copy.comparison='Synthetic rate is '+preciseGap(Math.abs(a.generated-a.source)*100)+' percentage points '+(a.generated>a.source?'higher':a.generated<a.source?'lower':'different')+' than SOURCE.';
+      if(a.generated===a.source)copy.comparison='The measured past-due rates match in this group.';
+    }else if(a.family==='categorical'){
+      const r=v.categorical.find(r=>r.category==='Y');copy.title=strong?'The overall past-due mix closely matches the baseline':'The overall past-due mix needs review';copy.explanation='The share of accounts flagged past due is compared across the two populations.';copy.source=pct(r?.source)+' past due';copy.synthetic=pct(r?.generated)+' past due';copy.metric='Accounts flagged past due';copy.comparison='Largest category-share difference: '+fmt(a.score)+' percentage points.';
     }
     return copy;
   }
 
   function executiveFindings(doc,view) {
-    const {v}=view,root=el(doc,"div",undefined,"findings-grid"),byKey=new Map([...v.assessments,...(v.post_pilot?.assessments||[]),...(v.null_rate_audit?.rows||[])].map(a=>[a.key,a]));
-    for(const [key,title] of [["strengths","Strongest measured areas"],["weaknesses","Largest measured deviations"]]){
+    const {v}=view,root=el(doc,"div",undefined,"findings-grid"),selections=headlineFindings(v);
+    for(const [key,title] of [["strengths","What SAGE reproduced well"],["weaknesses","Where SAGE needs improvement"]]){
       const panel=el(doc,"div",undefined,"finding-panel");panel.append(el(doc,"h3",title));
-      const makeList=(ids,offset=0)=>{const list=el(doc,"ol",undefined,"finding-list");list.setAttribute("start",String(offset+1));list.style.counterReset="findings "+offset;for(const id of ids){const a=byKey.get(id),copy=findingCopy(a,v),li=el(doc,"li");const scope=a.key.startsWith('null_field.')?'Full-dataset missingness':v.post_pilot?.assessments.some(r=>r.key===a.key)?'Additional statistical check':'Core evidence';li.append(el(doc,"strong",copy.title),el(doc,'p',scope,'finding-scope'),el(doc,"p",'SOURCE '+copy.source+' · Synthetic '+copy.synthetic,'finding-values'),el(doc,'p',copy.why,'finding-meaning'),details(doc,'Measurement details',el(doc,'p',a.label+' · '+copy.gap),badge(doc,a.status)));list.append(li);}return list;};
-      const selected=v.post_pilot?.[key]||v[key];
+      const makeList=(items,offset=0)=>{const list=el(doc,"ol",undefined,"finding-list");list.setAttribute("start",String(offset+1));list.style.counterReset="findings "+offset;for(const a of items){const copy=findingCopy(a,v),li=el(doc,"li"),e=findingEvidence(v,a);const scope=a.key.startsWith('null_field.')?'Full-dataset missingness':v.post_pilot?.assessments.some(r=>r.key===a.key)?'Additional statistical check':'Key-variable / relationship evidence';
+        li.append(el(doc,'strong',copy.title),el(doc,'p',copy.explanation,'finding-explanation'),el(doc,'p',scope,'finding-scope'),el(doc,'p',copy.metric,'finding-metric'),findingComparison(doc,a,copy),el(doc,'p',copy.comparison,'finding-difference'),el(doc,'p',copy.why,'finding-meaning'),evidenceBadge(doc,v,a));
+        const extra=details(doc,'Measurement details',el(doc,'p',a.label+' · '+copy.gap),el(doc,'p','Original screening classification: '+state(a.status)+'. '+e.reason),el(doc,'p','SOURCE field/bucket observations: '+fmt(e.source_n)+'; synthetic: '+fmt(e.generated_n)+'. Counts do not establish representativeness.'));
+        if(a.family==='nulls'&&a.status==='NEEDS_REVIEW')extra.append(el(doc,'p','The generator fills supported profiled fields, then pads unsupported schema columns with nulls. This pattern can explain fully missing fields. The JSON does not encode each field’s generation path; the archived null-rate investigation records the current high-cardinality omissions.'));
+        li.append(extra);list.append(li);}return list;};
+      const selected=selections[key];
       panel.append(selected.length?makeList(selected.slice(0,3)):el(doc,"p","No qualifying measured findings yet."));
       if(selected.length>3)panel.append(details(doc,key==="strengths"?"More measured strengths":"More measured discrepancies",makeList(selected.slice(3),3)));root.append(panel);
     }
+    const audit=details(doc,'Why some matches are not headline strengths',el(doc,'p','Headline eligibility is separate from the original tolerance grade. We require published variation and sample evidence, and exclude trivial or constructed matches. No measurement, threshold or outcome count is changed.'),table(doc,'Matches retained outside headline strengths',['Measurement','Original grade','Evidence interpretation','Why it is not a headline strength'],selections.audit.map(a=>{const e=findingEvidence(v,a);return [a.label,state(a.status),EVIDENCE_LABELS[e.kind],e.reason];})));
+    const integrity=v.assessments.filter(a=>a.family==='integrity');
+    audit.append(el(doc,'p',fmt(integrity.filter(a=>a.status==='STRONG').length)+' measured integrity checks passed; '+fmt(integrity.filter(a=>a.status==='NEEDS_REVIEW').length)+' need review; '+fmt(integrity.filter(a=>a.status==='UNAVAILABLE').length)+' lack evidence. Constraint passes are not statistical strengths.'));
+    audit.className+=' findings-audit';root.append(audit);
     return root;
   }
 
@@ -336,8 +459,9 @@
     return v.assessments.filter(a=>key==='correlation'?a.key==='correlation.balance_limit':a.family==='conditional').map(a=>({...a,label:key==='correlation'?a.label:a.label.replace('Past due · utilization ',''),gap:key==='correlation'?a.score:a.difference===null?null:Math.abs(a.difference)*100,rank:a.status==='UNAVAILABLE'?null:a.score}));
   }
   const guideDocuments=new WeakSet(),openGuides=new WeakMap();
-  function metricGuide(doc,id) {
-    const wrap=el(doc,'div',undefined,'metric-guide'),button=el(doc,'button','Metric guide'),tip=el(doc,'div',undefined,'metric-tooltip');
+  function metricGuide(doc,id,{label='Metric guide',description='',icon=false}={}) {
+    const wrap=el(doc,'div',undefined,'metric-guide'+(icon?' term-help':'')),button=el(doc,'button',icon?'i':label,icon?'info-button':undefined),tip=el(doc,'div',description,'metric-tooltip');
+    if(icon){const heading=el(doc,'span',label,'term-label');button.setAttribute('aria-label','About '+label);wrap.append(heading);}
     button.type='button';button.setAttribute('aria-controls',id);button.setAttribute('aria-expanded','false');tip.id=id;tip.hidden=true;tip.setAttribute('role','tooltip');button.setAttribute('aria-describedby',id);wrap.append(button,tip);let pinned=false;
     const close=()=>{pinned=false;show(false);};
     const show=open=>{if(open){const previous=openGuides.get(doc);if(previous&&previous!==close)previous();openGuides.set(doc,close);}else if(openGuides.get(doc)===close)openGuides.delete(doc);tip.hidden=!open;button.setAttribute('aria-expanded',String(open));};
@@ -347,8 +471,12 @@
     button.addEventListener('click',()=>{pinned=!pinned;show(pinned);});
     button.addEventListener('keydown',e=>{if(e.key==='Escape'){pinned=false;show(false);e.preventDefault();}});
     // Dismiss hover help with Escape even when keyboard focus is elsewhere.
-    if(doc.addEventListener&&!guideDocuments.has(doc)){doc.addEventListener('keydown',e=>{if(e.key==='Escape')openGuides.get(doc)?.();});guideDocuments.add(doc);}
-    return {wrap,tip};
+    close.contains=target=>target===button||wrap.contains?.(target);
+    if(doc.addEventListener&&!guideDocuments.has(doc)){
+      doc.addEventListener('keydown',e=>{if(e.key==='Escape')openGuides.get(doc)?.();});
+      doc.addEventListener('pointerdown',e=>{const current=openGuides.get(doc);if(current&&!current.contains(e.target))current();});guideDocuments.add(doc);
+    }
+    return {wrap,tip,button};
   }
   function exploreValidation(doc,view) {
     const v=view.v,root=section(doc,'explore-validation','Explore the measured results','Choose a validation type and a published variable. The executive findings above and the full evidence below remain available.'),tabs=el(doc,'div',undefined,'validation-tabs');
@@ -432,8 +560,8 @@
         const item=el(doc,'div');item.append(el(doc,'dt',label),el(doc,'dd',fmt(value)));metrics.append(item);
       }root.append(metrics,el(doc,'p','Missingness is assessed across '+fmt(n.variables_total)+' reviewed fields. Focus first on nontrivial comparisons and fields needing review.','measurement-note'),missingnessScopeDetails(doc,n));
       if(n.additional_unpublished_variables)root.append(el(doc,'p',n.additional_unpublished_variables+' additional fields are outside the reviewed public metadata allowlist. Their comparisons remain in the private fidelity tables.','measurement-note'));
-      const matches=rows.filter(r=>r.strength_eligible).sort((a,b)=>Number(a.all_null_match)-Number(b.all_null_match)||a.score-b.score||a.key.localeCompare(b.key));
-      root.append(el(doc,'h3','Meaningful null-rate preservation'),matches.length?el(doc,'p',matches.slice(0,3).map(r=>r.table+'.'+r.column+' ('+fmt(r.score)+' pp gap)').join('; ')+'.','measurement-note'):el(doc,'p','No qualifying meaningful null-rate strengths are available. Zero-to-zero observations do not fill this list.','unavailable-note'));
+      const matches=rows.filter(r=>r.strength_eligible&&findingEvidence(v,r).eligible).sort((a,b)=>a.score-b.score||a.key.localeCompare(b.key));
+      root.append(el(doc,'h3','Supported missing-value patterns'),matches.length?el(doc,'p',matches.slice(0,3).map(r=>r.table+'.'+r.column+' ('+fmt(r.score)+' pp gap)').join('; ')+'.','measurement-note'):el(doc,'p','No independently supported missingness strengths are available. Constant and explicitly constructed matches remain in the table.','unavailable-note'));
       const issues=rows.filter(r=>r.status==='NEEDS_REVIEW').sort((a,b)=>b.score-a.score||a.key.localeCompare(b.key));
       if(issues.length){const list=el(doc,'ul',undefined,'quality-limitations');for(const r of issues.slice(0,6))list.append(el(doc,'li',r.table+'.'+r.column+': SOURCE '+pct(r.source)+'; synthetic '+pct(r.generated)+' ('+fmt(r.score)+' pp gap).'));root.append(el(doc,'h3','Null-rate discrepancies'),list);}
     }else root.append(el(doc,'p','Full-table audit unavailable. Only the selected historical comparisons are shown; no missing comparisons are invented.','measurement-note'));
@@ -507,9 +635,9 @@
 
   function renderValidation(doc,view) {
     const {report,v}=view,root=el(doc,"div"),byKey=new Map(v.assessments.map(a=>[a.key,a]));
-    const summary=section(doc,"summary",v.summary.variables_requiring_review?'Core results need review.':v.summary.variables_incomplete?'Some core evidence is incomplete.':'Selected variables meet the core tolerances.');
+    const summary=section(doc,"summary",v.summary.variables_requiring_review?'Key variables need review.':v.summary.variables_incomplete?'Some key-variable evidence is incomplete.':'Selected variables meet the core tolerances.');
     summary.append(executiveSummary(doc,view),el(doc,"p","Completed "+new Date(report.pipeline_completed_at).toLocaleString("en",{timeZone:"UTC"})+" UTC · Comparison is against the repository’s fake development SOURCE baseline. Representativeness of real production banking data has not been established.","measurement-note"));
-    const findings=section(doc,"findings","What matches — and what could affect its use","Largest deviations and strong matches are selected from the measured results. Each finding names its scope; expand its measurement details for the underlying metric.");findings.append(executiveFindings(doc,view));
+    const findings=section(doc,"findings","What the evidence means","Start with the preserved characteristics and the largest gaps. Constructed patterns, date boundaries and limited evidence remain available in the details.");findings.append(termHelp(doc,'fidelity','Statistical fidelity'),executiveFindings(doc,view));
 
     const numeric=section(doc,"numeric","Inspect the distribution — including the upper tail","Compare four measured percentiles. A close median can coexist with a materially different upper tail.");numeric.append(VIZ.distribution(doc,v));
     if(v.post_pilot)numeric.append(numericScreening(doc,v));
@@ -527,13 +655,14 @@
     categorical.append(VIZ.categorical(doc,v),table(doc,"Past-due indicator proportions",["Category","SOURCE","Synthetic","Absolute gap","Status"],v.categorical.map(r=>[r.category==="Y"?"Past due (Y)":"Not past due (N)",pct(r.source),pct(r.generated),measure(r.absolute_difference_pp,"pp"),badge(doc,r.status)])));
 
     const completeness=section(doc,"completeness","Missingness and dates are part of fidelity","Compare missing-value proportions and calendar-month distributions, alongside shifts in date boundaries.");
-    completeness.append(nullDetail(doc,v),el(doc,"h3","Date-distribution gaps · lower is closer"));
+    completeness.append(termHelp(doc,'nulls','Null-rate differences'),nullDetail(doc,v),el(doc,"h3","Date-distribution gaps · lower is closer"),termHelp(doc,'variation','Total variation'));
     const dateBars=el(doc,"ol",undefined,"percentile-chart"),dateScale=Math.max(5,...v.dates.map(d=>d.total_variation_pct||0));dateBars.setAttribute("aria-label","Calendar-month distribution total variation, lower is closer");
     for(const d of v.dates){const li=el(doc,"li"),heading=el(doc,"div",undefined,"chart-label"),track=el(doc,"div",undefined,"chart-track"),bar=el(doc,"div",undefined,"chart-bar "+(d.status==="NEEDS_REVIEW"?"chart-review":""));heading.append(el(doc,"strong",d.label),badge(doc,d.status));bar.style.width=Math.max(0,Math.min(100,100*(d.total_variation_pct||0)/dateScale))+"%";track.setAttribute("aria-hidden","true");track.append(bar);li.append(heading,track,el(doc,"p",measure(d.total_variation_pct,"% total variation"),"chart-value"));dateBars.append(li);}
     completeness.append(dateBars,table(doc,"Calendar-month distributions",["Date characteristic","Monthly total variation","Earliest boundary shift","Latest boundary shift","Status"],v.dates.map(r=>[r.label,measure(r.total_variation_pct,"%"),measure(r.earliest_shift_days,"days"),measure(r.latest_shift_days,"days"),badge(doc,r.status)])),el(doc,"p","Total variation summarizes the difference between complete calendar-month proportion distributions, on a 0–100% scale. Boundary shifts are synthetic minus SOURCE in days. The artifact contains these aggregate distances, not the month-by-month bins; day-of-month and time-of-day fidelity remain unmeasured.","measurement-note"));
 
     const dependencies=section(doc,"dependencies","Check relationships as well as individual fields","Compare observed correlations and conditional past-due rates in the final cohort. Association does not establish causation.");
-    const corr=byKey.get("correlation.balance_limit"),callout=el(doc,"div",undefined,"correlation-callout");callout.append(el(doc,"h3","Credit limit / balance correlation"),el(doc,"p",fmt(corr.source)+" SOURCE · "+fmt(corr.generated)+" synthetic","exec-number"),badge(doc,corr.status));
+    const corr=byKey.get("correlation.balance_limit"),callout=el(doc,"div",undefined,"correlation-callout");callout.append(el(doc,"h3","Credit limit / balance correlation"),termHelp(doc,'correlation','Correlation'),el(doc,"p",fmt(corr.source)+" SOURCE · "+fmt(corr.generated)+" synthetic","exec-number"),badge(doc,corr.status));
+    dependencies.append(termHelp(doc,'conditional','Conditional dependencies'));
     dependencies.append(callout,table(doc,"Credit-limit / balance Pearson correlation",["Relationship","SOURCE","Synthetic","Absolute gap","SOURCE pairs","Synthetic pairs","Status"],[[corr.label,fmt(corr.source),fmt(corr.generated),fmt(corr.score),fmt(corr.source_n),fmt(corr.generated_n),badge(doc,corr.status)]]),el(doc,"p","Paired counts are unavailable when the saved correlation did not record them. No confidence interval or significance claim is inferred.","measurement-note"),VIZ.conditional(doc,v),table(doc,"Past-due rates by utilization bucket",["Utilization","SOURCE rate","Synthetic rate","Absolute gap","SOURCE n","Synthetic n","Status"],v.assessments.filter(a=>a.family==="conditional").map(a=>[a.label.replace("Past due · utilization ",""),pct(a.source),pct(a.generated),measure(a.difference===null?null:Math.abs(a.difference)*100,"pp"),fmt(a.source_n),fmt(a.generated_n),badge(doc,a.status)])),el(doc,"p","Conditional classifications require at least "+v.min_conditional_rows+" records per bucket in each population. Hollow points retain raw rates but lack sufficient comparison evidence. Missing SOURCE rates are not treated as zero.","measurement-note"));
 
     if(v.dependency_fidelity){
@@ -544,13 +673,13 @@
         el(doc,"p","Conditional total variation weights each parent group by its SOURCE share. Unsupported combinations had zero observed SOURCE support; this does not establish impossibility. Numeric differences require identical SOURCE interval boundaries. These supplemental observations are outside the headline check counts; categorical distances use the additional provisional screening policy when supplied.","measurement-note"));
     }
     const structure=section(doc,"structure","Preserve the population’s links and record counts","Compare relationship-count distributions and directionality. Structural constraints are evaluated separately from statistical resemblance.");
-    structure.append(VIZ.cardinality(doc,v),table(doc,"Relationship cardinality fidelity",["Relationship","SOURCE mean","Synthetic mean","Full-distribution total variation","Status"],v.cardinality.map(r=>[r.label,fmt(r.source_mean),fmt(r.generated_mean),measure(r.total_variation_pct,"%"),badge(doc,r.status)])),el(doc,"p","Accounts per customer profiles parties represented in the customer–account link table, including only that profiled population. It does not establish how many of all customers have zero accounts.","measurement-note"),el(doc,"p","Accounts per person (all account rows ÷ all PERSON rows): SOURCE "+fmt(v.accounts_per_person.source)+"; synthetic "+fmt(v.accounts_per_person.generated)+". This population ratio can differ even when the linked-customer cardinality distribution is close.","measurement-note"));
-    structure.append(table(doc,"Customer-relationship directionality",["Pattern","SOURCE","Synthetic","Absolute gap","Status"],v.assessments.filter(a=>a.family==="graph").map(a=>[a.label,pct(a.source),pct(a.generated),measure(a.score,"pp"),badge(doc,a.status)])));
+    structure.append(VIZ.cardinality(doc,v),table(doc,"Relationship cardinality fidelity",["Relationship","SOURCE mean","Synthetic mean","Full-distribution total variation","Original grade","Evidence interpretation"],v.cardinality.map(r=>[r.label,fmt(r.source_mean),fmt(r.generated_mean),measure(r.total_variation_pct,"%"),badge(doc,r.status),evidenceBadge(doc,v,byKey.get("cardinality."+r.key))])),el(doc,"p","Accounts per customer profiles parties represented in the customer–account link table, including only that profiled population. It does not establish how many of all customers have zero accounts.","measurement-note"),el(doc,"p","Accounts per person (all account rows ÷ all PERSON rows): SOURCE "+fmt(v.accounts_per_person.source)+"; synthetic "+fmt(v.accounts_per_person.generated)+". This population ratio can differ even when the linked-customer cardinality distribution is close.","measurement-note"));
+    structure.append(table(doc,"Customer-relationship directionality",["Pattern","SOURCE","Synthetic","Absolute gap","Original grade","Evidence interpretation"],v.assessments.filter(a=>a.family==="graph").map(a=>[a.label,pct(a.source),pct(a.generated),measure(a.score,"pp"),badge(doc,a.status),evidenceBadge(doc,v,a)])));
     structure.append(table(doc,"Generated structural and business-rule checks",["Check","SOURCE rate","Synthetic rate","SOURCE matched / violations","Synthetic matched / violations","Eligible synthetic rows","Status"],v.assessments.filter(a=>a.family==="integrity").map(a=>[a.label,pct(a.source),pct(a.generated),fmt(a.source_count),fmt(a.generated_count),fmt(a.generated_n),badge(doc,a.status,true)])),el(doc,"p","Account/balance joins require 100% coverage in both directions. Other measured generated violation rates must be zero. Passed describes the generated constraint, not equality with SOURCE or comprehensive referential coverage. Unrecorded cross-table comparisons remain unavailable.","measurement-note"),details(doc,"Population sizes and comparison context",table(doc,"Population sizes",["Population","SOURCE rows","Synthetic rows","Difference"],v.populations.map(r=>[TABLES[r.table],fmt(r.source),fmt(r.generated),signed(r.difference)])),el(doc,"p","Different requested population sizes are expected. Raw row-count differences are context, not a statistical fidelity failure.","measurement-note")));
 
     const methodology=section(doc,"methodology","Understand the tolerances — and the limits","These are transparent prototype screening thresholds, not calibrated business acceptance criteria or a statistical guarantee. No single overall accuracy percentage is calculated.");
     const names={numeric_iqr_pct:"Worst percentile gap / SOURCE IQR",proportion_pp:"Category, null or dyad gap",conditional_pp:"Conditional outcome gap",correlation:"Absolute Pearson gap",distribution_tvd_pct:"Month / cardinality total variation"};
-    methodology.append(table(doc,"Prototype tolerance policy "+v.policy_version,["Metric","Strong match at or below","Acceptable at or below","Needs review"],Object.entries(v.thresholds).map(([key,t])=>[names[key],fmt(t.strong)+" "+UNITS[key],fmt(t.acceptable)+" "+UNITS[key],"Above "+fmt(t.acceptable)+" "+UNITS[key]])),el(doc,"p","Numeric normalized gap = 100 × absolute percentile difference ÷ SOURCE IQR; status uses the maximum across P25/P50/P75/P95. Distribution total variation = 50 × the sum of absolute proportion differences. Category, null and conditional gaps use percentage points (pp). These percentages measure departures, not accuracy.","measurement-note"),el(doc,"p","Strengths and discrepancies are ranked by departure divided by the applicable acceptable threshold, with at most two findings per metric family. Strengths use strong statistical comparisons; structural passes are shown separately. This prioritization does not combine metrics into a score.","measurement-note"));
+    methodology.append(table(doc,"Prototype tolerance policy "+v.policy_version,["Metric","Strong match at or below","Acceptable at or below","Needs review"],Object.entries(v.thresholds).map(([key,t])=>[names[key],fmt(t.strong)+" "+UNITS[key],fmt(t.acceptable)+" "+UNITS[key],"Above "+fmt(t.acceptable)+" "+UNITS[key]])),el(doc,"p","Numeric normalized gap = 100 × absolute percentile difference ÷ SOURCE IQR; status uses the maximum across P25/P50/P75/P95. Distribution total variation = 50 × the sum of absolute proportion differences. Category, null and conditional gaps use percentage points (pp). These percentages measure departures, not accuracy.","measurement-note"),el(doc,"p","Headline strengths require a strong original tolerance grade plus published variation and sample evidence. Trivial, constructed, boundary-only and insufficiently supported matches remain in the evidence audit. Eligible findings are ordered by departure divided by the existing acceptable threshold, with family diversity first; additional findings are expandable. Native-unit zero-reference alerts stay separate from normalized ranks. No combined score is calculated.","measurement-note"));
     if(v.post_pilot){
       const labels={mean_relative_pct:"Absolute mean gap / SOURCE mean",zero_mean_absolute:"Zero SOURCE mean: native-unit departure",tail_iqr_pct:"Worst P01 / P05 / P99 gap / SOURCE IQR",conditional_tvd_pct:"Categorical conditional total variation",date_bound_days:"Largest date boundary shift"};
       methodology.append(table(doc,"Additional provisional screens · "+v.post_pilot.policy_version,["Metric","Strong at or below","Acceptable at or below","Review above"],Object.entries(v.post_pilot.thresholds).map(([k,t])=>[labels[k],measure(t.strong,UNITS[k]),measure(t.acceptable,UNITS[k]),measure(t.acceptable,UNITS[k])])),
@@ -560,7 +689,7 @@
     methodology.append(el(doc,'p','Missingness policy null_rates_v1: exact zero-null counts in both populations are TRIVIAL and excluded from strengths, including historical reports. Nonzero rates are graded with the existing 1 pp strong / 3 pp acceptable thresholds. Any zero/nonzero transition needs review regardless of gap size; this qualitative screen is not a claim of statistical significance. Core and all-table counts have separate denominators, with no combined fidelity percentage.','measurement-note'));
     for(const text of ["The development SOURCE baseline is fabricated. Matching it does not establish representativeness of production banking populations.","The public report covers four numeric variables, one categorical variable, three date variables and selected relationships; the separate null audit covers the reviewed fields across all six tables. It does not assess every joint distribution.","Sparse conditional buckets, zero SOURCE IQR, absent profiles and missing paired counts limit interpretation. Unavailable evidence is not proof of similarity or a measured discrepancy.","Percentile profiles summarize selected points. Selected tail percentiles and extrema do not establish full tail-density or joint-distribution fidelity. Detailed temporal patterns and some reference comparisons remain unmeasured.","Prototype tolerances are descriptive screening settings. Sampling uncertainty is not quantified, and statistical similarity does not establish privacy or external-release suitability."])limits.append(el(doc,"li",text));
     methodology.append(limits,details(doc,"Unavailable evidence and reasons",table(doc,"Evidence availability notes",["Characteristic","Context"],v.assessments.filter(a=>a.reason).map(a=>[a.label,REASONS[a.reason]||"Evidence unavailable."]))));
-    if(v.post_pilot)completeness.append(table(doc,"Date-boundary screening",["Characteristic","Largest absolute boundary shift","Status"],v.post_pilot.assessments.filter(a=>a.family==="date_bounds").map(a=>[a.label,measure(a.score,"days"),badge(doc,a.status)])));
+    if(v.post_pilot)completeness.append(table(doc,"Date-boundary screening",["Characteristic","Largest absolute boundary shift","Original grade","Evidence interpretation"],v.post_pilot.assessments.filter(a=>a.family==="date_bounds").map(a=>[a.label,measure(a.score,"days"),badge(doc,a.status),evidenceBadge(doc,v,a)])));
     root.append(summary,findings,exploreValidation(doc,view),numeric,categorical,completeness,dependencies,structure,privacySection(doc,report),methodology);return root;
   }
   function mountValidation(root,{fetcher=globalThis.fetch,location=globalThis.location,timeoutMs=10000}={}){
@@ -576,7 +705,7 @@
       }catch(_){body.replaceChildren(el(doc,"p","The latest validation report is unavailable or incomplete. Use Refresh validation report to try again. Pipeline methodology and the verified demo explorer remain accessible from the navigation; no substitute statistics are shown.","measurement-note"));status.textContent="Validation results pending";}finally{clearTimeout(timer);firstLoad=false;loading=false;button.disabled=false;button.textContent="Refresh validation report";root.setAttribute("aria-busy","false");}}
     button.addEventListener("click",refresh);return {ready:refresh(),refresh};
   }
-  const api={normalizeValidation,normalizePrivacy,renderValidation,mountValidation,executiveSummary,executiveFindings,exploreValidation,explorationRows,classifyNull,nullSummary,normalizeNullAudit,scopeCounts,findingCopy};
+  const api={normalizeValidation,normalizePrivacy,renderValidation,mountValidation,executiveSummary,executiveFindings,exploreValidation,explorationRows,classifyNull,nullSummary,normalizeNullAudit,scopeCounts,findingCopy,findingEvidence,headlineFindings,metricGuide,TERMS};
   if(typeof module!=="undefined"&&module.exports)module.exports=api;
   if(typeof window!=="undefined")window.SageValidation=api;
   if(typeof document!=="undefined"){const root=document.getElementById("validation-report");if(root)mountValidation(root);}

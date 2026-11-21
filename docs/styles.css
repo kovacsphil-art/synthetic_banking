@@ -1478,6 +1478,31 @@ td {
 .validation-page .report-toolbar { padding-top: .2rem; }
 .validation-page .report-toolbar button { min-height: 44px; padding: .4rem .8rem; font-size: .875rem; }
 .validation-page .validation-takeaway { max-width: none; }
+/* Shared contextual help stays in flow: it cannot cover a statistic or leave the screen. */
+.exec-page .metric-guide { min-width: 0; max-width: 100%; }
+.exec-page .term-help { display: block; position: relative; margin: .25rem 0 .65rem; font-size: .95rem; font-weight: 500; color: var(--ink); }
+.exec-page .term-label { margin-right: .3rem; }
+.exec-page .term-help .info-button { display: inline-flex; align-items: center; justify-content: center; width: 2.75rem; min-height: 2.75rem; padding: .5rem; border: 1px solid var(--line); border-radius: 50%; color: var(--red-dark); background: #fff; font: 600 1rem Georgia,serif; cursor: pointer; vertical-align: middle; }
+.exec-page .term-help .info-button[aria-expanded="true"] { background: var(--red-soft); border-color: var(--red); }
+.exec-page .metric-tooltip { position: static; width: min(29rem,100%); max-width: 100%; margin-top: .4rem; padding: .85rem 1rem; border: 1px solid #d4d6da; border-radius: .2rem; background: #fff; color: var(--ink); box-shadow: 0 3px 12px #0000000d; font-size: .95rem; font-weight: 400; line-height: 1.6; text-transform: none; letter-spacing: normal; overflow-wrap: anywhere; }
+.exec-page .metric-tooltip[hidden] { display: none; }
+.findings-audit { grid-column: 1 / -1; }
+.exec-page .finding-list .finding-explanation { color: var(--ink); font-size: 1rem; line-height: 1.6; margin: .65rem 0; }
+.exec-page .finding-list .finding-metric { color: var(--muted); font-size: .875rem; margin-bottom: .2rem; }
+.exec-page .finding-list .finding-difference { color: var(--ink); font-size: .95rem; line-height: 1.6; }
+.finding-rate { display: grid; grid-template-columns: 5.2rem minmax(0,1fr) 4.2rem; gap: .6rem; align-items: center; margin: .45rem 0; font-size: .875rem; }
+.finding-rate strong { text-align: right; font-size: .875rem; font-variant-numeric: tabular-nums; }
+.finding-rate-track { background: #eff0f2; height: .45rem; }
+.finding-rate-track span { display: block; height: 100%; }
+.finding-rate-track .rate-source { background: #35383d; }
+.finding-rate-track .rate-synthetic { background: var(--red); }
+.exec-page .finding-values > p { margin: .3rem 0; }
+.exec-page .finding-panel > h3 { font-size: 1.2rem; text-transform: none; letter-spacing: normal; line-height: 1.4; }
+@media(max-width:650px) {
+ .exec-page .finding-list { padding-left: 0; }
+}
+.exec-page .evidence-statistical { color: var(--ink); background: #f0f3f4; }
+.exec-page :is(.evidence-constructed,.evidence-boundary,.evidence-integrity,.evidence-limited,.evidence-insufficient) { color: #4d5159; background: #f4f4f5; }
 .validation-page .core-outcome > .eyebrow { margin-bottom: .45rem; }
 .validation-page .core-outcome .report-details { padding-top: .5rem; margin-top: .65rem; }
 @media(max-width:650px) {

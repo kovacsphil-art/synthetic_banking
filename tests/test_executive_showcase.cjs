@@ -48,7 +48,8 @@ test('expanded findings retain their measured ranking and have distinct disclosu
   for(const [i,key] of ['strengths','weaknesses'].entries()){
     const panel=root.children[i],lists=all(panel).filter(n=>n.tagName==='OL');
     assert.equal(lists[0].attributes.start,'1');
-    if(view.v[key].length>3){assert.equal(lists[1].attributes.start,'4');assert.equal(lists[1].style.counterReset,'findings 3');}
+    assert.deepEqual(lists[0].children.map(n=>n.children[0].textContent),validation.headlineFindings(view.v)[key].slice(0,3).map(a=>validation.findingCopy(a,view.v).title));
+    if(validation.headlineFindings(view.v)[key].length>3){assert.equal(lists[1].attributes.start,'4');assert.equal(lists[1].style.counterReset,'findings 3');}
     const summary=panel.children.find(n=>n.tagName==='DETAILS')?.children[0];
     if(summary)assert.equal(summary.textContent,key==='strengths'?'More measured strengths':'More measured discrepancies');
   }
@@ -111,7 +112,7 @@ test('pipeline content supplies four business-facing facts for every existing st
 test("overview loads real aggregate fields and fails safely without exposing payloads",async()=>{
   const doc=document(),ids={};for(const name of ["executive-results","hero-status","distribution-preview","hero-customers","hero-accounts","hero-rules"])ids[name]=new Node(doc,"div");doc.getElementById=id=>ids[id];
   const previous=global.window;global.window={SageResults:results,SageValidation:validation,SageViz:viz};
-  try{await mountShowcase(doc,{location:{origin:"https://example.invalid"},fetcher:async()=>({ok:true,text:async()=>JSON.stringify(fixture)})});assert.equal(ids["hero-customers"].textContent,viz.fmt(fixture.generation.customers.value));assert.match(ids["executive-results"].textContent,/Strongest measured areas/);
+  try{await mountShowcase(doc,{location:{origin:"https://example.invalid"},fetcher:async()=>({ok:true,text:async()=>JSON.stringify(fixture)})});assert.equal(ids["hero-customers"].textContent,viz.fmt(fixture.generation.customers.value));assert.match(ids["executive-results"].textContent,/What SAGE reproduced well/);
     await mountShowcase(doc,{location:{origin:"https://example.invalid"},fetcher:async()=>{throw new Error("PRIVATE_PAYLOAD");}});assert.match(ids["hero-status"].textContent,/unavailable/);assert.equal(ids["hero-customers"].textContent,"—");assert.ok(!ids["executive-results"].textContent.includes("PRIVATE"));
     ids["executive-results"].dataset.reportUrl="https://private.invalid/report";let called=false;await mountShowcase(doc,{location:{origin:"https://example.invalid"},fetcher:async()=>{called=true;}});assert.equal(called,false);
   }finally{global.window=previous;}
