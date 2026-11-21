@@ -103,3 +103,15 @@ The version-1 schema/example are preserved as `pipeline-report-v1.schema.json` a
 For existing version-2 results, historical fields still render. To populate the new mean/tail and privacy sections, deploy the updated reporting bundle and repair **only reporting** in a still-current validated execution, or run the full workflow normally. The task must receive the exact `privacy_assessment_id` from `privacy_check`. Existing lineage/version checks must still pass. This reporting-only repair was verified against the completed pilot; it did not change generated tables or privacy status. Invalid exports preserve the previous report and site.
 
 Local checks: run the Python suite with NumPy, pandas and jsonschema installed, then `node --test tests/test_results.cjs tests/test_validation_page.cjs tests/test_executive_showcase.cjs`. Browser review should confirm navigation, percentile/cardinality selectors, sort controls, scrolling tables, unavailable states and mobile layout. Tests also confirm that removing/changing rule-execution metadata does not change the quality report.
+
+## Lightweight result exploration
+
+The executive summary and headline strengths/gaps remain visible above the explorer. Numeric, Categorical and Dependency tabs reuse the already-normalized sanitized report, without extra requests or changes to validation calculations. Arrow keys and Home/End switch tabs; native selectors and sortable column buttons work by keyboard. Metric guides open on hover/focus or tap and close with Escape.
+
+- Numeric charts use the four published P25/P50/P75/P95 values. Table SOURCE/Synthetic columns are medians (P50); the sortable gap is the existing worst-percentile gap relative to SOURCE IQR, not just the median difference.
+- Categorical charts show the one published past-due variable. The table compares category shares and supplied absolute percentage-point gaps; other distributions are not inferred.
+- Dependency selection switches between measured utilization-conditioned past-due rates and credit-limit/balance Pearson correlation. A fixed −1 to +1 correlation axis avoids implying a wider scale. Additional dependency evidence remains in the detailed tables below.
+- Strongest means the existing STRONG classification; weakest means NEEDS_REVIEW. These apply to the displayed metric, not overall variable quality. No threshold, classification or overall score is recomputed.
+- Sorting compares gaps only within one metric/unit. Missing or sparse comparisons stay last; raw rates can remain visible without being ranked. Filtering keeps all published chart points for the selected variable, including hollow sparse points, while narrowing the comparison table. Missing charts and empty match views show an explicit unavailable state.
+
+The detailed report, date/missingness/structure/privacy evidence, backend reporting schema and generation process are unchanged. No row data, model attribution experiments or framework dependencies are added.

@@ -1206,6 +1206,37 @@ td {
 @media (prefers-reduced-motion: reduce) { .exec-page *, .exec-page *::before, .exec-page *::after { scroll-behavior: auto; transition: none; animation: none; } }
 @media (prefers-reduced-motion: reduce) { .pipeline-explorer .stage-detail, .pipeline-stage button { animation: none; transition: none; } }
 /* Final-cohort fidelity: maintain executive hierarchy without an overall score. */
+.validation-explorer [hidden] { display: none !important; }
+.validation-tabs { display: flex; width: fit-content; max-width: 100%; border-bottom: 1px solid var(--line); margin: 1.8rem 0; }
+.validation-tabs button { font: inherit; font-size: 1rem; min-height: 48px; padding: .7rem 1.3rem; color: var(--ink); background: white; border: 1px solid var(--line); border-bottom: 3px solid transparent; cursor: pointer; transition: background-color 160ms, border-color 160ms; }
+.validation-tabs button + button { border-left: 0; }
+.validation-tabs button[aria-selected="true"] { color: var(--red-dark); background: var(--red-soft); border-bottom-color: var(--red); font-weight: 650; }
+.validation-panel { min-width: 0; }
+.validation-controls { display: grid; grid-template-columns: minmax(0,1.4fr) minmax(0,1fr) max-content; gap: 1.2rem; align-items: end; }
+.validation-controls label { display: block; font-size: .875rem; font-weight: 600; margin-bottom: .5rem; }
+.validation-controls select { width: 100%; min-height: 46px; font-size: 1rem; }
+.validation-controls select:disabled { opacity: 1; color: var(--muted); background: #f4f4f4; }
+.validation-explorer .metric-guide { position: relative; align-self: end; }
+.metric-guide > button, .exploration-sort { background: transparent; color: var(--red-dark); border: 0; border-bottom: 1px solid var(--red); cursor: pointer; font: inherit; font-weight: 600; text-align: left; }
+.metric-guide > button { min-height: 46px; font-size: .875rem; padding: .6rem .1rem; }
+.metric-tooltip { position: absolute; right: 0; top: calc(100% + .5rem); z-index: 5; width: 27rem; max-width: calc(100vw - 4.5rem); background: #27282b; color: white; padding: 1rem 1.2rem; font-size: .95rem; line-height: 1.65; box-shadow: 0 5px 18px #0002; }
+.validation-explorer .exploration-status { font-size: .9rem; color: var(--muted); line-height: 1.6; margin: 1.6rem 0 1rem; }
+.validation-explorer .exploration-chart > h3 { font-size: 1.35rem; margin: 1.8rem 0 1rem; }
+.validation-explorer .exec-chart { max-width: 850px; }
+.validation-explorer .measurement-note { font-size: .9rem; line-height: 1.65; }
+.validation-explorer .exploration-sort { font-size: inherit; min-height: 44px; padding: .4rem 0; }
+.validation-explorer .report-table th[aria-sort="ascending"], .validation-explorer .report-table th[aria-sort="descending"] { background: var(--red-soft); }
+.validation-explorer .exploration-reason { display: block; color: var(--muted); font-size: .875rem; max-width: 28ch; white-space: normal; margin-top: .5rem; }
+.validation-explorer .match-badge { font-size: .875rem; }
+.validation-explorer :is(button,select,[tabindex]):focus-visible { outline: 3px solid var(--red); outline-offset: 3px; }
+@media (max-width:650px) {
+  .validation-tabs { width: 100%; }
+  .validation-tabs button { flex: 1; padding: .7rem .5rem; font-size: .9rem; }
+  .validation-controls { grid-template-columns: minmax(0,1fr); gap: 1rem; }
+  .validation-controls .metric-guide { justify-self: start; }
+  .metric-tooltip { left: 0; right: auto; }
+}
+@media (prefers-reduced-motion:reduce) { .validation-tabs button { transition: none; } }
 .exec-page .release-notice { border-left: 3px solid var(--red); padding: .8rem 1rem; background: var(--soft, #f4f4f4); color: var(--ink); font-size: .95rem; font-weight: 600; }
 .exec-page #privacy [aria-label="Aggregate privacy screening"] table { min-width: 0; table-layout: fixed; }
 .exec-page #privacy [aria-label="Aggregate privacy screening"] th:first-child { min-width: 0; width: 58%; }

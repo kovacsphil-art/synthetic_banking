@@ -164,6 +164,88 @@
     return root;
   }
 
+  // Presentation only: consume existing scores/statuses; do not reclassify evidence.
+  function explorationRows(v,kind,key) {
+    if(kind==='numeric')return v.assessments.filter(a=>a.family==='numeric').map(a=>({...a,gap:a.score,rank:a.status==='UNAVAILABLE'?null:a.score}));
+    if(kind==='categorical')return v.categorical.map(r=>({key:r.category,label:r.category==='Y'?'Past due (Y)':'Not past due (N)',source:r.source,generated:r.generated,gap:r.absolute_difference_pp,rank:r.status==='UNAVAILABLE'?null:r.absolute_difference_pp,status:r.status,reason:null}));
+    return v.assessments.filter(a=>key==='correlation'?a.key==='correlation.balance_limit':a.family==='conditional').map(a=>({...a,label:key==='correlation'?a.label:a.label.replace('Past due · utilization ',''),gap:key==='correlation'?a.score:a.difference===null?null:Math.abs(a.difference)*100,rank:a.status==='UNAVAILABLE'?null:a.score}));
+  }
+  function metricGuide(doc,id) {
+    const wrap=el(doc,'div',undefined,'metric-guide'),button=el(doc,'button','Metric guide'),tip=el(doc,'div',undefined,'metric-tooltip');
+    button.type='button';button.setAttribute('aria-controls',id);button.setAttribute('aria-expanded','false');tip.id=id;tip.hidden=true;tip.setAttribute('role','tooltip');button.setAttribute('aria-describedby',id);wrap.append(button,tip);let pinned=false;
+    const show=open=>{tip.hidden=!open;button.setAttribute('aria-expanded',String(open));};
+    wrap.addEventListener('pointerenter',e=>{if(e.pointerType!=='touch')show(true);});
+    wrap.addEventListener('pointerleave',()=>{if(!pinned&&doc.activeElement!==button)show(false);});
+    button.addEventListener('focus',()=>show(true));button.addEventListener('blur',()=>{pinned=false;show(false);});
+    button.addEventListener('click',()=>{pinned=!pinned;show(pinned);});
+    button.addEventListener('keydown',e=>{if(e.key==='Escape'){pinned=false;show(false);e.preventDefault();}});
+    return {wrap,tip};
+  }
+  function exploreValidation(doc,view) {
+    const v=view.v,root=section(doc,'explore-validation','Explore the measured results','Choose a validation type and a published variable. The executive findings above and the full evidence below remain available.'),tabs=el(doc,'div',undefined,'validation-tabs');
+    root.className+=' validation-explorer';tabs.setAttribute('role','tablist');tabs.setAttribute('aria-label','Validation type');
+    const kinds=[['numeric','Numeric'],['categorical','Categorical'],['dependency','Dependency']],buttons=[],panels=[];
+    const finite=n=>typeof n==='number'&&Number.isFinite(n),matches=(r,mode)=>mode==='all'||r.status===(mode==='strong'?'STRONG':'NEEDS_REVIEW');
+    root.append(tabs);
+    for(const [kind,label] of kinds){
+      const tab=el(doc,'button',label),panel=el(doc,'div',undefined,'validation-panel'),controls=el(doc,'div',undefined,'validation-controls'),variable=el(doc,'select'),mode=el(doc,'select');
+      tab.type='button';tab.id='validation-tab-'+kind;tab.setAttribute('role','tab');tab.setAttribute('aria-controls','validation-panel-'+kind);tabs.append(tab);buttons.push(tab);
+      panel.id='validation-panel-'+kind;panel.setAttribute('role','tabpanel');panel.setAttribute('aria-labelledby',tab.id);panel.tabIndex=0;panels.push(panel);
+      function picker(text,node,id){const l=el(doc,'label',text);node.id=id;l.setAttribute('for',id);const field=el(doc,'div');field.append(l,node);return field;}
+      variable.setAttribute('aria-label',label+' variable');mode.setAttribute('aria-label',label+' match view');
+      for(const [value,text] of [['all','All comparisons'],['strong','Strongest matches'],['weak','Weakest matches']]){const o=el(doc,'option',text);o.value=value;mode.append(o);}mode.value='all';
+      controls.append(picker(kind==='dependency'?'Relationship':'Variable',variable,'explore-variable-'+kind),picker('Show matches',mode,'explore-matches-'+kind));
+      const guide=metricGuide(doc,'metric-guide-'+kind),chart=el(doc,'div',undefined,'exploration-chart'),summary=el(doc,'p',undefined,'exploration-status'),tableRoot=el(doc,'div');summary.setAttribute('role','status');summary.setAttribute('aria-live','polite');
+      controls.append(guide.wrap);panel.append(controls,el(doc,'p','Strongest uses the published Strong match classification; weakest uses Needs review. These describe the displayed metric, not overall variable quality. Missing or sparse evidence is never counted as a weak match.','measurement-note'),summary,chart,tableRoot);root.append(panel);
+      let selected=kind==='numeric'?'credit_limit':kind==='categorical'?'past_due':'utilization',sort='gap',direction='descending';
+      const variables=kind==='numeric'?v.numeric.map(n=>({key:n.key,label:n.label})):kind==='categorical'?[{key:'past_due',label:'Past-due indicator'}]:[{key:'utilization',label:'Past-due rates by utilization'},{key:'correlation',label:'Credit limit / balance correlation'}];
+      function rowsFor(key){const rows=explorationRows(v,kind,key);return kind==='numeric'?rows.filter(r=>r.key==='numeric.'+key):rows;}
+      function draw(){
+        const eligible=variables.filter(n=>rowsFor(n.key).some(r=>matches(r,mode.value)));variable.replaceChildren();
+        for(const n of eligible){const o=el(doc,'option',n.label);o.value=n.key;variable.append(o);}
+        if(!eligible.some(n=>n.key===selected))selected=eligible[0]?.key||'';
+        if(!eligible.length){const o=el(doc,'option','No matching variables');o.value='';variable.append(o);}
+        variable.value=selected;variable.disabled=eligible.length<=1;
+        const descriptor=eligible.find(n=>n.key===selected),rows=explorationRows(v,kind,selected).filter(r=>matches(r,mode.value));
+        const rates=kind==='categorical'||kind==='dependency'&&selected!=='correlation';
+        const unit=kind==='numeric'?'% of SOURCE IQR':rates?'pp':'correlation units';
+        const gapLabel=kind==='numeric'?'Worst percentile gap / IQR':'Absolute gap';
+        guide.tip.textContent=kind==='numeric'?'P25, P50, P75 and P95 are measured percentiles; P50 is the median. IQR is the SOURCE middle-50% range. The gap is the published worst percentile gap relative to SOURCE IQR. The table shows medians alongside that distribution gap. A zero or missing IQR prevents normalization.':kind==='categorical'?'Category shares use a common 0–100% scale. A percentage-point (pp) gap is the absolute difference between the two shares, not a relative accuracy percentage. This report publishes only the past-due indicator.':selected==='correlation'?'Pearson r describes linear association on a −1 to +1 scale, not causation. The gap is the absolute difference between the published SOURCE and Synthetic coefficients. Missing paired sample counts remain unavailable.':'Utilization is balance relative to credit limit. Each point shows the past-due share in that utilization bucket. Gaps use percentage points (pp). Sparse buckets retain raw rates but are not comparable under the existing sample-size policy.';
+        chart.replaceChildren();
+        if(!descriptor){guide.tip.textContent='This view has no published comparisons with the selected classification. Choose All comparisons to inspect the available evidence. No missing result is treated as a weak match.';chart.append(el(doc,'p','No published '+label.toLowerCase()+' comparisons have this classification. Choose All comparisons to see the available evidence.','results-notice'));tableRoot.replaceChildren();summary.textContent='No matching comparisons. No substitute statistics are shown.';return;}
+        chart.append(el(doc,'h3',descriptor.label));
+        const points=kind==='numeric'?v.numeric.find(n=>n.key===selected).percentiles:rowsFor(selected);
+        const hasSource=points.some(p=>finite(p.source)),hasGenerated=points.some(p=>finite(p.generated));
+        if(!hasSource&&!hasGenerated)chart.append(el(doc,'p','Comparison chart unavailable: neither population has published values for this metric.','results-notice'));
+        else{
+          if(!hasSource||!hasGenerated)chart.append(el(doc,'p',(!hasSource?'SOURCE':'Synthetic')+' values are unavailable. Only published points from the other population are shown.','results-notice'));
+          if(kind==='numeric')chart.append(VIZ.distribution(doc,v,{key:selected,showSelector:false}));
+          else if(kind==='categorical')chart.append(VIZ.categorical(doc,v),el(doc,'p','The sanitized report contains one categorical variable; no other category distributions are inferred.','measurement-note'));
+          else if(selected==='utilization')chart.append(VIZ.conditional(doc,v),el(doc,'p','All published buckets remain visible. Hollow points lack sufficient comparison evidence; at least '+v.min_conditional_rows+' records per bucket are required in each population.','measurement-note'));
+          else{const a=points[0];if([a.source,a.generated].some(n=>finite(n)&&(n< -1||n>1)))chart.append(el(doc,'p','Correlation chart unavailable: a reported coefficient is outside the expected −1 to +1 range.','results-notice'));
+            else chart.append(VIZ.lineChart(doc,'Credit limit / balance: SOURCE and Synthetic Pearson correlation',['Pearson r'],[a.source],[a.generated],{domain:[-1,1],sparse:a.status==='UNAVAILABLE'?[0]:[]}));}
+        }
+        if(kind==='numeric'&&rowsFor(selected)[0].reason)chart.append(el(doc,'p',REASONS[rowsFor(selected)[0].reason]||'Comparison evidence is unavailable.','measurement-note'));
+        const wrap=el(doc,'div',undefined,'table-scroll'),t=el(doc,'table',undefined,'report-table'),thead=el(doc,'thead'),tr=el(doc,'tr'),tbody=el(doc,'tbody');
+        wrap.tabIndex=0;wrap.setAttribute('role','region');wrap.setAttribute('aria-label',label+' largest differences');
+        const headers=[kind==='numeric'?'Variable':kind==='categorical'?'Category':'Relationship / bucket',kind==='numeric'?'SOURCE median (P50)':rates?'SOURCE share':'SOURCE r',kind==='numeric'?'Synthetic median (P50)':rates?'Synthetic share':'Synthetic r',gapLabel,'Status'],sortable=[];
+        headers.forEach((text,i)=>{const th=el(doc,'th');th.setAttribute('scope','col');if(i===0||i===3){const key=i===0?'name':'gap',b=el(doc,'button',text,'exploration-sort');b.type='button';b.setAttribute('aria-label','Sort '+label.toLowerCase()+' differences by '+(key==='name'?'name':'gap'));b.addEventListener('click',()=>{direction=sort===key?(direction==='descending'?'ascending':'descending'):key==='gap'?'descending':'ascending';sort=key;drawRows();});th.append(b);sortable.push({th,key});}else th.textContent=text;tr.append(th);});thead.append(tr);
+        function drawRows(){
+          const ordered=[...rows].sort((a,b)=>{const aMissing=!finite(a.rank),bMissing=!finite(b.rank);if(aMissing!==bMissing)return aMissing?1:-1;const result=sort==='name'?a.label.localeCompare(b.label):(a.rank??0)-(b.rank??0);return (direction==='descending'?-result:result)||a.label.localeCompare(b.label);});tbody.replaceChildren();
+          for(const r of ordered){const row=el(doc,'tr'),name=el(doc,'th',r.label);name.setAttribute('scope','row');row.append(name);
+            for(const value of [rates?pct(r.source):fmt(r.source),rates?pct(r.generated):fmt(r.generated),measure(r.gap,unit)])row.append(el(doc,'td',value));
+            const statusCell=el(doc,'td');statusCell.append(badge(doc,r.status));if(r.reason)statusCell.append(el(doc,'span',REASONS[r.reason]||'Comparison evidence unavailable.','exploration-reason'));row.append(statusCell);tbody.append(row);}
+          for(const s of sortable)s.th.setAttribute('aria-sort',sort===s.key?direction:'none');
+          summary.textContent=label+' · '+descriptor.label+'. Showing '+rows.length+' comparison'+(rows.length===1?'':'s')+'. Sorted by '+(sort==='name'?(direction==='ascending'?'name A–Z':'name Z–A'):direction==='descending'?'largest comparable gap':'smallest comparable gap')+'.';
+        }
+        t.append(el(doc,'caption',label+' statistical differences'),thead,tbody);wrap.append(t);tableRoot.replaceChildren(el(doc,'p','Sort using the first or gap column heading. Only comparable rows are ranked; missing or sparse comparisons stay last even when raw values are shown. All gaps are published measurements, not an overall accuracy score.','measurement-note'),wrap);drawRows();
+      }
+      variable.addEventListener('change',()=>{selected=variable.value;draw();});mode.addEventListener('change',draw);draw();
+    }
+    function activate(index,focus=false){buttons.forEach((b,i)=>{b.setAttribute('aria-selected',String(i===index));b.tabIndex=i===index?0:-1;panels[i].hidden=i!==index;});if(focus)buttons[index].focus();}
+    buttons.forEach((b,i)=>{b.addEventListener('click',()=>activate(i));b.addEventListener('keydown',e=>{const key={ArrowRight:(i+1)%3,ArrowLeft:(i+2)%3,Home:0,End:2};if(Object.hasOwn(key,e.key)){e.preventDefault();activate(key[e.key],true);}});});activate(0);return root;
+  }
+
   function dimensionTable(doc,v) {
     const families=[["numeric","Numeric distributions"],["categorical","Categorical proportions"],["nulls","Missingness"],["dates","Date distributions"],["correlation","Correlations"],["conditional","Conditional outcomes"],["cardinality","Relationship cardinalities"],["graph","Relationship directionality"],["integrity","Structural / business checks"]];
     return table(doc,"Evidence by dimension",["Dimension","Strong / passed","Acceptable","Needs review","Not comparable"],families.map(([key,label])=>{
@@ -267,7 +349,7 @@
     for(const text of ["The development SOURCE baseline is fabricated. Matching it does not establish representativeness of production banking populations.","The public report covers four numeric variables, one categorical variable, three date variables and selected relationships; it does not assess every field or joint distribution.","Sparse conditional buckets, zero SOURCE IQR, absent profiles and missing paired counts limit interpretation. Unavailable evidence is not proof of similarity or a measured discrepancy.","Percentile profiles summarize selected points. Selected tail percentiles and extrema do not establish full tail-density or joint-distribution fidelity. Detailed temporal patterns and some reference comparisons remain unmeasured.","Prototype tolerances are descriptive screening settings. Sampling uncertainty is not quantified, and statistical similarity does not establish privacy or external-release suitability."])limits.append(el(doc,"li",text));
     methodology.append(limits,details(doc,"Unavailable evidence and reasons",table(doc,"Evidence availability notes",["Characteristic","Context"],v.assessments.filter(a=>a.reason).map(a=>[a.label,REASONS[a.reason]||"Evidence unavailable."]))));
     if(v.post_pilot)completeness.append(table(doc,"Date-boundary screening",["Characteristic","Largest absolute boundary shift","Status"],v.post_pilot.assessments.filter(a=>a.family==="date_bounds").map(a=>[a.label,measure(a.score,"days"),badge(doc,a.status)])));
-    root.append(summary,findings,numeric,categorical,completeness,dependencies,structure,privacySection(doc,report),methodology);return root;
+    root.append(summary,findings,exploreValidation(doc,view),numeric,categorical,completeness,dependencies,structure,privacySection(doc,report),methodology);return root;
   }
   function mountValidation(root,{fetcher=globalThis.fetch,location=globalThis.location,timeoutMs=10000}={}){
     const doc=root.ownerDocument,status=el(doc,"p","Validation results pending","results-notice"),body=el(doc,"div"),button=el(doc,"button","Refresh validation report","button button-secondary");button.type="button";status.setAttribute("role","status");status.setAttribute("aria-live","polite");const toolbar=el(doc,"div",undefined,"report-toolbar");toolbar.append(status,button);root.replaceChildren(toolbar,body);let loading=false;
@@ -276,7 +358,7 @@
       }catch(_){body.replaceChildren(el(doc,"p","A complete version-2 validation report has not been published here or could not be read. The project methodology and existing summary remain available.","measurement-note"));status.textContent="Validation results pending";}finally{clearTimeout(timer);loading=false;button.disabled=false;root.setAttribute("aria-busy","false");}}
     button.addEventListener("click",refresh);return {ready:refresh(),refresh};
   }
-  const api={normalizeValidation,normalizePrivacy,renderValidation,mountValidation,executiveSummary,executiveFindings};
+  const api={normalizeValidation,normalizePrivacy,renderValidation,mountValidation,executiveSummary,executiveFindings,exploreValidation,explorationRows};
   if(typeof module!=="undefined"&&module.exports)module.exports=api;
   if(typeof window!=="undefined")window.SageValidation=api;
   if(typeof document!=="undefined"){const root=document.getElementById("validation-report");if(root)mountValidation(root);}
