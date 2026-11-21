@@ -142,13 +142,14 @@
     for(const [value,label] of [[v.summary.variables_evaluated,"Variables evaluated"],[v.summary.checks_evaluated,"Checks with measured evidence"],[v.summary.needs_review,"Checks needing review"],[v.summary.unavailable,"Checks not comparable"]]){
       const item=el(doc,"div");item.append(el(doc,"dt",(v.post_pilot?"Core · ":"")+label),el(doc,"dd",fmt(value)));metrics.append(item);
     }
-    root.append(metrics,el(doc,"p",v.summary.variables_within_tolerance+" of "+v.summary.variables_total+" selected variables have all "+(v.post_pilot?"core":"selected")+" checks within tolerance; "+v.summary.variables_requiring_review+" need review and "+v.summary.variables_incomplete+" have incomplete evidence. These counts are not an overall accuracy score.","measurement-note"),el(doc,"p","Comparison is against the repository’s fake development SOURCE baseline. Representativeness of real production banking data has not been established.","baseline-notice"));
+    root.append(metrics,el(doc,"p",v.summary.variables_within_tolerance+" of "+v.summary.variables_total+" selected variables have all "+(v.post_pilot?"core":"selected")+" checks within tolerance; "+v.summary.variables_requiring_review+" need review and "+v.summary.variables_incomplete+(v.summary.variables_incomplete===1?" has":" have")+" incomplete evidence. These counts are not an overall accuracy score.","measurement-note"),el(doc,"p","Comparison is against the repository’s fake development SOURCE baseline. Representativeness of real production banking data has not been established.","baseline-notice"));
     if(v.post_pilot){
-      root.append(el(doc,"p",v.post_pilot.assessments.length+" additional mean, tail, boundary and categorical-dependency screens are shown separately: "+v.post_pilot.assessments.filter(a=>a.status==="NEEDS_REVIEW").length+" need review; "+v.post_pilot.assessments.filter(a=>a.status==="UNAVAILABLE").length+" are not comparable. They are excluded from the core counts above.","measurement-note"));
+      const missing=v.post_pilot.assessments.filter(a=>a.status==="UNAVAILABLE").length;
+      root.append(el(doc,"p",v.post_pilot.assessments.length+" additional mean, tail, boundary and categorical-dependency screens are shown separately: "+v.post_pilot.assessments.filter(a=>a.status==="NEEDS_REVIEW").length+" need review; "+missing+(missing===1?" is":" are")+" not comparable. They are excluded from the core counts above.","measurement-note"));
       const mean=v.post_pilot.assessments.find(a=>a.key==="mean.current_balance");
       if(mean?.status==="NEEDS_REVIEW")root.append(el(doc,"p","Balance mean needs review: SOURCE "+fmt(mean.source)+"; synthetic "+fmt(mean.generated)+" ("+measure(mean.score,UNITS[mean.policy])+"). Close percentiles do not establish a close mean.","baseline-notice"));
     }
-    root.append(el(doc,"p","Privacy: "+(view.report.privacy?.status||"UNAVAILABLE")+" · Row-level downloads disabled.","release-notice"));
+    root.append(el(doc,"p","Privacy: "+(view.report.privacy?.status||"UNAVAILABLE")+" · General dataset release remains blocked. Fabricated demo downloads require separate verification.","release-notice"));
     return root;
   }
 
@@ -156,10 +157,10 @@
     const {v}=view,root=el(doc,"div",undefined,"findings-grid"),byKey=new Map([...v.assessments,...(v.post_pilot?.assessments||[])].map(a=>[a.key,a]));
     for(const [key,title] of [["strengths","Strongest measured areas"],["weaknesses","Largest measured deviations"]]){
       const panel=el(doc,"div",undefined,"finding-panel");panel.append(el(doc,"h3",title));
-      const makeList=ids=>{const list=el(doc,"ol",undefined,"finding-list");for(const id of ids){const a=byKey.get(id),li=el(doc,"li");li.append(el(doc,"strong",a.label),el(doc,"p",measure(a.score,UNITS[a.policy]||UNITS.integrity)),badge(doc,a.status));list.append(li);}return list;};
+      const makeList=(ids,offset=0)=>{const list=el(doc,"ol",undefined,"finding-list");list.setAttribute("start",String(offset+1));list.style.counterReset="findings "+offset;for(const id of ids){const a=byKey.get(id),li=el(doc,"li");li.append(el(doc,"strong",a.label),el(doc,"p",measure(a.score,UNITS[a.policy]||UNITS.integrity)),badge(doc,a.status));list.append(li);}return list;};
       const selected=v.post_pilot?.[key]||v[key];
       panel.append(selected.length?makeList(selected.slice(0,3)):el(doc,"p","No qualifying measured findings yet."));
-      if(selected.length>3)panel.append(details(doc,"More measured findings",makeList(selected.slice(3))));root.append(panel);
+      if(selected.length>3)panel.append(details(doc,key==="strengths"?"More measured strengths":"More measured discrepancies",makeList(selected.slice(3),3)));root.append(panel);
     }
     return root;
   }
@@ -289,14 +290,15 @@
   }
 
   function privacySection(doc,report){
-    const p=report.privacy,root=section(doc,"privacy","Privacy review and publication boundary","Privacy screens assess a separate risk question from statistical fidelity. Row-level dataset downloads are disabled.");
+    const p=report.privacy,root=section(doc,"privacy","Privacy review and publication boundary","Statistical similarity does not establish privacy clearance. General dataset release remains blocked; fabricated demo downloads have a separate verification process.");
     if(!p){root.append(el(doc,"p","Privacy assessment unavailable. This report does not establish release clearance.","release-notice"));return root;}
-    root.append(el(doc,"p",p.status,"report-verdict"),el(doc,"p","Row-level downloads disabled · No formal anonymization certification","release-notice"),
+    root.append(el(doc,"p",p.status,"report-verdict"),el(doc,"p","General dataset release blocked · No formal anonymization certification","release-notice"),
       table(doc,"Aggregate privacy screening",["Check","Measured result"],[["Recorded checks",fmt(p.checks_recorded)+" / "+fmt(p.checks_expected)],["Identifier overlap rows",fmt(p.identifier_overlap_rows)],["Exact SOURCE-row matches",fmt(p.exact_source_row_matches)],["Selected quasi-identifier near matches",fmt(p.near_matches.flagged_rows)+" / "+fmt(p.near_matches.evaluated_rows)+" ("+pct(p.near_matches.flagged_fraction)+")"],["Minimum combined date distance among matches",measure(p.near_matches.minimum_combined_distance_days,"days")]]));
     if(p.policy){const c=p.policy;root.append(el(doc,"p","The similarity screen requires the same gender and birth/customer-since dates each within "+c.near_date_days+" days, with SOURCE pattern support below "+c.rare_min_count+" for a review flag. It is a bounded candidate comparison, not a global nearest-neighbour or re-identification test.","measurement-note"),
       table(doc,"Categorical-pattern privacy checks",["Pattern","Evaluated synthetic rows","Synthetic-rare rows","SOURCE-rare pattern matches","Complete-case coverage","Status"],p.categorical_patterns.map(r=>[r.label,fmt(r.evaluated_rows),fmt(r.synthetic_rare_rows),fmt(r.source_rare_match_rows),pct(r.complete_case_coverage),r.status])),
       el(doc,"p","Synthetic rarity and SOURCE rarity differ: a pattern can be common in a larger generated cohort yet have low SOURCE support. Any SOURCE-rare match requires review; synthetic-rare fraction above "+pct(c.max_synthetic_rare_fraction)+" or coverage below "+pct(c.min_complete_fraction)+" also requires review. Identifier overlap or exact SOURCE-row matches block release; missing checks or a candidate budget above "+fmt(c.max_similarity_candidates)+" are not passing evidence.","measurement-note"));}
-    root.append(el(doc,"p","The SOURCE baseline is fabricated development data. Near matches can arise by chance when both populations share distributions; they do not demonstrate copying or certify safety. Production use needs a contextual disclosure review. Keep release blocked while reviewing quasi-identifiers, date granularity, rare categories and the need for each published field.","measurement-note"));
+    root.append(el(doc,"p","The SOURCE baseline is fabricated development data. Near matches can arise by chance when both populations share distributions; they do not demonstrate copying or certify safety. Production use needs a contextual disclosure review. Keep general release blocked while reviewing identifying characteristics, date precision, rare categories and the need for each published field.","measurement-note"));
+    const demoLink=el(doc,"a","Check verified fabricated demo availability","text-link");demoLink.setAttribute("href","index.html#download-dataset");root.append(demoLink);
     return root;
   }
 
@@ -358,10 +360,16 @@
     root.append(summary,findings,exploreValidation(doc,view),numeric,categorical,completeness,dependencies,structure,privacySection(doc,report),methodology);return root;
   }
   function mountValidation(root,{fetcher=globalThis.fetch,location=globalThis.location,timeoutMs=10000}={}){
-    const doc=root.ownerDocument,status=el(doc,"p","Validation results pending","results-notice"),body=el(doc,"div"),button=el(doc,"button","Refresh validation report","button button-secondary");button.type="button";status.setAttribute("role","status");status.setAttribute("aria-live","polite");const toolbar=el(doc,"div",undefined,"report-toolbar");toolbar.append(status,button);root.replaceChildren(toolbar,body);let loading=false;
+    const doc=root.ownerDocument,status=el(doc,"p","Validation results pending","results-notice"),body=el(doc,"div"),button=el(doc,"button","Refresh validation report","button button-secondary");button.type="button";status.setAttribute("role","status");status.setAttribute("aria-live","polite");const toolbar=el(doc,"div",undefined,"report-toolbar");toolbar.append(status,button);root.replaceChildren(toolbar,body);let loading=false,firstLoad=true;
+    const initialHash=location?.hash,initialFocus=doc.activeElement;
     async function refresh(){if(loading)return;loading=true;button.disabled=true;button.textContent="Loading report…";root.setAttribute("aria-busy","true");status.textContent="Loading validation report";const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),timeoutMs);
       try{const url=new URL(root.dataset.reportUrl||"latest-pipeline.json",doc.baseURI);if(!["http:","https:"].includes(url.protocol)||url.origin!==location.origin)throw new Error("Invalid report URL");const response=await fetcher(url.href,{cache:"no-store",credentials:"omit",redirect:"error",signal:controller.signal});if(!response.ok)throw new Error("Unavailable");const text=await response.text();if(text.length>1024*1024)throw new Error("Oversize");const view=normalizeValidation(JSON.parse(text));if(!view)throw new Error("Pending");body.replaceChildren(renderValidation(doc,view));status.textContent="Latest validated pipeline results loaded";
-      }catch(_){body.replaceChildren(el(doc,"p","The latest validation report is unavailable or incomplete. Use Refresh validation report to try again. Pipeline methodology and the verified demo explorer remain accessible from the navigation; no substitute statistics are shown.","measurement-note"));status.textContent="Validation results pending";}finally{clearTimeout(timer);loading=false;button.disabled=false;button.textContent="Refresh validation report";root.setAttribute("aria-busy","false");}}
+        // The requested section does not exist until the JSON has rendered.
+        // Respect an initial deep link without taking focus back after user interaction or refresh.
+        if(firstLoad&&initialHash===location?.hash&&doc.activeElement===initialFocus&&/^#(?:summary|findings|explore-validation|numeric|categorical|completeness|dependencies|structure|privacy|methodology)$/.test(initialHash||"")){
+          const target=doc.getElementById?.(initialHash.slice(1));if(target){target.tabIndex=-1;target.focus({preventScroll:true});target.scrollIntoView({block:"start",behavior:"auto"});}
+        }
+      }catch(_){body.replaceChildren(el(doc,"p","The latest validation report is unavailable or incomplete. Use Refresh validation report to try again. Pipeline methodology and the verified demo explorer remain accessible from the navigation; no substitute statistics are shown.","measurement-note"));status.textContent="Validation results pending";}finally{clearTimeout(timer);firstLoad=false;loading=false;button.disabled=false;button.textContent="Refresh validation report";root.setAttribute("aria-busy","false");}}
     button.addEventListener("click",refresh);return {ready:refresh(),refresh};
   }
   const api={normalizeValidation,normalizePrivacy,renderValidation,mountValidation,executiveSummary,executiveFindings,exploreValidation,explorationRows};

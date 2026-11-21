@@ -1382,4 +1382,23 @@ td {
   .exec-page .exec-footer nav { gap: .25rem 1rem; }
 }
 @media (max-width:360px) { .exec-page .viz-axis { font-size: 40px; } }
+/* Executive reading path: findings first, detail on request. */
+.exec-page .report-nav { display: block; overflow: visible; white-space: normal; padding: .5rem 0 1rem; }
+.report-primary-links, .report-evidence-links > div { display: flex; flex-wrap: wrap; gap: .3rem 1.8rem; }
+.report-primary-links a { font-weight: 600; }
+.report-evidence-links { margin-top: .4rem; border-top: 1px solid var(--line); }
+.report-evidence-links > summary { max-width: 19rem; color: var(--red-dark); }
+.report-evidence-links > div { padding: .4rem 0 .6rem; }
+/* A drawn chevron avoids decorative '+' being read as part of every control label. */
+.exec-page summary::after { content: ""; width: .5rem; height: .5rem; margin: 0 .4rem; border: solid currentColor; border-width: 0 2px 2px 0; border-radius: 0; transform: rotate(45deg); background: transparent; }
+.exec-page details[open] > summary::after { content: ""; background: transparent; border-color: currentColor; transform: rotate(225deg); }
+.exec-page #validation { background: #fff; }
+.exec-page #validation .exec-heading { margin-bottom: 1.5rem; }
+.exec-page .exec-heading > p:last-child { text-wrap: pretty; }
+@media (max-width:650px) {
+  .report-primary-links, .report-evidence-links > div { gap: .15rem 1.1rem; }
+  .report-evidence-links > div { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: .15rem 1rem; }
+  .exec-page .report-nav a { white-space: normal; line-height: 1.45; }
+  .exec-page .exec-heading { margin-bottom: 2rem; }
+}
 @media (prefers-reduced-motion:reduce) { .exec-page *, .exec-page *::before, .exec-page *::after { transition: none; animation: none; scroll-behavior: auto; } }

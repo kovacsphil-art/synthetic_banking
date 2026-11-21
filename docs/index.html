@@ -4,10 +4,10 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="SAGE: AI-assisted synthetic banking data, controlled by review and tested against measured source statistics.">
 <meta name="theme-color" content="#c8102e"><title>SAGE — Synthetic data. Measured confidence.</title>
-<link rel="stylesheet" href="styles.css?v=ux-polish-1">
+<link rel="stylesheet" href="styles.css?v=ux-review-2">
 <script src="records-config.js?v=records-4" defer></script><script src="records.js?v=records-explorer-1" defer></script>
   <script src="downloads.js?v=records-explorer-1" defer></script>
-<script src="validation-config.js?v=post-pilot-2" defer></script><script src="executive-viz.js?v=ux-polish-1" defer></script><script src="results.js?v=post-pilot-2" defer></script><script src="validation.js?v=ux-polish-1" defer></script><script src="showcase.js?v=ux-polish-1" defer></script>
+<script src="validation-config.js?v=post-pilot-2" defer></script><script src="executive-viz.js?v=ux-review-2" defer></script><script src="results.js?v=post-pilot-2" defer></script><script src="validation.js?v=ux-review-2" defer></script><script src="showcase.js?v=ux-review-2" defer></script>
 </head>
 <body class="exec-page">
 <a class="skip-link" href="#main">Skip to content</a>
@@ -15,13 +15,13 @@
 <main id="main" tabindex="-1">
 <section id="overview" class="container exec-hero">
 <p class="eyebrow">AI-assisted synthetic data · Banking prototype</p><h1>New banking records.<br><span>Measured against the original.</span></h1>
-<p class="exec-lead">SAGE turns statistical profiles into synthetic data for testing and analysis. AI proposes relationships; reviewed, predefined logic controls generation. Validation makes the strengths and gaps visible.</p>
-<div class="exec-actions"><a class="button button-primary" href="validation.html">Explore the validation report</a><a class="text-link" href="#explore-records">Explore sample records</a></div>
+<p class="exec-lead">SAGE creates linked, synthetic banking records for testing and analysis. Measured statistics guide generation. AI proposes relationships; human review and predefined rules control what runs.</p>
+<div class="exec-actions"><a class="button button-primary" href="validation.html">Explore the validation report</a><a class="text-link" href="#process">See how SAGE works</a></div>
 <div class="hero-result-strip" aria-label="Latest measured generation"><p class="strip-label">Latest pipeline results<br><span id="hero-status" role="status">Results pending</span></p><dl class="exec-metrics hero-metrics"><div><dt>Synthetic customers</dt><dd id="hero-customers">—</dd></div><div><dt>Synthetic accounts</dt><dd id="hero-accounts">—</dd></div><div><dt>Reviewed rules applied</dt><dd id="hero-rules">—</dd></div></dl></div>
-<p class="measurement-note">A research prototype using a fake development SOURCE baseline. Production representativeness has not been established; privacy clearance is assessed separately.</p>
+<p class="measurement-note">Research prototype · SOURCE means the fabricated development baseline used for comparison. It is not production banking data. Statistical similarity and privacy clearance are assessed separately.</p>
 </section>
 <section id="process" class="exec-section section-soft"><div class="container">
-<div class="exec-heading"><p class="eyebrow">01 / The process · Methodology</p><h2>One connected process.<br>Control at every handoff.</h2><p>Measure first, review AI proposals, generate new records, then compare the result with the same original baseline.</p></div>
+<div class="exec-heading"><p class="eyebrow">01 / The process · Methodology</p><h2>One connected process.<br>Control at every handoff.</h2><p>Follow the seven stages from the original baseline to measured results. Select any stage for its purpose, inputs, outputs and business value.</p></div>
 <div id="pipeline-explorer" class="pipeline-explorer">
 <p id="pipeline-help" class="pipeline-help">Hover or focus to preview. Click or tap to keep a stage selected. Use Tab or arrow keys to explore; Escape to reset.</p>
 <ol class="exec-pipeline" aria-label="SAGE pipeline stages" aria-describedby="pipeline-help">
@@ -35,7 +35,7 @@
 </ol>
 <div id="pipeline-detail" class="pipeline-detail" role="region" aria-label="Pipeline stage briefing">
 <div class="pipeline-detail-toolbar"><p id="pipeline-status" class="pipeline-status" role="status" aria-live="polite" aria-atomic="true">The complete process · Explore any stage</p><button id="pipeline-reset" class="pipeline-reset" type="button" hidden>Back to stages</button></div>
-<div id="pipeline-overview" class="pipeline-overview"><h3>From evidence to a population you can assess.</h3><p>Each stage has a clear handoff. Explore its purpose, what it receives, what it produces and why it matters.</p><p class="pipeline-takeaway">Measured evidence guides generation. Human review controls dependencies. Validation makes the result visible.</p></div>
+<div id="pipeline-overview" class="pipeline-overview"><h3>From evidence to a population you can assess.</h3><p>AI sees statistical summaries, never individual banking records. Reviewed proposals can select predefined generation rules; AI-generated text is never executed.</p><p class="pipeline-takeaway">Validation compares the new population with the same original baseline and reports strengths, gaps and a separate privacy assessment.</p></div>
 <article id="stage-source" class="stage-detail" aria-labelledby="stage-source-title" hidden><h3 id="stage-source-title">Source Data</h3><dl class="stage-facts">
 <div><dt>Purpose</dt><dd>Establish the original population that SAGE aims to reproduce.</dd></div>
 <div><dt>Inputs</dt><dd>The six linked tables of fabricated development records.</dd></div>
@@ -81,35 +81,35 @@
 </div>
 <noscript><p class="pipeline-help">Interactive stage details need JavaScript. The complete process and methodology remain visible on this page.</p></noscript>
 </div>
-<nav class="section-exits" aria-label="Continue from the pipeline"><a href="validation.html#summary">See validation results</a><a href="#explore-records">Explore synthetic records</a></nav>
-</div></section>
-<section id="evidence" class="container exec-section">
-<div class="exec-heading"><p class="eyebrow">02 / Statistical profiling</p><h2>The original is a statistical reference,<br>not a set of records to copy.</h2><p>SAGE measures the characteristics that a useful synthetic population should reproduce, then tests how closely generation carries them through.</p></div>
-<ul class="profile-characteristics"><li>Distributions</li><li>Category proportions</li><li>Missingness</li><li>Relationships</li><li>Records per entity</li><li>Temporal patterns</li></ul>
-<div class="visual-heading"><h3>Original vs Synthetic · Distribution comparison</h3><span class="small-label">Latest measured results</span></div><div id="distribution-preview"><p class="results-notice">Latest distribution results unavailable. A completed report will populate this comparison.</p></div>
-</section>
-<section id="control" class="exec-section section-soft"><div class="container">
-<div class="exec-heading"><p class="eyebrow">03 / AI &amp; control · Methodology</p><h2>AI suggests what matters.<br>Review determines what can run.</h2><p>The model identifies candidate dependencies from aggregate statistical evidence. It does not generate customer records or execute its proposed text.</p></div>
-<ol class="control-flow"><li><span>01</span><h3>Aggregate evidence</h3><p>Measured distributions and relationships, without row-level banking records.</p></li><li><span>02</span><h3>AI proposal</h3><p>A candidate dependency, grounded in the available statistics.</p></li><li><span>03</span><h3>Explicit review</h3><p>A human approves or rejects each proposal; approval alone is not execution.</p></li><li><span>04</span><h3>Predefined logic</h3><p>An approved, recognized implementation may run. Application is logged.</p></li></ol>
-<div class="example-line"><p class="eyebrow">Supported dependency example</p><h3>Credit utilization → Delinquency behaviour</h3><p>Measured past-due rates by utilization group supply the probabilities. AI cannot invent them. This example illustrates a supported implementation; the results report separately shows whether it was approved and applied.</p></div>
-</div></section>
-<section id="generation" class="container exec-section generation-split"><div class="exec-heading"><p class="eyebrow">04 / Synthetic generation</p><h2>A new population,<br>built around measured patterns.</h2><p>Profiles guide the distributions. Structural rules connect the records. Selected reviewed dependencies add controlled behaviour.</p></div><ul class="outcome-list"><li><span>01</span><div><h3>New identifiers and records</h3><p>Synthetic customer and account records, rather than source rows copied into a new table.</p></div></li><li><span>02</span><div><h3>Statistical and structural continuity</h3><p>Distribution, missingness and relationship profiles guide a linked population.</p></div></li><li><span>03</span><div><h3>Traceable rule application</h3><p>Approved, implemented and applied remain separate states in the audit.</p></div></li></ul></section>
-<section id="explore-records" class="container exec-section" aria-labelledby="explore-records-title">
-<div class="exec-heading"><p class="eyebrow">05 / Synthetic Data Explorer</p><h2 id="explore-records-title">Explore synthetic records.</h2><p>Choose one of six tables to see up to 15 fabricated records, understand their connections and download the matching verified demo when available.</p></div>
-<p class="record-designation"><strong>Demo data — not actual customer records</strong><span>Selected fields from a verified fabricated-development export. The full dataset is never loaded for this preview.</span></p>
-<div id="records-explorer"><p class="results-notice" role="status">Demo preview pending</p><noscript><p>Enable JavaScript to explore the bounded demo preview. The methodology and validation links remain available.</p></noscript></div>
-</section>
-<section id="download-dataset" class="exec-section section-soft" aria-labelledby="download-dataset-title"><div class="container">
-<div class="exec-heading"><p class="eyebrow">06 / Demo dataset downloads</p><h2 id="download-dataset-title">Download synthetic dataset.</h2><p>Get the complete six-table ZIP, individual CSV tables, or the data dictionary. Downloads are enabled only for a verified, published DEMO_ONLY export.</p></div>
-<p class="download-disclaimer"><strong>Illustrative synthetic records — not actual customer data.</strong> These records were generated exclusively from fabricated development inputs. They do not establish representativeness of production banking data.</p>
-<div id="dataset-downloads"><p class="results-notice" role="status">Downloads unavailable until a verified demo export is confirmed.</p><noscript><p>Enable JavaScript to check the verified export and versioned download links.</p></noscript></div>
+<nav class="section-exits" aria-label="Continue from the pipeline"><a href="#validation">See latest findings</a><a href="#explore-records">Explore synthetic records</a></nav>
 </div></section>
 <section id="validation" class="exec-section section-soft"><div class="container">
-<div class="exec-heading"><p class="eyebrow">07 / Validation report · Latest pipeline results</p><h2>How closely does synthetic data<br>reproduce the original?</h2><p>The same profiler evaluates both populations against one pinned baseline. Individual measures show where the result matches and where work remains.</p></div>
+<div class="exec-heading"><p class="eyebrow">02 / Validation report · Latest pipeline results</p><h2>How closely does synthetic data<br>reproduce the original?</h2><p>The same statistical profiler measures both populations against one fixed SOURCE baseline. Read the strongest matches and largest differences below, then open the full report for charts and evidence.</p></div>
 <!-- SHOWCASE RESULTS START -->
 <div id="executive-results" data-report-url="latest-pipeline.json"><p class="results-notice" role="status">Latest results unavailable</p><noscript><p>Enable JavaScript to view measured results. The methodology remains available above.</p></noscript></div>
 <!-- SHOWCASE RESULTS END -->
 <a class="button button-primary" href="validation.html">Open the full validation report</a><p class="measurement-note">Prototype display tolerances support investigation. An integrity pass is not an overall fidelity score, business acceptance decision or privacy approval.</p>
+</div></section>
+<section id="evidence" class="container exec-section">
+<div class="exec-heading"><p class="eyebrow">03 / Statistical profiling · Methodology</p><h2>Measure the patterns<br>that generation should preserve.</h2><p>Profiles summarize values, categories, missing data, dates and relationships. The chart below compares measured points from the original and synthetic populations.</p></div>
+<ul class="profile-characteristics"><li>Distributions</li><li>Category proportions</li><li>Missing values</li><li>Relationships</li><li>Records per entity</li><li>Date patterns</li></ul>
+<div class="visual-heading"><h3>Original vs Synthetic · Distribution comparison</h3><span class="small-label">Latest measured results</span></div><div id="distribution-preview"><p class="results-notice">Latest distribution results unavailable. A completed report will populate this comparison.</p></div>
+</section>
+<section id="control" class="exec-section section-soft"><div class="container">
+<div class="exec-heading"><p class="eyebrow">04 / AI &amp; control · Methodology</p><h2>AI suggests what matters.<br>Review determines what can run.</h2><p>The language model proposes which fields may need to vary together. Human review and a known implementation are required before a proposal can affect generation.</p></div>
+<ol class="control-flow"><li><span>01</span><h3>Aggregate evidence</h3><p>Measured distributions and relationships, without row-level banking records.</p></li><li><span>02</span><h3>AI proposal</h3><p>A candidate dependency, grounded in the available statistics.</p></li><li><span>03</span><h3>Explicit review</h3><p>A human approves or rejects each proposal; approval alone is not execution.</p></li><li><span>04</span><h3>Predefined logic</h3><p>An approved, recognized implementation may run. Application is logged.</p></li></ol>
+<div class="example-line"><p class="eyebrow">Supported dependency example</p><h3>Credit utilization → Delinquency behaviour</h3><p>Credit utilization is balance divided by credit limit. This supported rule uses measured past-due rates for each utilization group. Support does not imply application; the generation audit records whether the rule ran.</p></div>
+</div></section>
+<section id="generation" class="container exec-section generation-split"><div class="exec-heading"><p class="eyebrow">05 / Synthetic generation · Methodology</p><h2>A new population,<br>built around measured patterns.</h2><p>Six linked tables use new customer and account identifiers. Measured profiles guide sampling; structural checks keep the records connected.</p></div><ul class="outcome-list"><li><span>01</span><div><h3>New identifiers and records</h3><p>Synthetic customer and account records, rather than source rows copied into a new table.</p></div></li><li><span>02</span><div><h3>Linked records and measured patterns</h3><p>Distribution, missingness and relationship profiles guide a linked population.</p></div></li><li><span>03</span><div><h3>A record of what ran</h3><p>Approved, implemented and applied remain separate states in the audit.</p></div></li></ul></section>
+<section id="explore-records" class="container exec-section" aria-labelledby="explore-records-title">
+<div class="exec-heading"><p class="eyebrow">06 / Synthetic Data Explorer</p><h2 id="explore-records-title">Explore synthetic records.</h2><p>Choose one of six tables to see up to 15 fabricated records, understand their connections and download the matching verified demo when available.</p></div>
+<p class="record-designation"><strong>Demo data — not actual customer records</strong><span>Selected fields from a verified fabricated-development export. The full dataset is never loaded for this preview.</span></p>
+<div id="records-explorer"><p class="results-notice" role="status">Demo preview pending</p><noscript><p>Enable JavaScript to explore the bounded demo preview. The methodology and validation links remain available.</p></noscript></div>
+</section>
+<section id="download-dataset" class="exec-section section-soft" aria-labelledby="download-dataset-title"><div class="container">
+<div class="exec-heading"><p class="eyebrow">07 / Demo dataset downloads</p><h2 id="download-dataset-title">Download synthetic dataset.</h2><p>Get the complete six-table ZIP, individual CSV tables, or the data dictionary. Downloads are enabled only for a verified, published DEMO_ONLY export.</p></div>
+<p class="download-disclaimer"><strong>Illustrative synthetic records — not actual customer data.</strong> These records were generated exclusively from fabricated development inputs. They do not establish representativeness of production banking data.</p>
+<div id="dataset-downloads"><p class="results-notice" role="status">Downloads unavailable until a verified demo export is confirmed.</p><noscript><p>Enable JavaScript to check the verified export and versioned download links.</p></noscript></div>
 </div></section>
 <section id="priorities" class="container exec-section"><div class="exec-heading"><p class="eyebrow">08 / Current maturity &amp; next priorities</p><h2>The controls are in place.<br>The next gains are in fidelity.</h2><p>Orchestration, manual review gates, privacy screening, aggregate reporting and publication are implemented. Complex relationships remain simplified and validation coverage varies.</p></div><ol class="priority-list"><li><span>01</span><div><h3>Preserve more relationships</h3><p>Broaden measured numeric, categorical and temporal dependencies, with adequate evidence before adding controlled rules.</p></div></li><li><span>02</span><div><h3>Close material fidelity gaps</h3><p>Investigate tails, weaker correlations and date patterns. Calibrate validation tolerances for intended uses.</p></div></li><li><span>03</span><div><h3>Deepen privacy assurance</h3><p>Expand the existing disclosure screens with stronger attack-based testing. The current screen is not anonymization certification. Demo downloads require separately verified fabricated origin and do not confer production-data privacy clearance.</p></div></li></ol></section>
 </main>

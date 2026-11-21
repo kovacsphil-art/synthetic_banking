@@ -10,12 +10,17 @@ This polish preserves the executive layout, red/charcoal palette, measured repor
 | Metric help opens on focus/click/tap as well as hover; Escape dismisses it, including hover-only previews | Norman: discoverability. Nielsen: user control and freedom. |
 | Clear loading labels, retry actions and missing-data messages with no substitute records or statistics | Nielsen: visibility and recovery from errors. |
 | More readable chart labels, SOURCE/Synthetic table headings, expandable chart values, scrollable wide tables and reduced-motion support | Nielsen: minimalist presentation and flexible access. |
+| Purpose → pipeline and AI controls → measured findings, before detailed methodology and demo browsing | Norman: coherent conceptual model. Nielsen: natural reading order and minimalist design. |
+| Three primary report destinations, with detailed evidence links in a native keyboard/touch disclosure | Nielsen: recognition and progressive disclosure. No horizontally hidden navigation links or new menu system. |
+| Report section deep links restored after JSON renders, without taking focus back after interaction or refresh | Norman: mapping and feedback. Nielsen: user control and predictable navigation. |
+| Plain-language SOURCE definition and distinct explanations of privacy review versus verified fabricated-demo availability | Nielsen: match with users’ language and error prevention. No release gate changes. |
 
 Reference principles: [Don Norman, The Design of Everyday Things](https://jnd.org/books/the-design-of-everyday-things-revised-and-expanded-edition/) and [Nielsen Norman Group, 10 Usability Heuristics](https://www.nngroup.com/articles/ten-usability-heuristics/). These are design guidelines, not a claim of usability certification.
 
 ## Verification
 
 - JavaScript checks cover pipeline hover/focus/click/touch/reset, tabs and keyboard movement, variable/match selection, sorting, help dismissal, loading/retry and missing/sparse evidence.
+- Additional checks lock the executive reading order, all evidence-link destinations, delayed report anchors, focus preservation, and the separate privacy/demo explanation. The frontend suite contains 82 passing checks.
 - Existing tests retain malformed-metadata, withdrawn-export, preview/version/hash mismatch, missing Release assets and privacy/provenance rejection cases.
 - Browser checks cover desktop and narrow mobile layouts, navigation between the three experiences, all six preview tables, expandable descriptions/chart values, keyboard table scrolling and missing-JSON states. Missing-data QA uses temporary copies of public UI assets without JSON; the saved reporting/preview artifacts are unchanged.
 - Switching tables or validation variables reuses loaded data. Preview/Release verification remains bounded and shared between the two demo sections; full CSVs and ZIPs are never fetched for exploration. No background polling, new frameworks or external UI resources are added.

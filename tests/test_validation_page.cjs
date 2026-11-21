@@ -10,6 +10,8 @@ class Node {
   replaceChildren(...nodes){this._text="";this.children=nodes;}
   setAttribute(k,v){this.attributes[k]=v;}
   addEventListener(k,v){this.events[k]=v;}
+  focus(options){this.ownerDocument.activeElement=this;this.focusOptions=options;}
+  scrollIntoView(options){this.scrolled=options;}
 }
 function document(){const d={baseURI:"https://example.invalid/project/validation.html"};d.createElement=t=>new Node(d,t);d.createElementNS=(_,t)=>new Node(d,t);return d;}
 function all(n){return [n,...n.children.flatMap(all)];}
@@ -22,7 +24,8 @@ test("post-pilot mean/tail screens and privacy findings remain separate and visi
   const r=structuredClone(postFixture),node=renderValidation(document(),normalizeValidation(r));
   assert.match(node.textContent,/Numeric mean screening/);assert.match(node.textContent,/P01 \/ P05 \/ P99 tail screening/);
   assert.match(node.textContent,/Balance mean needs review/);assert.match(node.textContent,/REVIEW_REQUIRED/);
-  assert.match(node.textContent,/SOURCE-rare pattern matches/);assert.match(node.textContent,/Row-level downloads disabled/);
+  assert.match(node.textContent,/SOURCE-rare pattern matches/);assert.match(node.textContent,/General dataset release blocked/);
+  assert.match(node.textContent,/Fabricated demo downloads require separate verification/);
   assert.match(node.textContent,/Additional provisional screens/);assert.match(node.textContent,/Mandatory integrity requirements/);
   assert.equal(all(node).filter(n=>n.className?.includes("mean-series")).length,8);
   assert.ok(!all(node).some(n=>n.tagName==="A"&&/\.zip|\.csv|\.parquet/.test(n.attributes.href||"")));
@@ -116,6 +119,36 @@ test("refresh failures clear previous figures and recover; fetch is public same-
 test("a stalled request times out with the accessible pending state",async()=>{
   const root=new Node(document(),"div");const loader=mountValidation(root,{location,timeoutMs:5,fetcher:async(_,o)=>new Promise((_,reject)=>o.signal.addEventListener("abort",()=>reject(new Error("aborted"))))});
   await loader.ready;assert.match(root.textContent,/Validation results pending/);assert.equal(root.attributes["aria-busy"],"false");
+});
+
+test("a report deep link is restored after rendering, without stealing focus on refresh",async()=>{
+  const doc=document(),root=new Node(doc,'div'),loc={...location,hash:'#dependencies'};
+  doc.getElementById=id=>all(root).find(n=>n.id===id);
+  const loader=mountValidation(root,{location:loc,fetcher:async()=>response(fixture)});await loader.ready;
+  assert.equal(doc.activeElement.id,'dependencies');assert.equal(doc.activeElement.tabIndex,-1);
+  assert.deepEqual(doc.activeElement.focusOptions,{preventScroll:true});
+  assert.deepEqual(doc.activeElement.scrolled,{block:'start',behavior:'auto'});
+  const refresh=new Node(doc,'button');doc.activeElement=refresh;await loader.refresh();assert.equal(doc.activeElement,refresh);
+  assert.equal(doc.getElementById('dependencies').scrolled,undefined);
+});
+
+test("pending report loading respects user focus, changed fragments and unknown anchors",async()=>{
+  for(const change of ['focus','hash','unknown']){
+    const doc=document(),root=new Node(doc,'div'),loc={...location,hash:change==='unknown'?'#private-metadata':'#numeric'};
+    doc.getElementById=id=>all(root).find(n=>n.id===id);
+    let release;const loader=mountValidation(root,{location:loc,fetcher:()=>new Promise(resolve=>{release=resolve;})});
+    const control=new Node(doc,'button');if(change==='focus')doc.activeElement=control;if(change==='hash')loc.hash='#privacy';
+    release(response(fixture));await loader.ready;
+    assert.ok(!all(root).some(n=>n.scrolled));assert.equal(doc.activeElement,change==='focus'?control:undefined);
+  }
+});
+
+test("privacy explanation links to demo checks without enabling general row release",()=>{
+  const report=structuredClone(postFixture),node=renderValidation(document(),normalizeValidation(report));
+  const link=all(node).find(n=>n.tagName==='A'&&n.textContent==='Check verified fabricated demo availability');
+  assert.equal(link.attributes.href,'index.html#download-dataset');
+  assert.match(node.textContent,/General dataset release remains blocked/);assert.match(node.textContent,/REVIEW_REQUIRED/);
+  assert.equal(report.privacy.row_level_downloads_enabled,false);
 });
 
 test("final-cohort report is independent of rule approvals and application metadata",()=>{

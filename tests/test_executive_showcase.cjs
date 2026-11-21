@@ -43,6 +43,17 @@ test("executive summary uses measured counts without an overall percentage or AI
   assert.match(validation.executiveSummary(document(),{report,v}).textContent,/not an overall accuracy score/);
 });
 
+test('expanded findings retain their measured ranking and have distinct disclosure labels',()=>{
+  const view=validation.normalizeValidation(clone()),root=validation.executiveFindings(document(),view);
+  for(const [i,key] of ['strengths','weaknesses'].entries()){
+    const panel=root.children[i],lists=all(panel).filter(n=>n.tagName==='OL');
+    assert.equal(lists[0].attributes.start,'1');
+    if(view.v[key].length>3){assert.equal(lists[1].attributes.start,'4');assert.equal(lists[1].style.counterReset,'findings 3');}
+    const summary=all(panel).find(n=>n.tagName==='SUMMARY');
+    if(summary)assert.equal(summary.textContent,key==='strengths'?'More measured strengths':'More measured discrepancies');
+  }
+});
+
 test("cardinality selector draws only published bins and leaves missing distributions unavailable",()=>{
   const v=validation.normalizeValidation(clone()).v,root=viz.cardinality(document(),v);
   assert.match(root.textContent,/0 related records/);assert.match(root.textContent,/5\+ related records/);
@@ -117,6 +128,27 @@ test('both pages offer the same named routes between the three exploration exper
     assert.match(nav,/href="(?:index.html)?#process"/);assert.match(nav,/href="(?:index.html)?#explore-records"/);
     assert.match(html,/aria-label="Explore SAGE"/);
   }
+});
+
+test('first-time reading path puts measured findings before detailed methodology and demo browsing',()=>{
+  const html=fs.readFileSync(require.resolve('../docs/index.html'),'utf8');
+  const sections=[...html.matchAll(/<section id="([^"]+)"/g)].map(m=>m[1]);
+  assert.deepEqual(sections,['overview','process','validation','evidence','control','generation','explore-records','download-dataset','priorities']);
+  const hero=html.split('<section id="overview"')[1].split('<section id="process"')[0];
+  assert.match(hero,/SOURCE means the fabricated development baseline/);assert.match(hero,/href="#process">See how SAGE works/);
+  assert.match(html,/AI sees statistical summaries, never individual banking records/);
+  assert.match(html,/AI-generated text is never executed/);
+});
+
+test('report navigation prioritizes summary and keeps every evidence destination in a native disclosure',()=>{
+  const html=fs.readFileSync(require.resolve('../docs/validation.html'),'utf8');
+  const nav=html.match(/<nav class="report-nav"[^>]*>(.*?)<\/nav>/s)[1];
+  assert.match(nav,/<details class="report-evidence-links"><summary>Evidence sections<\/summary>/);
+  assert.doesNotMatch(nav,/<details[^>]*\bopen\b/);
+  const links=[...nav.matchAll(/href="#([^"]+)"/g)].map(m=>m[1]);
+  assert.deepEqual(links,['summary','findings','explore-validation','numeric','categorical','completeness','dependencies','structure','privacy','methodology']);
+  const root=validation.renderValidation(document(),validation.normalizeValidation(clone()));
+  for(const id of links)assert.ok(all(root).some(n=>n.id===id),'Missing destination '+id);
 });
 
 test('overview offers an in-place retry after unavailable results without substituting measurements',async()=>{
