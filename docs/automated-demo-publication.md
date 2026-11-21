@@ -35,6 +35,8 @@ SOURCE origin is proven by **full six-table exact multiset replay** of the appro
 
 The dataset version is an opaque numeric digest of the five private handoff IDs, e.g. `sage-demo-v12345678901234567890`. No private UUID or workflow run ID is placed in public filenames or URLs. Repairs of the same generation reuse its immutable export only after audit, provenance and checksums pass again; unrelated exports cannot be substituted.
 
+`.gitattributes` preserves LF bytes for the pinned fake-record script and preview JSON, keeping their fingerprints consistent between Windows, Databricks and GitHub Actions.
+
 ## Files and readiness
 
 The exporter first writes its original immutable private version with six CSVs, ZIP, dictionary, metadata, bounded preview and `_SUCCESS`. After independent verification, the demo task copies **only** the eight public assets and bounded preview into:

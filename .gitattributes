@@ -1,2 +1,4 @@
 # The download manifest pins the preview's exact bytes across Windows and Actions.
 docs/demo-preview.json text eol=lf
+# Fabricated-origin verification pins this reviewed script's exact SHA-256.
+"scripts/Scotia Fake Records.py" text eol=lf
