@@ -1,0 +1,7 @@
+# Local checks and fabricated workbook/Parquet fixtures only.
+# Do not install this over Databricks' managed Spark/runtime environment.
+numpy>=1.26,<3
+pandas>=2.2,<4
+openpyxl==3.1.5
+pyarrow>=14
+jsonschema==4.23.0

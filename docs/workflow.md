@@ -1,5 +1,7 @@
 # Databricks controlled pipeline
 
+New installation? Start with [first-time setup and troubleshooting](setup.md) for the workbook prerequisite, scoped permissions and centralized configuration. This runbook describes the existing task graph and operating procedure.
+
 The bundle defines one serial job. It calls the existing notebooks; `workflow.py` supplies only handoff and provenance checks. Profiling, prompts, distributions, formulas and the controlled rule registry retain their existing behavior. No task approves a rule or executes proposal text.
 
 ```text
@@ -60,7 +62,7 @@ Previously reviewed batches can run without a new review stop: start with **both
 
 ```powershell
 $env:BUNDLE_VAR_cluster_id = "YOUR_CLUSTER_ID"
-$env:BUNDLE_VAR_report_output_dir = "/Volumes/workspace/default/scotia/pipeline_reporting"
+$env:BUNDLE_VAR_report_output_dir = "/Volumes/workspace/default/showcase_reports/pipeline_reporting"
 databricks bundle validate -t dev
 databricks bundle deploy -t dev
 databricks bundle run -t dev synthetic_pipeline
@@ -94,11 +96,11 @@ The final `reporting` task also receives `privacy_assessment_id` directly from `
 - Configure/authenticate the workspace, compute, permissions and input/output paths; deploy the bundle.
 - Review proposals individually and repair the approval gate, or explicitly select a previously reviewed SOURCE/batch pair.
 - Investigate validation failures and material statistical deviations; acceptance thresholds remain a human decision.
-- Review privacy findings before planning any row-level sharing. Screening PASS is not certification or distribution approval; there is no enabled dataset download task.
+- Review privacy findings before planning row-level sharing. Screening PASS is not certification or distribution approval. Verified fabricated DEMO_ONLY exports have a separate explicit release gate; ordinary row-level release remains subject to the standard privacy guard.
 - Configure the [GitHub publication workflow](publication.md) once to retrieve successful reports and deploy Pages automatically. Manual report downloads remain available; see [the reporting contract](reporting/README.md).
 
 Local tests cover handoff/provenance/review behavior using fabricated metadata. The first pilot verified live bundle deployment, approval repair, Spark/Delta generation/profiling/validation and reporting-only repair. New configurations still need a Databricks test-destination smoke test; historical success is not evidence that a changed environment will pass.
 
 ## Optional automated demo distribution
 
-The new verification task follows `validate` and precedes `reporting`. Default `demo_release_mode=DISABLED` permits ordinary aggregate-only execution. Explicit DEMO_ONLY runs the existing complete fabricated SOURCE/generated replay and content checks; it never uses catalog paths as origin evidence or overrides privacy status. GitHub separately requires `SAGE_PUBLISH_DEMO_DATASETS=true` for public Release uploads. See [the complete trigger, handoff, repair and disable runbook](automated-demo-publication.md). Existing eight-task live results above are historical evidence, not evidence that the new task has run.
+The verification task follows `validate` and precedes `reporting`. Default `demo_release_mode=DISABLED` permits ordinary aggregate-only execution. Explicit DEMO_ONLY runs the existing complete fabricated SOURCE/generated replay and content checks; it never uses catalog paths as origin evidence or overrides privacy status. GitHub separately requires `SAGE_PUBLISH_DEMO_DATASETS=true` for public Release uploads. See [the complete trigger, handoff, verified nine-task execution, repair and disable runbook](automated-demo-publication.md). Earlier eight-task results remain historical evidence; the later nine-task integration is documented separately.

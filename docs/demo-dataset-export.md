@@ -1,5 +1,7 @@
 # Private demo dataset export
 
+For fabricated input creation, use [first-time setup](setup.md#2-establish-the-fabricated-source-baseline). The separate schema workbook is required; keep the pinned generator unchanged. This page covers the private export event. Later optional public distribution has its own [verification/publication gates](automated-demo-publication.md).
+
 This opt-in stage packages existing, validated Delta snapshots. It does **not** change generation, create a new cohort, clear privacy findings, publish files, or enable a website download. The general row-release guard and the disabled arbitrary-CSV ZIP helper remain unchanged.
 
 ## Scope and gate

@@ -24,33 +24,24 @@ The [November 21 follow-up](docs/post-pilot-review.md#follow-up-review--november
 
 ## How to Run
 
-1. Open the repo in Databricks and configure compute, permissions, and source paths using the [Notebook 01 prerequisites](notebooks/01_Stat%20extraction%20_v1.ipynb).
-2. Set `profile_type` to `SOURCE` in Notebook 01 and run it from the top. Record the completed SOURCE `run_id` from `workspace.synthetic_profile.profile_runs`.
-3. Set Notebook 02's `source_run_id` to that ID and set `balance_pilot` to `ON` for the controlled pilot. Run the notebook and record the proposal `batch_id`.
-4. Review the batch and approve individual proposals using the [controlled pilot runbook](docs/controlled-pilot.md).
-5. Set Notebook 03's `source_run_id` to the same SOURCE ID. For the pilot, fill in `pilot_batch_id` and `pilot_proposal_ids`. Run through the Delta-save and validation cell and record the `generation_id`.
-6. Rerun Notebook 01 with `profile_type` set to `GENERATED` and the recorded `generation_id`. Review its fidelity report against the original SOURCE run. Optionally set `fidelity_output_dir` to an absolute writable folder for an aggregate JSON copy.
+**Start with the [first-time setup guide](docs/setup.md)** for prerequisites, scoped permissions, configuration, fabricated inputs, automated execution, review/repair, output locations and troubleshooting. Stakeholders can view the published showcase without installing anything.
 
-For an orchestrated run, deploy the serial job in [`databricks.yml`](databricks.yml) using the [workflow runbook](docs/workflow.md). It passes exact IDs between the existing notebooks, stops for manual proposal review, and validates the completed profile pair. A separate privacy-screening task runs after generation; unresolved privacy findings block row-level release while aggregate validation/reporting continue. Its final task publishes [sanitized aggregate JSON](docs/reporting/README.md) without modifying the HTML showcase. The runbook covers deployment, task handoffs, repairing the approval stop, and reusing a previously reviewed SOURCE/batch pair.
+1. Configure `src/synthetic_banking/config.py`, compute and development Volumes; keep the complete project folders together.
+2. Supply the separate schema-only workbook; run [00_Create_Fabricated_SOURCE.py](notebooks/00_Create_Fabricated_SOURCE.py) once to create the six initial fake Parquet inputs.
+3. Deploy the bundle and start `synthetic_pipeline`. Its first tasks run Notebook 01 as SOURCE, then Notebook 02 for that exact SOURCE run.
+4. Review each proposal in the stopped batch. Approve or reject individually, then repair from `approval_check` through downstream tasks. No automatic approval.
+5. The job generates six Delta tables, screens privacy, profiles GENERATED and validates against the pinned SOURCE. Inspect individual fidelity metrics and actual rule applications.
+6. Reporting exports sanitized JSON; separately configured GitHub Actions updates Pages. Demo CSV/ZIP publication requires its own explicit verified DEMO_ONLY gates.
 
-### Databricks Free Edition and approval stops
+For manual notebook execution, follow the [controlled pilot](docs/controlled-pilot.md). For exact task values and repair behavior, use the [workflow runbook](docs/workflow.md). Never use `current_run` to select generation inputs.
 
-Use the `free` bundle target for serverless compute; the default `dev` target expects an existing cluster. The reporting Volume must already exist and be writable by the pipeline identity. From the repository root, after authenticating the Databricks CLI:
-
-```powershell
-$env:BUNDLE_VAR_report_output_dir = "/Volumes/workspace/default/showcase_reports/pipeline_reporting"
-databricks bundle validate -t free -p synthetic-banking
-databricks bundle deploy -t free -p synthetic-banking
-databricks bundle run -t free -p synthetic-banking synthetic_pipeline
-```
-
-`synthetic-banking` is the local CLI authentication profile name; substitute your own if different. A fresh proposal batch normally stops at `approval_check` with `APPROVAL_REQUIRED` and a failed run status. Review each existing proposal in the SQL editor or Notebook 02's separate review statement, recording APPROVED or REJECTED plus reviewer/time. Review every PENDING proposal in that batch, then **Repair run** from `approval_check` through its downstream tasks. Keep the successful SOURCE and LLM tasks unchanged; rerunning Notebook 02 from the top creates a different batch. Approval does not imply implementation or application.
+Use bundle target `free` for serverless or configure `cluster_id` for `dev`. Provision the reporting Volume first. A fresh batch intentionally stops with a failed `APPROVAL_REQUIRED` gate until reviewed; this is expected, not a completed dataset.
 
 ### Shared code and configuration
 
 Keep `notebooks/` and `src/` together, whether using Git or uploading the project to Databricks. Each notebook finds `src/` automatically; no package build or installation is needed. Run each notebook from the top after changing parameters or shared code. If discovery fails, add the absolute project `src/` path to `sys.path`.
 
-[`config.py`](src/synthetic_banking/config.py) holds the catalog, profiling/generated/staging schemas, SOURCE aliases and Volume directory, model endpoint, default population, and seed. Defaults retain the existing `workspace` destinations and seed `42`. Notebook 01 exposes `source_dir` for a per-run path override; Notebook 03 exposes `GenerationSettings` for population, seed, and pilot selection. SOURCE run, batch, proposal IDs, and profiling mode remain notebook widget choices. Change shared defaults before starting a fresh notebook session; SQL examples in this README use the default names.
+[`config.py`](src/synthetic_banking/config.py) holds the catalog, profiling/generated/staging schemas, SOURCE aliases and Volume directory, model endpoint, default population, and seed. Defaults retain the existing `workspace` destinations and seed `42`. Notebook 01's `source_dir` is a Python variable, not a widget; use the shared default for automated/demo runs. Notebook 03 exposes `GenerationSettings` for population, seed, and pilot selection. SOURCE run, batch, proposal IDs, and profiling mode remain notebook widget choices. Change shared defaults before starting a fresh notebook session; SQL examples in this README use the default names. Bundle and publication settings are mapped in [one configuration table](docs/setup.md#1-prerequisites-and-configuration).
 
 The notebooks now coordinate these reusable modules:
 
@@ -102,13 +93,13 @@ Public dataset distribution additionally requires GitHub Actions variable `SAGE_
 
 ### Optional setup for fake SOURCE inputs
 
-Run [Scotia Fake Records.py](scripts/Scotia%20Fake%20Records.py) as a Databricks notebook before step 2 if you need to create the six input Parquet files. It generates fake records from the column names and types in `RCAR_source_column_list.xlsx`. The workbook is required separately and defaults to `/Volumes/workspace/default/scotia/RCAR_source_column_list.xlsx`.
+Run [00_Create_Fabricated_SOURCE.py](notebooks/00_Create_Fabricated_SOURCE.py) once before SOURCE profiling to create the six input Parquet files. It calls the unchanged [Scotia Fake Records.py](scripts/Scotia%20Fake%20Records.py) using `config.py`'s `SOURCE_DIR` and the reviewed demo policy's population/seed. The schema-only workbook `RCAR_source_column_list.xlsx` is required separately in that directory; it is not in Git.
 
-Set `SCHEMA_XLSX` and `OUTPUT_DIR` for your workspace. The output directory must be writable and should match Notebook 01's `source_dir`. The script replaces existing `RCAR_synthetic_*.parquet` files with the same names, so use a test Volume if those files need to be kept. The generator uses NumPy, pandas, openpyxl, and PyArrow.
+Use a dedicated writable development Volume: setup replaces same-named `RCAR_synthetic_*.parquet` files. The existing script uses NumPy, pandas, openpyxl and PyArrow. Keep its bytes unchanged because DEMO_ONLY replay verifies its fingerprint; do not edit hard-coded paths in the original script to configure a new installation. The setup wrapper supplies paths without changing its formulas or sampling.
 
 ### Project showcase and GitHub Pages
 
-Open [docs/index.html](docs/index.html) in a browser to view the static showcase. Automated publishing uses [Publish validated showcase](.github/workflows/publish-showcase.yml): GitHub polls for a successful Databricks job every 15 minutes, validates its run-specific sanitized JSON, commits the sanitized report (plus the matching bounded preview/download manifest when demo publication is enabled), and deploys an explicit list of static assets using GitHub Pages. Choose **Settings → Pages → GitHub Actions**, then configure the secrets and variables in the [publication runbook](docs/publication.md). Failed runs and invalid reports leave the published site intact. **Actions → Publish validated showcase → Run workflow** provides a manual trigger.
+For a local preview, [serve only `docs/` over localhost](docs/setup.md#local-verification-without-databricks); double-clicking HTML can block the JSON-backed results. Automated publishing uses [Publish validated showcase](.github/workflows/publish-showcase.yml): GitHub polls for a successful Databricks job every 15 minutes, validates its run-specific sanitized JSON, commits the sanitized report (plus the matching bounded preview/download manifest when demo publication is enabled), and deploys an explicit list of static assets using GitHub Pages. Choose **Settings → Pages → GitHub Actions**, then configure the secrets and variables in the [publication runbook](docs/publication.md). Failed runs and invalid reports leave the published site intact. **Actions → Publish validated showcase → Run workflow** provides a manual trigger.
 
 Automatic selection uses the latest final successful validation, including repaired jobs, and requires a matching SHA-256 receipt for every report. Publisher/staging safeguard tests, frontend tests and staged browser-contract checks run before deployment. The artifact builder excludes row files and checks any separately gated demo metadata against the same report. See [configuration, failure recovery and external setup](docs/publication.md#configuration-status-and-external-setup); the existing SAGE setup is reused and no modeling logic changes.
 
@@ -1088,6 +1079,7 @@ When modifying this repository:
 synthetic_banking/
 |-- AGENTS.md
 |-- README.md
+|-- requirements-dev.txt
 |-- databricks.yml
 |-- .github/workflows/
 |   `-- publish-showcase.yml
@@ -1095,9 +1087,11 @@ synthetic_banking/
 |   `-- synthetic_pipeline.job.yml
 |-- scripts/
 |   |-- Scotia Fake Records.py
+|   |-- check_setup.py
 |   |-- publish_showcase.py
 |   `-- build_validation_schema.py
 |-- docs/
+|   |-- setup.md
 |   |-- index.html
 |   |-- styles.css
 |   |-- results.js
@@ -1113,6 +1107,7 @@ synthetic_banking/
 |   |-- privacy.md
 |   `-- reporting/
 |-- notebooks/
+|   |-- 00_Create_Fabricated_SOURCE.py
 |   |-- 01_Stat extraction _v1.ipynb
 |   |-- 02_LLM Rule Generation.ipynb
 |   |-- 03_Synthetic_Gen_v1.ipynb
@@ -1176,14 +1171,17 @@ synthetic_banking/
 
 ## Local checks
 
-With Python 3.10 or newer and NumPy installed, run from the repository root in PowerShell:
+Use Python 3.10+ (3.12 matches CI) and Node.js (22 matches CI). From the repository root in PowerShell:
 
 ```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
+.\.venv\Scripts\python.exe -B scripts/check_setup.py
 $env:PYTHONPATH = (Resolve-Path -LiteralPath src).Path
-python -B -m unittest discover -s tests -v
+.\.venv\Scripts\python.exe -B -m unittest discover -s tests -v
 ```
 
-Publication tests additionally use `jsonschema==4.23.0` (`python -m pip install jsonschema==4.23.0`); they skip when it is unavailable. GitHub installs the pinned publication dependencies automatically. The static showcase's dependency-free JavaScript checks run with Node:
+The local requirements include NumPy, pandas, openpyxl, PyArrow and the publication schema validator; missing optional libraries can otherwise silently skip tests. Do not install this file over Databricks' managed runtime. The static showcase's dependency-free JavaScript checks run with Node:
 
 ```powershell
 node --check docs/results.js
