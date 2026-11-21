@@ -71,6 +71,15 @@ For a new installation, these steps need account/workspace access and cannot be 
 
 Automated updates use the existing 15-minute polling schedule after successful pipeline execution; they are not an instant Databricks callback. GitHub can delay scheduled jobs or disable schedules in inactive public repositories. Re-enable the workflow or use the manual trigger when needed. The next successful validated run needs no HTML editing, file copying or manual Release upload.
 
+## End-to-end demonstration — November 21, 2026
+
+- [Automatic-selection publication](https://github.com/kovacsphil-art/synthetic_banking/actions/runs/44870749026) was manually dispatched **without a run ID**, exercising the same selection path as the schedule. GitHub used the existing Databricks OAuth configuration, retrieved the latest eligible validated execution's run-specific report, checked its receipt/schema/browser contract, reused the separately verified demo Release, staged the artifact and deployed Pages. No notebooks, generation jobs or new approvals were started.
+- The downloaded Pages artifact contained exactly **15 allowed files**, including the separately gated preview/manifest, with **zero CSV/ZIP files**. Aggregate-only staging was separately checked at **13 files**. Live `index.html`, `validation.html`, `latest-pipeline.json`, `demo-preview.json` and `dataset-downloads.json` matched their artifact hashes. The sanitized report SHA-256 was `adcdbc39e5f1038605e56b70668d13f09da71968b9b54398f9d617423aa1e0f5`.
+- [Controlled rejection](https://github.com/kovacsphil-art/synthetic_banking/actions/runs/44870909632) supplied invalid job-run ID `0`. Preparation failed at report retrieval and deployment was skipped. The same five live file hashes remained unchanged. This tests the publication guard, not a forced GitHub hosting outage. Fabricated automated tests additionally cover failed/incomplete Databricks runs, missing/mismatched receipts, changed report bytes, mixed generations, invalid public data, missing assets and preservation of prior files.
+- The existing data were already current: 10,000 customers, 17,313 accounts, 100% account/balance coverage, three applied rules and privacy REVIEW_REQUIRED. No statistic was edited to manufacture an apparent update. UI design, validation calculations and all source/generation/privacy code remained unchanged.
+
+The existing repository needs no additional secret or permission setup. Ongoing manual work is normal proposal review, starting/scheduling the Databricks pipeline for new cohorts, credential rotation and any release-purpose decisions. For other installations, complete the account/workspace setup table above.
+
 References: [GitHub Pages custom workflows](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages), [Databricks OAuth M2M](https://docs.databricks.com/aws/en/dev-tools/auth/oauth-m2m), [Jobs SDK](https://databricks-sdk-py.readthedocs.io/en/stable/workspace/jobs/jobs.html), [Volume Files SDK](https://databricks-sdk-py.readthedocs.io/en/stable/workspace/files/files.html).
 
 ## Optional DEMO_ONLY Release branch

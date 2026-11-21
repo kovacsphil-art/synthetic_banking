@@ -1,5 +1,4 @@
 """Deployment-package checks use fabricated public contract data, never live credentials."""
-from copy import deepcopy
 import hashlib
 import json
 import re
