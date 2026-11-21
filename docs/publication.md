@@ -1,5 +1,7 @@
 # Automated showcase publication
 
+**Post-pilot publication verified:** [Actions run](https://github.com/kovacsphil-art/synthetic_banking/actions/runs/44848318450) completed both preparation and Pages deployment successfully. The [live Validation Report](https://kovacsphil-art.github.io/synthetic_banking/validation.html#summary) was checked against its sanitized JSON: 10,000 customers, 17,313 accounts, three applied rules, mean/tail screens and privacy REVIEW_REQUIRED. The report retains its original validation completion timestamp; refreshing reporting did not regenerate the cohort. Dataset downloads remain disabled. Future successful reports use the same automated path; no new credentials or settings are required for this update.
+
 The static site is published by `.github/workflows/publish-showcase.yml`. GitHub checks Databricks every 15 minutes (at minutes 7, 22, 37 and 52 UTC) and can also be triggered manually. GitHub schedules can be delayed; this is polling, not an immediate callback. This workflow does not start the banking pipeline or approve proposals.
 
 ```text

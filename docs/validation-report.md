@@ -20,7 +20,7 @@ No PARTY_ID, ACCOUNT_ID, proposal IDs, internal run IDs, row records, raw catego
 
 ## Metrics and JSON mapping
 
-The optional phase-one `validation_report.dependency_fidelity` extension adds two fixed account-product association/conditional-distance rows and four SOURCE credit-limit interval balance-mean rows in the existing dependencies disclosure. Raw category values are never exported. Historical artifacts remain supported; missing metrics are unavailable. These observations stay outside the existing headline check counts and classifications. See the [exact field contract](reporting/README.md#optional-dependency-fidelity-extension) and [method evaluation](statistical-fidelity-phase1.md).
+The optional phase-one `validation_report.dependency_fidelity` extension adds two fixed account-product association/conditional-distance rows and four SOURCE credit-limit interval balance-mean rows. Raw category values are never exported. Historical artifacts remain supported; missing metrics are unavailable. These observations stay outside the core headline counts; categorical distances receive supplemental provisional classifications when `post_pilot` is supplied. See the [exact field contract](reporting/README.md#optional-dependency-fidelity-extension) and [method evaluation](statistical-fidelity-phase1.md).
 
 All paths below are under `validation_report`, except the existing completion timestamp and validation envelope. Rule metadata remains in the version-2 contract for compatibility and pipeline reporting; it is not consumed by the final-cohort validation renderer.
 
