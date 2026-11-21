@@ -45,6 +45,8 @@ jobs:
           python -B -m unittest discover -s tests -p 'test_publication.py' -v
           python -B -m unittest discover -s tests -p 'test_pages_staging.py' -v
           python -B -m unittest discover -s tests -p 'test_workflow_wiring.py' -v
+          python -B -m unittest discover -s tests -p 'test_validation_reporting.py' -v
+          python -B -m unittest discover -s tests -p 'test_null_rates.py' -v
           node --test tests/test_results.cjs tests/test_validation_page.cjs tests/test_validation_explorer.cjs tests/test_executive_showcase.cjs tests/test_records.cjs tests/test_downloads.cjs tests/test_demo_release.cjs
       - name: Retrieve report from a successful pipeline execution
         id: report

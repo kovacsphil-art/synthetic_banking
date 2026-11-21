@@ -4,7 +4,7 @@
   const CONFIG = typeof module!=="undefined" && module.exports ? require("./validation-config.js") : window.ValidationConfig;
   const VIZ = typeof module!=="undefined" && module.exports ? require("./executive-viz.js") : window.SageViz;
   const LABELS = {
-    STRONG: "Strong match", ACCEPTABLE: "Acceptable", NEEDS_REVIEW: "Needs review", UNAVAILABLE: "Not comparable",
+    STRONG: "Strong match", ACCEPTABLE: "Acceptable", NEEDS_REVIEW: "Needs review", UNAVAILABLE: "Not comparable", TRIVIAL: "Trivial zero-null match",
     REVIEW_REQUIRED: "Differences need review", PARTIAL: "Some evidence pending", WITHIN_TOLERANCE: "Within configured tolerances", PENDING: "Validation results pending",
   };
   const NUMERIC = {credit_limit: "Credit limit", current_balance: "Current balance", available_credit: "Available credit", overlimit: "Overlimit amount"};
@@ -29,12 +29,80 @@
     const body=el(doc,"tbody"); rows.forEach(row=>{const tr=el(doc,"tr");row.forEach((v,i)=>{const td=el(doc,i===0?"th":"td"); if(i===0)td.setAttribute("scope","row"); if(typeof v === "object" && v !== null)td.append(v);else td.textContent=v;tr.append(td);});body.append(tr);});node.append(head,body);wrap.append(node);return wrap;
   }
 
+  function classifyNull(a,limits=CONFIG.thresholds.proportion_pp) {
+    const count=x=>Number.isSafeInteger(x)&&x>=0?x:null;
+    const [sc,sn,gc,gn]=[a.source_count,a.source_n,a.generated_count,a.generated_n].map(count);
+    const missing=[a.source_count,a.source_n,a.generated_count,a.generated_n].some(x=>x==null);
+    let reason=a.reason==='duplicate_null_evidence'?'duplicate_null_evidence':a.reason==='invalid_null_counts'?'invalid_null_counts':missing?'missing_null_counts':
+      [sc,sn,gc,gn].some(x=>x===null)||!sn||!gn||sc>sn||gc>gn?'invalid_null_counts':
+      a.reason==='null_comparison_unavailable'?'null_comparison_unavailable':null;
+    const valid=reason===null,source=sc!==null&&sn&&sc<=sn?sc/sn:null,generated=gc!==null&&gn&&gc<=gn?gc/gn:null;
+    const score=valid?Math.abs(generated-source)*100:null;
+    const pattern=!valid?'UNAVAILABLE':sc===0&&gc===0?'ZERO_ZERO':sc===0?'ZERO_NONZERO':gc===0?'NONZERO_ZERO':'NONZERO_NONZERO';
+    let status,classification;
+    if(!valid){status='UNAVAILABLE';classification='UNAVAILABLE';}
+    else if(pattern==='ZERO_ZERO'){status='TRIVIAL';classification='TRIVIAL_MATCH';reason='zero_null_in_both';}
+    else if(pattern!=='NONZERO_NONZERO'){status='NEEDS_REVIEW';classification='DISCREPANCY';reason='zero_presence_change';}
+    else if(score>limits.acceptable+1e-9){status='NEEDS_REVIEW';classification='DISCREPANCY';}
+    else{status=score<=limits.strong+1e-9?'STRONG':'ACCEPTABLE';classification='MEANINGFUL_MATCH';}
+    return {source,generated,difference:valid?generated-source:null,score,source_count:sc,generated_count:gc,source_n:sn,generated_n:gn,
+      status,classification,pattern,reason,strength_eligible:classification==='MEANINGFUL_MATCH'&&status==='STRONG',all_null_match:valid&&sc===sn&&gc===gn};
+  }
+
+  function nullSummary(rows,additional=0){
+    const n=(key,value)=>rows.filter(r=>r[key]===value).length,trivial=n('status','TRIVIAL'),missing=n('status','UNAVAILABLE');
+    return {variables_total:rows.length,variables_evaluated:rows.length-missing,trivial_zero_null:trivial,eligible_nontrivial:rows.length-missing-trivial,
+      meaningful_matches:n('classification','MEANINGFUL_MATCH'),material_discrepancies:n('classification','DISCREPANCY'),requiring_review:n('status','NEEDS_REVIEW'),unavailable:missing,
+      source_zero_generated_nonzero:n('pattern','ZERO_NONZERO'),source_nonzero_generated_zero:n('pattern','NONZERO_ZERO'),both_nonzero:n('pattern','NONZERO_NONZERO'),
+      all_null_matches:n('all_null_match',true),additional_unpublished_variables:additional};
+  }
+
+  function normalizeNullAudit(audit){
+    if(audit===undefined)return null;
+    const spec=CONFIG.null_rates,fields=new Map(spec.fields.map(([t,c])=>['null_field.'+t+'.'+c,[t,c]]));
+    if(!audit||audit.policy_version!==spec.policy_version||audit.zero_presence_requires_review!==true||
+      audit.thresholds?.strong!==CONFIG.thresholds.proportion_pp.strong||audit.thresholds?.acceptable!==CONFIG.thresholds.proportion_pp.acceptable||
+      !Array.isArray(audit.rows)||audit.rows.length!==fields.size||new Set(audit.rows.map(r=>r.key)).size!==fields.size||
+      !Number.isSafeInteger(audit.summary?.additional_unpublished_variables)||audit.summary.additional_unpublished_variables<0)throw new Error('Invalid null audit');
+    for(const r of audit.rows){const field=fields.get(r.key);
+      if(!field||r.table!==field[0]||r.column!==field[1]||r.label!==field[0]+'.'+field[1]+' · null rate'||r.family!=='nulls'||r.policy!=='proportion_pp'||!spec.reasons.includes(r.reason))throw new Error('Invalid null evidence');
+      const expected=classifyNull(r);
+      for(const [k,v] of Object.entries(expected))if(typeof v==='number'?typeof r[k]!=='number'||Math.abs(r[k]-v)>1e-12:r[k]!==v)throw new Error('Inconsistent null evidence');
+    }
+    const expected=nullSummary(audit.rows,audit.summary.additional_unpublished_variables);
+    for(const k of spec.summary_keys)if(audit.summary[k]!==expected[k])throw new Error('Inconsistent null summary');
+    return audit;
+  }
+
+  function legacyNullCorrection(v){
+    // Historical v2 files stay readable, but exact zero counts never become strengths.
+    for(const a of v.assessments.filter(a=>a.family==='nulls')){
+      const r=classifyNull(a);for(const k of ['source','generated','difference','score','source_count','source_n','generated_count','generated_n','status','reason'])a[k]=r[k];
+    }
+    const counts=Object.fromEntries(['STRONG','ACCEPTABLE','NEEDS_REVIEW','UNAVAILABLE','TRIVIAL'].map(s=>[s,v.assessments.filter(a=>a.status===s).length]));
+    Object.assign(v.summary,{strong:counts.STRONG,acceptable:counts.ACCEPTABLE,needs_review:counts.NEEDS_REVIEW,unavailable:counts.UNAVAILABLE,trivial_zero_null:counts.TRIVIAL,checks_evaluated:v.assessments.length-counts.UNAVAILABLE});
+    // Fixed core variable grouping follows numeric/category/date keys, not field-name guesses.
+    const variables=['credit_limit','current_balance','available_credit','overlimit','past_due','birth','customer_since','account_open'];
+    const states=variables.map(key=>v.assessments.filter(a=>a.key.endsWith('.'+key)&&['numeric','categorical','dates','nulls'].includes(a.family)));
+    v.summary.variables_evaluated=states.filter(rows=>rows.some(a=>a.status!=='UNAVAILABLE')).length;
+    v.summary.variables_requiring_review=states.filter(rows=>rows.some(a=>a.status==='NEEDS_REVIEW')).length;
+    v.summary.variables_incomplete=states.filter(rows=>!rows.some(a=>a.status==='NEEDS_REVIEW')&&rows.some(a=>a.status==='UNAVAILABLE')).length;
+    v.summary.variables_within_tolerance=8-v.summary.variables_requiring_review-v.summary.variables_incomplete;
+    v.summary.comparison_status=v.summary.needs_review?'REVIEW_REQUIRED':v.summary.unavailable?'PARTIAL':'WITHIN_TOLERANCE';
+    const byKey=new Map(v.assessments.map(a=>[a.key,a]));
+    for(const selection of [v,v.post_pilot].filter(Boolean))for(const key of ['strengths','weaknesses'])selection[key]=selection[key].filter(id=>{
+      const a=byKey.get(id);return !a||a.family!=='nulls'||(key==='strengths'?classifyNull(a).strength_eligible:a.status==='NEEDS_REVIEW');
+    });
+  }
+
   function normalizeValidation(report) {
     if (!report || report.schema_version !== "2.0" || report.validation?.status !== "PASS") return null;
     if(typeof report.pipeline_completed_at!=="string" || !Number.isFinite(Date.parse(report.pipeline_completed_at)))throw new Error("Invalid validation report");
-    const v=report.validation_report;
+    const rawValidation=report.validation_report;
+    const v=rawValidation?structuredClone(rawValidation):rawValidation;
     if(!v || v.status!=="AVAILABLE") return null;
-    const statuses=["STRONG","ACCEPTABLE","NEEDS_REVIEW","UNAVAILABLE"];
+    const statuses=["STRONG","ACCEPTABLE","NEEDS_REVIEW","UNAVAILABLE","TRIVIAL"];
+    const audit=normalizeNullAudit(v.null_rate_audit);
     if(v.policy_version!==CONFIG.policy_version || v.min_conditional_rows!==CONFIG.min_conditional_rows || !Array.isArray(v.assessments) || v.assessments.length>100 ||
        !Array.isArray(v.numeric) || v.numeric.length!==4 || !v.summary || !v.thresholds) throw new Error("Invalid validation report");
     const seen=new Set();
@@ -50,8 +118,13 @@
       const expected=CONFIG.assessments[a.key];
       if(!expected || a.label!==expected.label || a.family!==expected.family || a.policy!==expected.policy)throw new Error("Invalid validation report");
       const limits=CONFIG.thresholds[a.policy];
-      const expectedStatus=a.score===null?"UNAVAILABLE":!limits?(a.score===0?"STRONG":"NEEDS_REVIEW"):a.score<=limits.strong+1e-9?"STRONG":a.score<=limits.acceptable+1e-9?"ACCEPTABLE":"NEEDS_REVIEW";
+      const nullEvidence=a.family==='nulls'&&audit?classifyNull(a):null;
+      const expectedStatus=nullEvidence?nullEvidence.status:a.score===null?"UNAVAILABLE":!limits?(a.score===0?"STRONG":"NEEDS_REVIEW"):a.score<=limits.strong+1e-9?"STRONG":a.score<=limits.acceptable+1e-9?"ACCEPTABLE":"NEEDS_REVIEW";
       if(a.status!==expectedStatus)throw new Error("Invalid validation report");
+      if(nullEvidence){
+        const field=CONFIG.null_rates.core_fields[a.key], full=audit.rows.find(r=>r.table===field[0]&&r.column===field[1]);
+        for(const k of ['source','generated','difference','score','reason','status','source_count','generated_count','source_n','generated_n'])if(a[k]!==nullEvidence[k]||a[k]!==full[k])throw new Error('Inconsistent core null evidence');
+      }
       for(const name of ["source","generated","difference","source_n","generated_n","source_count","generated_count"]){if(a[name]!==null && (typeof a[name]!=="number"||!Number.isFinite(a[name])))throw new Error("Invalid validation report");}
     }
     if(v.numeric.length!==new Set(v.numeric.map(n=>n.key)).size)throw new Error("Invalid validation report");
@@ -63,7 +136,9 @@
       const a=v.assessments.find(a=>a.key==="numeric."+n.key);if(n.status!==a.status || n.max_difference_pct_iqr!==a.score)throw new Error("Invalid validation report");
     }
     for(const name of ["variables_total","variables_evaluated","variables_within_tolerance","variables_requiring_review","variables_incomplete","checks_evaluated","strong","acceptable","needs_review","unavailable"])if(!Number.isSafeInteger(v.summary[name])||v.summary[name]<0)throw new Error("Invalid validation report");
-    if(v.summary.variables_total!==8 || v.summary.variables_evaluated>v.summary.variables_total || v.summary.variables_within_tolerance+v.summary.variables_requiring_review+v.summary.variables_incomplete!==v.summary.variables_total || v.summary.checks_evaluated!==v.summary.strong+v.summary.acceptable+v.summary.needs_review)throw new Error("Invalid validation report");
+    if(v.summary.variables_total!==8 || v.summary.variables_evaluated>v.summary.variables_total || v.summary.variables_within_tolerance+v.summary.variables_requiring_review+v.summary.variables_incomplete!==v.summary.variables_total || v.summary.checks_evaluated!==v.summary.strong+v.summary.acceptable+v.summary.needs_review+(v.summary.trivial_zero_null||0))throw new Error("Invalid validation report");
+    if((v.summary.trivial_zero_null||0)!==v.assessments.filter(a=>a.status==='TRIVIAL').length)throw new Error('Invalid trivial count');
+    if(audit){const expected=v.summary.needs_review||audit.summary.requiring_review?'REVIEW_REQUIRED':v.summary.unavailable||audit.summary.unavailable?'PARTIAL':'WITHIN_TOLERANCE';if(v.summary.comparison_status!==expected)throw new Error('Inconsistent null review status');}
     for(const [name,keys] of [["dates",["birth","customer_since","account_open"]],["cardinality",["accounts_per_customer","relationships_outgoing","relationships_incoming","tradelines_per_customer"]]]){
       if(!Array.isArray(v[name]) || v[name].length!==keys.length || new Set(v[name].map(r=>r.key)).size!==keys.length || v[name].some(r=>!keys.includes(r.key)))throw new Error("Invalid validation report");
       for(const r of v[name]){const a=v.assessments.find(a=>a.key===(name==="dates"?"date.":"cardinality.")+r.key);if(r.label!==a.label||r.status!==a.status)throw new Error("Invalid validation report");}
@@ -109,10 +184,11 @@
       for(const r of p.numeric_details)if(!Object.hasOwn(NUMERIC,r.key)||r.label!==NUMERIC[r.key]||!Array.isArray(r.tail_points)||r.tail_points.length!==3||
         new Set(r.tail_points.map(t=>t.name)).size!==3||r.tail_points.some(t=>!["P01","P05","P99"].includes(t.name)||![t.source,t.generated,t.difference].every(finiteOrNull))||
         ![r.mean_relative_pct,r.source_minimum,r.generated_minimum,r.source_maximum,r.generated_maximum,r.source_stddev,r.generated_stddev].every(finiteOrNull))throw new Error("Invalid screening evidence");
-      const all=[...v.assessments,...p.assessments];
+      const all=[...v.assessments,...p.assessments,...(audit?.rows||[])];
       for(const [k,status] of [["strengths","STRONG"],["weaknesses","NEEDS_REVIEW"],["zero_reference_alerts","NEEDS_REVIEW"]])if(!Array.isArray(p[k])||p[k].length>6||new Set(p[k]).size!==p[k].length||p[k].some(key=>!all.some(a=>a.key===key&&a.status===status&&(k!=="zero_reference_alerts"||a.policy==="zero_mean_absolute"))))throw new Error("Invalid screening findings");
     }
     normalizePrivacy(report.privacy);
+    if(!audit)legacyNullCorrection(v);
     return {report, v};
   }
 
@@ -143,6 +219,9 @@
       const item=el(doc,"div");item.append(el(doc,"dt",(v.post_pilot?"Core · ":"")+label),el(doc,"dd",fmt(value)));metrics.append(item);
     }
     root.append(metrics,el(doc,"p",v.summary.variables_within_tolerance+" of "+v.summary.variables_total+" selected variables have all "+(v.post_pilot?"core":"selected")+" checks within tolerance; "+v.summary.variables_requiring_review+" need review and "+v.summary.variables_incomplete+(v.summary.variables_incomplete===1?" has":" have")+" incomplete evidence. These counts are not an overall accuracy score.","measurement-note"),el(doc,"p","Comparison is against the repository’s fake development SOURCE baseline. Representativeness of real production banking data has not been established.","baseline-notice"));
+    root.append(el(doc,'p',(v.summary.trivial_zero_null||0)+' core null-rate checks are trivial zero-to-zero observations. They remain in measured evidence counts but are excluded from statistical strengths; no denominator or accuracy percentage is recalculated.','measurement-note'));
+    if(v.null_rate_audit){const n=v.null_rate_audit.summary;root.append(el(doc,'p','All-table missingness audit: '+n.variables_total+' variables; '+n.trivial_zero_null+' trivial zero-null matches, '+n.meaningful_matches+' nonzero-rate matches, '+n.requiring_review+' requiring review and '+n.unavailable+' unavailable. '+n.eligible_nontrivial+' comparisons are eligible for nontrivial assessment.','baseline-notice'));}
+    else root.append(el(doc,'p','Full six-table null-rate audit unavailable in this historical report. Selected zero-null observations are excluded from strengths. Refresh reporting to load the complete audit.','measurement-note'));
     if(v.post_pilot){
       const missing=v.post_pilot.assessments.filter(a=>a.status==="UNAVAILABLE").length;
       root.append(el(doc,"p",v.post_pilot.assessments.length+" additional mean, tail, boundary and categorical-dependency screens are shown separately: "+v.post_pilot.assessments.filter(a=>a.status==="NEEDS_REVIEW").length+" need review; "+missing+(missing===1?" is":" are")+" not comparable. They are excluded from the core counts above.","measurement-note"));
@@ -154,7 +233,7 @@
   }
 
   function executiveFindings(doc,view) {
-    const {v}=view,root=el(doc,"div",undefined,"findings-grid"),byKey=new Map([...v.assessments,...(v.post_pilot?.assessments||[])].map(a=>[a.key,a]));
+    const {v}=view,root=el(doc,"div",undefined,"findings-grid"),byKey=new Map([...v.assessments,...(v.post_pilot?.assessments||[]),...(v.null_rate_audit?.rows||[])].map(a=>[a.key,a]));
     for(const [key,title] of [["strengths","Strongest measured areas"],["weaknesses","Largest measured deviations"]]){
       const panel=el(doc,"div",undefined,"finding-panel");panel.append(el(doc,"h3",title));
       const makeList=(ids,offset=0)=>{const list=el(doc,"ol",undefined,"finding-list");list.setAttribute("start",String(offset+1));list.style.counterReset="findings "+offset;for(const id of ids){const a=byKey.get(id),li=el(doc,"li");li.append(el(doc,"strong",a.label),el(doc,"p",measure(a.score,UNITS[a.policy]||UNITS.integrity)),badge(doc,a.status));list.append(li);}return list;};
@@ -255,9 +334,38 @@
 
   function dimensionTable(doc,v) {
     const families=[["numeric","Numeric distributions"],["categorical","Categorical proportions"],["nulls","Missingness"],["dates","Date distributions"],["correlation","Correlations"],["conditional","Conditional outcomes"],["cardinality","Relationship cardinalities"],["graph","Relationship directionality"],["integrity","Structural / business checks"]];
-    return table(doc,"Evidence by dimension",["Dimension","Strong / passed","Acceptable","Needs review","Not comparable"],families.map(([key,label])=>{
-      const rows=v.assessments.filter(a=>a.family===key);return [label,...["STRONG","ACCEPTABLE","NEEDS_REVIEW","UNAVAILABLE"].map(status=>fmt(rows.filter(a=>a.status===status).length))];
+    return table(doc,"Evidence by dimension",["Dimension","Strong / passed","Acceptable","Needs review","Not comparable","Trivial zero-null"],families.map(([key,label])=>{
+      const rows=v.assessments.filter(a=>a.family===key);return [label,...["STRONG","ACCEPTABLE","NEEDS_REVIEW","UNAVAILABLE","TRIVIAL"].map(status=>fmt(rows.filter(a=>a.status===status).length))];
     }));
+  }
+
+  function nullDetail(doc,v){
+    const root=el(doc,'div',undefined,'null-detail'),audit=v.null_rate_audit;
+    const rows=audit?.rows||v.assessments.filter(a=>a.family==='nulls');
+    if(audit){const n=audit.summary,metrics=el(doc,'dl',undefined,'exec-metrics quality-metrics');
+      for(const [value,label] of [[n.variables_evaluated,'Paired null counts evaluated'],[n.trivial_zero_null,'Trivial zero-null matches'],[n.eligible_nontrivial,'Eligible nontrivial comparisons'],[n.requiring_review,'Null-rate checks needing review']]){
+        const item=el(doc,'div');item.append(el(doc,'dt',label),el(doc,'dd',fmt(value)));metrics.append(item);
+      }root.append(metrics,el(doc,'p',n.meaningful_matches+' nonzero SOURCE null rates are preserved within '+fmt(audit.thresholds.acceptable)+' pp, including '+n.all_null_matches+' entirely-null fields. Entirely-null agreement demonstrates missingness only, not fidelity of observed values. Partial-missingness matches take priority in strengths. '+n.unavailable+(n.unavailable===1?' comparison has':' comparisons have')+' missing or invalid evidence.','measurement-note'));
+      if(n.additional_unpublished_variables)root.append(el(doc,'p',n.additional_unpublished_variables+' additional fields are outside the reviewed public metadata allowlist. Their comparisons remain in the private fidelity tables.','measurement-note'));
+      const matches=rows.filter(r=>r.strength_eligible).sort((a,b)=>Number(a.all_null_match)-Number(b.all_null_match)||a.score-b.score||a.key.localeCompare(b.key));
+      root.append(el(doc,'h3','Meaningful null-rate preservation'),matches.length?el(doc,'p',matches.slice(0,3).map(r=>r.table+'.'+r.column+' ('+fmt(r.score)+' pp gap)').join('; ')+'.','measurement-note'):el(doc,'p','No qualifying meaningful null-rate strengths are available. Zero-to-zero observations do not fill this list.','unavailable-note'));
+      const issues=rows.filter(r=>r.status==='NEEDS_REVIEW').sort((a,b)=>b.score-a.score||a.key.localeCompare(b.key));
+      if(issues.length){const list=el(doc,'ul',undefined,'quality-limitations');for(const r of issues.slice(0,6))list.append(el(doc,'li',r.table+'.'+r.column+': SOURCE '+pct(r.source)+'; synthetic '+pct(r.generated)+' ('+fmt(r.score)+' pp gap).'));root.append(el(doc,'h3','Null-rate discrepancies'),list);}
+    }else root.append(el(doc,'p','Full-table audit unavailable. Only the selected historical comparisons are shown; no missing comparisons are invented.','measurement-note'));
+    root.append(el(doc,'p','Exact null counts ÷ row counts determine rates. Zero in both populations is a trivial observation. A zero/nonzero transition always requires review; when both rates are nonzero, gaps above '+fmt(CONFIG.thresholds.proportion_pp.acceptable)+' pp require review. These are provisional screening rules, not significance tests.','measurement-note'));
+    const controls=el(doc,'div',undefined,'null-controls'),label=el(doc,'label','Table '),select=el(doc,'select');select.setAttribute('aria-label','Null-rate table');
+    for(const [value,text] of [['all','All six tables'],...Object.entries(TABLES)]){const option=el(doc,'option',text);option.value=value;select.append(option);}select.value='all';label.append(select);
+    const toggleLabel=el(doc,'label'),toggle=el(doc,'input');toggle.type='checkbox';toggle.setAttribute('aria-label','Hide trivial zero-null matches');toggleLabel.append(toggle,el(doc,'span',' Hide trivial zero-null matches'));controls.append(label,toggleLabel);
+    const status=el(doc,'p',undefined,'measurement-note');status.setAttribute('role','status');const body=el(doc,'div');
+    const precise=value=>typeof value==='number'&&Number.isFinite(value)?new Intl.NumberFormat('en',{maximumSignificantDigits:5}).format(value*100)+'%':'Unavailable';
+    const counts=(a,side)=>a[side+'_count']===null||a[side+'_n']===null?'Unavailable':fmt(a[side+'_count'])+' / '+fmt(a[side+'_n']);
+    const reason=a=>a.reason==='zero_null_in_both'?'Excluded from strengths':a.reason==='zero_presence_change'?'Missingness appeared/disappeared':a.reason&&a.status==='UNAVAILABLE'?'Missing, invalid or unpaired counts':a.all_null_match?'Entirely null in both':a.classification==='MEANINGFUL_MATCH'?'Nonzero rate preserved':'';
+    function draw(){const visible=rows.filter(r=>(select.value==='all'||r.table===select.value)&&(!toggle.checked||r.status!=='TRIVIAL'));
+      status.textContent=visible.length+' of '+rows.length+' recorded comparisons shown. Hidden observations remain in the report.';
+      body.replaceChildren(table(doc,'Null rates · exact counts across six tables',['Table / field','SOURCE null / rows','SOURCE rate','Synthetic null / rows','Synthetic rate','Absolute gap (pp)','Assessment','Context'],visible.map(a=>[a.table?a.table+'.'+a.column:a.label,counts(a,'source'),precise(a.source),counts(a,'generated'),precise(a.generated),a.score===null?'Unavailable':new Intl.NumberFormat('en',{maximumSignificantDigits:5}).format(a.score),badge(doc,a.status),reason(a)])));
+      if(!visible.length)body.append(el(doc,'p','No comparisons match these display options.','unavailable-note'));
+    }
+    select.addEventListener('change',draw);toggle.addEventListener('change',draw);draw();root.append(controls,status,body);return root;
   }
 
   function numericDetail(doc,v) {
@@ -334,7 +442,7 @@
     categorical.append(VIZ.categorical(doc,v),table(doc,"Past-due indicator proportions",["Category","SOURCE","Synthetic","Absolute gap","Status"],v.categorical.map(r=>[r.category==="Y"?"Past due (Y)":"Not past due (N)",pct(r.source),pct(r.generated),measure(r.absolute_difference_pp,"pp"),badge(doc,r.status)])));
 
     const completeness=section(doc,"completeness","Missingness and dates are part of fidelity","Compare missing-value proportions and calendar-month distributions, alongside shifts in date boundaries.");
-    completeness.append(table(doc,"Null rates",["Characteristic","SOURCE null rate","Synthetic null rate","Absolute gap","Status"],v.assessments.filter(a=>a.family==="nulls").map(a=>[a.label,pct(a.source),pct(a.generated),measure(a.score,"pp"),badge(doc,a.status)])),el(doc,"h3","Date-distribution gaps · lower is closer"));
+    completeness.append(nullDetail(doc,v),el(doc,"h3","Date-distribution gaps · lower is closer"));
     const dateBars=el(doc,"ol",undefined,"percentile-chart"),dateScale=Math.max(5,...v.dates.map(d=>d.total_variation_pct||0));dateBars.setAttribute("aria-label","Calendar-month distribution total variation, lower is closer");
     for(const d of v.dates){const li=el(doc,"li"),heading=el(doc,"div",undefined,"chart-label"),track=el(doc,"div",undefined,"chart-track"),bar=el(doc,"div",undefined,"chart-bar "+(d.status==="NEEDS_REVIEW"?"chart-review":""));heading.append(el(doc,"strong",d.label),badge(doc,d.status));bar.style.width=Math.max(0,Math.min(100,100*(d.total_variation_pct||0)/dateScale))+"%";track.setAttribute("aria-hidden","true");track.append(bar);li.append(heading,track,el(doc,"p",measure(d.total_variation_pct,"% total variation"),"chart-value"));dateBars.append(li);}
     completeness.append(dateBars,table(doc,"Calendar-month distributions",["Date characteristic","Monthly total variation","Earliest boundary shift","Latest boundary shift","Status"],v.dates.map(r=>[r.label,measure(r.total_variation_pct,"%"),measure(r.earliest_shift_days,"days"),measure(r.latest_shift_days,"days"),badge(doc,r.status)])),el(doc,"p","Total variation summarizes the difference between complete calendar-month proportion distributions, on a 0–100% scale. Boundary shifts are synthetic minus SOURCE in days. The artifact contains these aggregate distances, not the month-by-month bins; day-of-month and time-of-day fidelity remain unmeasured.","measurement-note"));
@@ -364,7 +472,8 @@
         el(doc,"p","Mandatory integrity requirements remain 100% snapshot coverage and zero configured key/reference/business/temporal violations. Statistical tolerances cannot waive those requirements. Mean relative gap = 100 × absolute mean difference ÷ absolute SOURCE mean. Zero-reference native-unit departures are displayed separately, not ranked against percentages through an invented denominator. Thresholds are centrally configurable and provisional until calibrated to stakeholder use cases.","measurement-note"));
     }
     const limits=el(doc,"ul",undefined,"quality-limitations");
-    for(const text of ["The development SOURCE baseline is fabricated. Matching it does not establish representativeness of production banking populations.","The public report covers four numeric variables, one categorical variable, three date variables and selected relationships; it does not assess every field or joint distribution.","Sparse conditional buckets, zero SOURCE IQR, absent profiles and missing paired counts limit interpretation. Unavailable evidence is not proof of similarity or a measured discrepancy.","Percentile profiles summarize selected points. Selected tail percentiles and extrema do not establish full tail-density or joint-distribution fidelity. Detailed temporal patterns and some reference comparisons remain unmeasured.","Prototype tolerances are descriptive screening settings. Sampling uncertainty is not quantified, and statistical similarity does not establish privacy or external-release suitability."])limits.append(el(doc,"li",text));
+    methodology.append(el(doc,'p','Missingness policy null_rates_v1: exact zero-null counts in both populations are TRIVIAL and excluded from strengths, including historical reports. Nonzero rates are graded with the existing 1 pp strong / 3 pp acceptable thresholds. Any zero/nonzero transition needs review regardless of gap size; this qualitative screen is not a claim of statistical significance. Core and all-table counts have separate denominators, with no combined fidelity percentage.','measurement-note'));
+    for(const text of ["The development SOURCE baseline is fabricated. Matching it does not establish representativeness of production banking populations.","The public report covers four numeric variables, one categorical variable, three date variables and selected relationships; the separate null audit covers the reviewed fields across all six tables. It does not assess every joint distribution.","Sparse conditional buckets, zero SOURCE IQR, absent profiles and missing paired counts limit interpretation. Unavailable evidence is not proof of similarity or a measured discrepancy.","Percentile profiles summarize selected points. Selected tail percentiles and extrema do not establish full tail-density or joint-distribution fidelity. Detailed temporal patterns and some reference comparisons remain unmeasured.","Prototype tolerances are descriptive screening settings. Sampling uncertainty is not quantified, and statistical similarity does not establish privacy or external-release suitability."])limits.append(el(doc,"li",text));
     methodology.append(limits,details(doc,"Unavailable evidence and reasons",table(doc,"Evidence availability notes",["Characteristic","Context"],v.assessments.filter(a=>a.reason).map(a=>[a.label,REASONS[a.reason]||"Evidence unavailable."]))));
     if(v.post_pilot)completeness.append(table(doc,"Date-boundary screening",["Characteristic","Largest absolute boundary shift","Status"],v.post_pilot.assessments.filter(a=>a.family==="date_bounds").map(a=>[a.label,measure(a.score,"days"),badge(doc,a.status)])));
     root.append(summary,findings,exploreValidation(doc,view),numeric,categorical,completeness,dependencies,structure,privacySection(doc,report),methodology);return root;
@@ -382,7 +491,7 @@
       }catch(_){body.replaceChildren(el(doc,"p","The latest validation report is unavailable or incomplete. Use Refresh validation report to try again. Pipeline methodology and the verified demo explorer remain accessible from the navigation; no substitute statistics are shown.","measurement-note"));status.textContent="Validation results pending";}finally{clearTimeout(timer);firstLoad=false;loading=false;button.disabled=false;button.textContent="Refresh validation report";root.setAttribute("aria-busy","false");}}
     button.addEventListener("click",refresh);return {ready:refresh(),refresh};
   }
-  const api={normalizeValidation,normalizePrivacy,renderValidation,mountValidation,executiveSummary,executiveFindings,exploreValidation,explorationRows};
+  const api={normalizeValidation,normalizePrivacy,renderValidation,mountValidation,executiveSummary,executiveFindings,exploreValidation,explorationRows,classifyNull,nullSummary,normalizeNullAudit};
   if(typeof module!=="undefined"&&module.exports)module.exports=api;
   if(typeof window!=="undefined")window.SageValidation=api;
   if(typeof document!=="undefined"){const root=document.getElementById("validation-report");if(root)mountValidation(root);}

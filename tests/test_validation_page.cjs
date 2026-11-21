@@ -1,7 +1,17 @@
 "use strict";
 const test=require("node:test"),assert=require("node:assert/strict"),fs=require("node:fs"),path=require("node:path");
-const {normalizeValidation,renderValidation,mountValidation}=require("../docs/validation.js");
+const {normalizeValidation,renderValidation,mountValidation,classifyNull,nullSummary,normalizeNullAudit}=require("../docs/validation.js");
+const nullConfig=require('../docs/validation-config.js').null_rates;
 const fixture=JSON.parse(fs.readFileSync(path.join(__dirname,"../docs/reporting/example.json"),"utf8"));
+
+function nullAudit(overrides={}){
+  const rows=nullConfig.fields.map(([table,column])=>{
+    const key='null_field.'+table+'.'+column;
+    const counts=overrides[key]||{source_count:null,source_n:null,generated_count:null,generated_n:null};
+    return {key,table,column,label:table+'.'+column+' · null rate',family:'nulls',policy:'proportion_pp',...classifyNull(counts)};
+  });
+  return {policy_version:nullConfig.policy_version,thresholds:{strong:1,acceptable:3},zero_presence_requires_review:true,summary:nullSummary(rows),rows};
+}
 class Node {
   constructor(doc,tag,text=""){this.ownerDocument=doc;this.tagName=tag.toUpperCase();this.children=[];this.attributes={};this.dataset={};this.events={};this.style={};this._text=text;this.value="";}
   set textContent(v){this._text=String(v);this.children=[];}
@@ -204,9 +214,55 @@ test("missingness, dates, cardinalities and structural evidence are primary sect
     assert.ok(root.children.some(n=>n.id===id));
   const captions=all(root).filter(n=>n.tagName==="CAPTION").map(n=>n.textContent);
   for(const caption of ["Null rates","Calendar-month distributions","Relationship cardinality fidelity","Customer-relationship directionality","Generated structural and business-rule checks","Prototype tolerance policy prototype_v1"])
-    assert.ok(captions.includes(caption));
+    assert.ok(captions.some(c=>c===caption||(caption==='Null rates'&&c==='Null rates · exact counts across six tables')));
   assert.match(root.textContent,/It does not establish how many of all customers have zero accounts/);
   assert.match(root.textContent,/not equality with SOURCE/);
+});
+
+test('exact null counts distinguish every requested pattern and tiny nonzero rates',()=>{
+  const cases=[
+    [0,100,0,200,'TRIVIAL'],[0,100,1,200,'NEEDS_REVIEW'],[1,100,0,200,'NEEDS_REVIEW'],
+    [10,100,20,200,'STRONG'],[10,100,24,200,'ACCEPTABLE'],[10,100,50,200,'NEEDS_REVIEW'],
+    [null,100,0,200,'UNAVAILABLE'],[1,1000000,2,2000000,'STRONG'],[101,100,0,200,'UNAVAILABLE']
+  ];
+  for(const [sc,sn,gc,gn,status] of cases){const r=classifyNull({source_count:sc,source_n:sn,generated_count:gc,generated_n:gn,source:0,generated:0});assert.equal(r.status,status);if(sc===1&&sn===1000000)assert.equal(r.source,.000001);}
+});
+
+test('all-table null audit validates count-bound classifications and cannot invent strengths',()=>{
+  const zero={source_count:0,source_n:100,generated_count:0,generated_n:200};
+  const a=nullAudit({'null_field.PERSON.BIRTH_DT':zero});assert.equal(normalizeNullAudit(a).summary.trivial_zero_null,1);
+  for(const mutate of [r=>r.rows.find(x=>x.column==='BIRTH_DT').status='STRONG',r=>r.summary.meaningful_matches=99,
+    r=>r.rows[0].column='PRIVATE_FIELD',r=>r.rows.find(x=>x.column==='BIRTH_DT').source=.01]){
+    const bad=structuredClone(a);mutate(bad);assert.throws(()=>normalizeNullAudit(bad));
+  }
+});
+
+test('legacy reports remove exact zero-null strengths without changing unrelated metrics or input JSON',()=>{
+  const r=clone(),v=r.validation_report;
+  for(const a of v.assessments.filter(a=>a.family==='nulls'))Object.assign(a,{source:0,generated:0,difference:0,score:0,status:'STRONG',source_count:0,generated_count:0});
+  const before=structuredClone(r),view=normalizeValidation(r);
+  assert.deepEqual(r,before);assert.equal(view.v.summary.trivial_zero_null,8);
+  assert.equal(view.v.summary.strong,v.summary.strong-8);assert.equal(view.v.summary.checks_evaluated,v.summary.checks_evaluated);
+  assert.ok(view.v.strengths.every(k=>!k.startsWith('null.')));
+  assert.deepEqual(view.v.assessments.filter(a=>a.family!=='nulls'),v.assessments.filter(a=>a.family!=='nulls'));
+});
+
+test('missingness details retain every observation and support reversible native filters',()=>{
+  const view=normalizeValidation(clone()),a=nullAudit({
+    'null_field.PERSON.BIRTH_DT':{source_count:0,source_n:100,generated_count:0,generated_n:200},
+    'null_field.PERSON.SINCE_DT':{source_count:1,source_n:1000000,generated_count:2,generated_n:2000000},
+    'null_field.TKQ_ACCOUNT.BRANCH_NUM':{source_count:0,source_n:100,generated_count:200,generated_n:200}
+  });view.v.null_rate_audit=a;
+  const root=renderValidation(document(),view),select=all(root).find(n=>n.attributes['aria-label']==='Null-rate table'),toggle=all(root).find(n=>n.attributes['aria-label']==='Hide trivial zero-null matches');
+  const grid=()=>all(root).find(n=>n.tagName==='TABLE'&&n.children[0].textContent==='Null rates · exact counts across six tables');
+  const count=()=>grid().children[2].children.length;
+  assert.equal(count(),nullConfig.fields.length);assert.match(grid().textContent,/0\.0001%/);assert.match(root.textContent,/entirely-null agreement/i);
+  toggle.checked=true;toggle.events.change();assert.equal(count(),nullConfig.fields.length-1);
+  select.value='PERSON';select.events.change();assert.equal(count(),nullConfig.fields.filter(([t,c])=>t==='PERSON'&&c!=='BIRTH_DT').length);
+  toggle.checked=false;toggle.events.change();assert.equal(count(),nullConfig.fields.filter(([t])=>t==='PERSON').length);
+  select.value='all';select.events.change();assert.equal(count(),nullConfig.fields.length);
+  const noMatches=normalizeValidation(clone());noMatches.v.null_rate_audit=nullAudit({'null_field.PERSON.BIRTH_DT':{source_count:0,source_n:100,generated_count:0,generated_n:200}});
+  assert.match(renderValidation(document(),noMatches).textContent,/No qualifying meaningful null-rate strengths/);
 });
 
 test("sparse conditional evidence keeps rates and counts without a passing label",()=>{

@@ -2,8 +2,9 @@
 
 import json
 from pathlib import Path
-from synthetic_banking.validation_reporting import build_validation_report, NUMERIC, DATES, CARDINALITIES, RULES, TABLES, THRESHOLDS, POLICY_VERSION, MIN_CONDITIONAL_ROWS, SCREENING_THRESHOLDS, SCREENING_POLICY_VERSION
+from synthetic_banking.validation_reporting import build_validation_report, NUMERIC, DATES, FIELDS, CARDINALITIES, RULES, TABLES, THRESHOLDS, POLICY_VERSION, MIN_CONDITIONAL_ROWS, SCREENING_THRESHOLDS, SCREENING_POLICY_VERSION
 from synthetic_banking.privacy_reporting import PATTERNS
+from synthetic_banking.null_rates import FIELDS as NULL_FIELDS, POLICY_VERSION as NULL_POLICY_VERSION, REASONS as NULL_REASONS, SUMMARY_KEYS
 
 ROOT = Path(__file__).resolve().parents[1]
 FOLDER = ROOT / "docs/reporting"
@@ -25,13 +26,13 @@ def build_schema():
     template = build_validation_report([])
     number = {"type": ["number", "null"]}
     integer = {"type": "integer", "minimum": 0}
-    status = enum(("STRONG", "ACCEPTABLE", "NEEDS_REVIEW", "UNAVAILABLE"))
+    status = enum(("STRONG", "ACCEPTABLE", "NEEDS_REVIEW", "UNAVAILABLE", "TRIVIAL"))
     assessment = obj(dict(
         key=enum(a["key"] for a in template["assessments"]), label=enum(a["label"] for a in template["assessments"]),
         family=enum(sorted({a["family"] for a in template["assessments"]})), status=status,
         source=number, generated=number, difference=number, score=number, policy=enum((*THRESHOLDS, None)),
         source_n=number, generated_n=number, source_count=number, generated_count=number,
-        reason=enum((None, "metric_unavailable", "zero_or_missing_source_iqr", "insufficient_conditional_rows",
+        reason=enum((*NULL_REASONS, "metric_unavailable", "zero_or_missing_source_iqr", "insufficient_conditional_rows",
                      "source_comparison_unavailable", "not_in_saved_fidelity_report"))))
     report = obj(dict(
         status=enum(("AVAILABLE", "PENDING")), policy_version={"const": POLICY_VERSION},
@@ -56,8 +57,22 @@ def build_schema():
         rule_outcomes=array(obj(dict(implementation=enum(r[0] for r in RULES), target=enum(r[1] for r in RULES),
             proposed=integer, approved=integer, applied=integer, skipped=integer)), len(RULES))))
     # Optional, aggregate-only addition: historical v2 artifacts remain valid.
+    report["properties"]["summary"]["required"].remove("trivial_zero_null")
     count = {"type": ["integer", "null"], "minimum": 0}
     rate = {"type": ["number", "null"], "minimum": 0, "maximum": 1}
+    null_keys = [f"null_field.{t}.{c}" for t,c in NULL_FIELDS]
+    null_row = obj(dict(key=enum(null_keys), table=enum(sorted({t for t,c in NULL_FIELDS})),
+        column=enum(sorted({c for t,c in NULL_FIELDS})), label=enum(f"{t}.{c} · null rate" for t,c in NULL_FIELDS),
+        family={"const":"nulls"}, policy={"const":"proportion_pp"},
+        source=rate, generated=rate, difference=number, score=number,
+        source_n=count, generated_n=count, source_count=count, generated_count=count,
+        status=status, classification=enum(("TRIVIAL_MATCH","MEANINGFUL_MATCH","DISCREPANCY","UNAVAILABLE")),
+        pattern=enum(("ZERO_ZERO","ZERO_NONZERO","NONZERO_ZERO","NONZERO_NONZERO","UNAVAILABLE")),
+        reason=enum(NULL_REASONS), strength_eligible={"type":"boolean"}, all_null_match={"type":"boolean"}))
+    report["properties"]["null_rate_audit"] = obj(dict(policy_version={"const":NULL_POLICY_VERSION},
+        thresholds=obj({k:{"const":v} for k,v in THRESHOLDS["proportion_pp"].items()}),
+        zero_presence_requires_review={"const":True}, summary=obj({k:integer for k in SUMMARY_KEYS}),
+        rows=array(null_row,len(NULL_FIELDS))))
     report["properties"]["dependency_fidelity"] = obj(dict(
         categorical=array(obj(dict(
             key=enum(("account_type_product", "client_tsys_product")),
@@ -81,8 +96,8 @@ def build_schema():
         numeric_details=array(obj(dict(key=enum(r[0] for r in NUMERIC),label=enum(r[3] for r in NUMERIC),
             mean_relative_pct=number,tail_points=array(obj(dict(name=enum(('P01','P05','P99')),source=number,generated=number,difference=number)),3),
             **{side+'_'+metric:number for side in ('source','generated') for metric in ('minimum','maximum','stddev')})),4),
-        strengths={'type':'array','items':enum([a['key'] for a in template['assessments']+extra['assessments']]),'maxItems':6,'uniqueItems':True},
-        weaknesses={'type':'array','items':enum([a['key'] for a in template['assessments']+extra['assessments']]),'maxItems':6,'uniqueItems':True},
+        strengths={'type':'array','items':enum([a['key'] for a in template['assessments']+extra['assessments']]+null_keys),'maxItems':6,'uniqueItems':True},
+        weaknesses={'type':'array','items':enum([a['key'] for a in template['assessments']+extra['assessments']]+null_keys),'maxItems':6,'uniqueItems':True},
         zero_reference_alerts={'type':'array','items':enum('mean.'+r[0] for r in NUMERIC),'maxItems':4,'uniqueItems':True}))
     schema = json.loads((FOLDER / "pipeline-report-v1.schema.json").read_text())
     schema["title"] = "Synthetic banking public pipeline report, version 2.0"
@@ -113,6 +128,8 @@ if __name__ == "__main__":
     template = build_validation_report([])
     config = dict(assessments={a["key"]: {k: a[k] for k in ("label", "family", "policy")} for a in template["assessments"]},
                   thresholds=THRESHOLDS,policy_version=POLICY_VERSION,min_conditional_rows=MIN_CONDITIONAL_ROWS,
+                  null_rates=dict(policy_version=NULL_POLICY_VERSION,fields=[list(f) for f in NULL_FIELDS], reasons=list(NULL_REASONS), summary_keys=list(SUMMARY_KEYS),
+                    core_fields={"null."+key:[table,column] for key,table,column,label in FIELDS}),
                   post_pilot=dict(policy_version=SCREENING_POLICY_VERSION,thresholds=SCREENING_THRESHOLDS,
                     assessments={a['key']:{k:a[k] for k in ('label','family')} for a in template['post_pilot']['assessments']}))
     code = "/* Generated from validation_reporting.py; run scripts/build_validation_schema.py. */\n"

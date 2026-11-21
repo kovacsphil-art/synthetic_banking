@@ -18,7 +18,7 @@ def validation_metrics():
     for category, s, g in (("Y", .1, .11), ("N", .9, .89)):
         add("CATEGORICAL", "TKQ_ACCOUNT", "PAST_DUE_INDICATO_CD", "proportion", s, g, category_value=category)
     for _, table, column, _ in FIELDS:
-        add("NULL_RATE", table, column, "null_rate", .02, .02)
+        add("NULL_RATE", table, column, "null_rate", .02, .02).update(source_count=2, generated_count=4)
     for key, table, column, _ in DATES:
         for month, s, g in (("2020-01", .5, .8 if key=="birth" else .51), ("2020-02", .5, .2 if key=="birth" else .49)):
             add("DATE_DISTRIBUTION", table, column, "proportion", s, g, month_bucket=month)

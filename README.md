@@ -24,6 +24,8 @@ The [November 21 follow-up](docs/post-pilot-review.md#follow-up-review--november
 
 ## How to Run
 
+The [null-rate audit](docs/null-rate-audit.md) now separates trivial exact-zero missingness from meaningful preservation across all six tables. The measured cohort has 165 zero-null matches, 49 preserved nonzero rates, five 0%→100% discrepancies and one unavailable comparison. These counts are separate from the eight-variable core selection; zero-null observations remain visible but cannot inflate statistical strengths. Generation is unchanged.
+
 **Start with the [first-time setup guide](docs/setup.md)** for prerequisites, scoped permissions, configuration, fabricated inputs, automated execution, review/repair, output locations and troubleshooting. Stakeholders can view the published showcase without installing anything.
 
 1. Configure `src/synthetic_banking/config.py`, compute and development Volumes; keep the complete project folders together.

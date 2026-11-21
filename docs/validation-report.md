@@ -16,7 +16,7 @@ Missingness and dates are primary sections. Calendar-month distance bars and dat
 
 Notebook 06 still calls `reporting.load_public_report` after successful validation. It rechecks the exact SOURCE/batch/generation/GENERATED lineage and saved Delta versions, then reads that pair's saved `workspace.synthetic_profile.fidelity_metrics` and the generation-time `rule_execution_log`. `validation_reporting.py` projects a fixed list of public fields from those aggregates. It does not query SOURCE or generated records, change generation, re-profile data or execute proposal text.
 
-No PARTY_ID, ACCOUNT_ID, proposal IDs, internal run IDs, row records, raw category values, model text, credentials or free-form warnings are exported. Month/cardinality bins are used internally for distances; only bounded cardinality bins (0, 1, 2, 3, 4, 5+) and fixed Y/N categories are displayed. Date boundaries are exported as aggregate shifts in days, not original birth dates. The public output is a descriptive screen, not privacy clearance.
+No identifier values, proposal IDs, internal run IDs, row records, raw category values, model text, credentials or free-form warnings are exported. The all-field missingness audit adds reviewed column names (including identifier column names) and counts only. Month/cardinality bins are used internally for distances; only bounded cardinality bins (0, 1, 2, 3, 4, 5+) and fixed Y/N categories are displayed. Date boundaries are exported as aggregate shifts in days, not original birth dates. The public output is a descriptive screen, not privacy clearance.
 
 ## Metrics and JSON mapping
 
@@ -72,6 +72,8 @@ Conditional buckets require at least 30 rows on each side. Low-count buckets ret
 `ACCOUNTS_PER_PARTY` follows the existing customer-account feature population: parties represented in the customer-account relationship table. Its distribution does not measure the fraction of all PERSON records without an account. The separate account-rows/PERSON-rows ratio provides population context and can differ even when the profiled cardinality distribution matches.
 
 ## Summary, strengths and weaknesses
+
+The [null-rate audit policy](null-rate-audit.md) distinguishes exact 0→0 TRIVIAL observations from meaningful nonzero-rate preservation. Zero-null observations stay in detail and measured counts, with a separate exclusion count; they cannot populate strengths or strong-match totals. The all-six-table audit has its own denominator and contributes meaningful findings/review status without inflating the fixed core selection. A zero/nonzero transition requires review even below the ordinary pp tolerance. Missing counts remain unavailable; display rounding never establishes a zero rate. Unrelated metric families retain their existing treatment.
 
 A variable is identified by its fixed table/column selection, counted once even if its distribution and null rate both appear. There are eight selected variables. `variables_evaluated` means at least one available check. The other variable counts partition the selection: any needs-review check → requires review; otherwise any missing check → incomplete; otherwise all checks within tolerance → within tolerance. A partially evaluated variable can therefore appear in both evaluated and incomplete counts. Relationships/integrity checks are additional checks, not additional variable counts. Population size differences alone are never fidelity failures.
 

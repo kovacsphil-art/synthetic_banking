@@ -75,7 +75,9 @@ class ValidationReportingTests(unittest.TestCase):
                dict(proposal_id=None,implementation_name="overlimit_amount",applied=True)]
         report=build_validation_report(self.metrics,audit)
         text=json.dumps(report)
-        for forbidden in ("SECRET_","PRIVATE_","PARTY_ID","ACCOUNT_ID"):
+        # Reviewed identifier COLUMN NAMES now appear in the all-field null audit;
+        # actual identifiers, arbitrary categories and execution IDs still cannot.
+        for forbidden in ("SECRET_","PRIVATE_"):
             self.assertNotIn(forbidden,text)
         self.assertEqual(report["rule_outcomes"][0]["applied"],1)
         self.assertEqual(report["rule_outcomes"][1]["applied"],0)

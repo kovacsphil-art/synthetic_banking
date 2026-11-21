@@ -106,6 +106,29 @@ Set bundle variable `report_output_dir` to an absolute writable Volume directory
 
 The task returns that path as a notebook-exit receipt and task value. Download the JSON through Databricks Catalog Explorer when needed. A failed or approval-blocked execution leaves prior successful reports in place. The [GitHub publication workflow](../publication.md) verifies job success, retrieves this exact file, updates `docs/latest-pipeline.json` and deploys the static site. See [the webpage field reference and preview instructions](../results-data.md).
 
+## Optional count-based null-rate audit
+
+New reports always include `validation_report.null_rate_audit`; historical v2 artifacts may omit it and display an explicit full-audit-unavailable state. No profiling rows are removed. The fixed reviewed public metadata covers 220 columns across six tables; names are metadata, never identifier values. [Policy, measured findings and denominator rules](../null-rate-audit.md).
+
+| JSON member | Meaning |
+| --- | --- |
+| `policy_version`, `thresholds`, `zero_presence_requires_review` | `null_rates_v1`; existing `strong=1`, `acceptable=3` pp; `true` |
+| `summary.variables_total`, `variables_evaluated` | Reviewed fields and fields with valid paired counts; evaluated includes trivial observations |
+| `summary.trivial_zero_null`, `eligible_nontrivial` | Exact zero-null observations excluded from strengths; evaluated minus trivial observations |
+| `summary.meaningful_matches`, `material_discrepancies`, `requiring_review`, `unavailable` | Nonzero preservation within tolerance; material/qualitative discrepancies; review count; missing/invalid/unpaired counts |
+| `summary.source_zero_generated_nonzero`, `source_nonzero_generated_zero`, `both_nonzero`, `all_null_matches` | Explicit pattern/subset counts; all-null agreement does not establish observed-value fidelity |
+| `summary.additional_unpublished_variables` | Names outside the reviewed public allowlist; private comparisons retained, names not exported |
+| `rows[]` | One row per reviewed table/column: fixed `key`, `table`, `column`, `label`, `family=nulls`, `policy=proportion_pp` |
+| `rows[].source_count`, `generated_count`, `source_n`, `generated_n` | Exact null counts and table row totals; null when unavailable/invalid numeric representation |
+| `rows[].source`, `generated`, `difference`, `score` | Count-derived rate fractions, signed GENERATED-minus-SOURCE fraction and absolute pp gap; one-sided usable rates remain visible when comparison is unavailable |
+| `rows[].pattern` | ZERO_ZERO / ZERO_NONZERO / NONZERO_ZERO / NONZERO_NONZERO / UNAVAILABLE |
+| `rows[].classification` | TRIVIAL_MATCH / MEANINGFUL_MATCH / DISCREPANCY / UNAVAILABLE |
+| `rows[].status`, `reason`, `strength_eligible`, `all_null_match` | TRIVIAL / STRONG / ACCEPTABLE / NEEDS_REVIEW / UNAVAILABLE; fixed context; meaningful STRONG eligibility; explicit all-null subset |
+
+Core `summary.trivial_zero_null` is optional for historical reports and counts only the eight selected core null checks. Core `checks_evaluated` continues to include measured trivial observations and equals strong + acceptable + needs_review + trivial_zero_null. Those totals never become an accuracy percentage. All-table review signals also affect comparison status while counts retain their distinct denominators. Post-pilot finding keys may reference `null_field.<reviewed table>.<reviewed column>`; only meaningful STRONG rows can be null-rate strengths. No other family is excluded for zero-valued measurements.
+
+Counts—not printed percentages—control classifications. A nonzero rate that rounds to 0% stays nonzero. Any one-sided exact zero is a qualitative review signal, even below 3 pp; this is not a statistical significance claim. All metadata and aggregate combinations are validated by the publisher's closed schema and the browser's count-consistency checks.
+
 ## Optional verified demo cohort reference
 
 After the dedicated demo verification task succeeds, reporting adds the optional closed `demo_dataset` object: `dataset_version` (opaque immutable public version), `release_mode` (DEMO_ONLY), and `preview_sha256` (64 lowercase hexadecimal characters). This object contains no private run IDs. Reporting verifies the private readiness receipt against all five handoff IDs and all file checksums before adding it. Actions and the download UI require the same reference, privacy status and six table counts as the manifest/preview. Aggregate-only or historical reports omit the object and cannot authorize downloads. Privacy fields and statistical metrics are unchanged. See [automated demo publication](../automated-demo-publication.md).

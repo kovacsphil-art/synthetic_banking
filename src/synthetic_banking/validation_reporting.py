@@ -2,6 +2,7 @@
 
 import json
 import math
+from synthetic_banking.null_rates import build_null_rate_audit, strength_eligible
 
 # Prototype display tolerances, not calibrated acceptance/release standards.
 POLICY_VERSION = "prototype_v1"
@@ -87,6 +88,8 @@ def build_validation_report(metrics, rule_outcomes=()):
         return s, g, row.get("comparison_status") == "COMPARABLE" and s is not None and g is not None
 
     assessments, variable_checks = [], {}
+    null_audit = build_null_rate_audit(metrics, THRESHOLDS["proportion_pp"])
+    null_rows = {(r["table"], r["column"]): r for r in null_audit["rows"]}
 
     def assess(key, label, family, row, score, policy, *, reason=None, variable=None, status=None):
         s, g, comparable = values(row)
@@ -132,10 +135,13 @@ def build_validation_report(metrics, rule_outcomes=()):
            max(cat_scores) if all(s is not None for s in cat_scores) else None, "proportion_pp", variable="past_due")
 
     for key, table, column, label in FIELDS:
-        row = find("NULL_RATE", table, column, "null_rate")
-        s, g, valid = values(row)
-        score = abs(g-s)*100 if valid and 0 <= s <= 1 and 0 <= g <= 1 else None
-        assess("null."+key, label+" · null rate", "nulls", row, score, "proportion_pp", variable=key)
+        evidence = null_rows[table, column]
+        row = dict(source_value=evidence["source"], generated_value=evidence["generated"],
+                   comparison_status="COMPARABLE" if evidence["score"] is not None else "NOT_COMPARABLE",
+                   source_sample_size=evidence["source_n"], generated_sample_size=evidence["generated_n"],
+                   source_count=evidence["source_count"], generated_count=evidence["generated_count"])
+        assess("null."+key, label+" · null rate", "nulls", row, evidence["score"], "proportion_pp", variable=key,
+               status=evidence["status"], reason=evidence["reason"])
 
     def distribution(family, entity, column, dimension):
         rows = [r for r in metrics if (r.get("family"), r.get("entity_name"), r.get("column_name"), r.get("metric")) ==
@@ -224,13 +230,15 @@ def build_validation_report(metrics, rule_outcomes=()):
                              applied=sum(r.get("applied") is True for r in rows),
                              skipped=sum(r.get("outcome") == "SKIPPED" for r in rows)))
 
-    status_counts = {name: sum(a["status"] == name for a in assessments) for name in ("STRONG", "ACCEPTABLE", "NEEDS_REVIEW", "UNAVAILABLE")}
+    status_counts = {name: sum(a["status"] == name for a in assessments) for name in ("STRONG", "ACCEPTABLE", "NEEDS_REVIEW", "UNAVAILABLE", "TRIVIAL")}
     variable_status = []
     for checks in variable_checks.values():
         states = {c["status"] for c in checks}
         variable_status.append("NEEDS_REVIEW" if "NEEDS_REVIEW" in states else "UNAVAILABLE" if "UNAVAILABLE" in states else "ACCEPTABLE")
     evaluated = sum(a["status"] != "UNAVAILABLE" for a in assessments)
-    overall = "PENDING" if evaluated == 0 else "REVIEW_REQUIRED" if status_counts["NEEDS_REVIEW"] else "PARTIAL" if status_counts["UNAVAILABLE"] else "WITHIN_TOLERANCE"
+    overall = ("PENDING" if evaluated == 0 and not null_audit["summary"]["variables_evaluated"] else
+               "REVIEW_REQUIRED" if status_counts["NEEDS_REVIEW"] or null_audit["summary"]["requiring_review"] else
+               "PARTIAL" if status_counts["UNAVAILABLE"] or null_audit["summary"]["unavailable"] else "WITHIN_TOLERANCE")
 
     def relative(a):
         tolerance = THRESHOLDS[a["policy"]]["acceptable"] if a["policy"] else 1
@@ -250,7 +258,7 @@ def build_validation_report(metrics, rule_outcomes=()):
                     return selected
         return selected
 
-    result = dict(status="AVAILABLE" if evaluated else "PENDING", policy_version=POLICY_VERSION,
+    result = dict(status="AVAILABLE" if evaluated or null_audit["summary"]["variables_evaluated"] else "PENDING", policy_version=POLICY_VERSION,
                 thresholds={k: dict(v) for k, v in THRESHOLDS.items()}, min_conditional_rows=MIN_CONDITIONAL_ROWS,
                 summary=dict(comparison_status=overall, variables_total=len(variable_checks),
                              variables_evaluated=sum(any(a["status"] != "UNAVAILABLE" for a in c) for c in variable_checks.values()),
@@ -258,12 +266,14 @@ def build_validation_report(metrics, rule_outcomes=()):
                              variables_requiring_review=variable_status.count("NEEDS_REVIEW"),
                              variables_incomplete=variable_status.count("UNAVAILABLE"), checks_evaluated=evaluated,
                              strong=status_counts["STRONG"], acceptable=status_counts["ACCEPTABLE"],
-                             needs_review=status_counts["NEEDS_REVIEW"], unavailable=status_counts["UNAVAILABLE"]),
-                strengths=select([a for a in assessments if a["status"] == "STRONG" and a["family"] != "integrity"]),
+                             needs_review=status_counts["NEEDS_REVIEW"], unavailable=status_counts["UNAVAILABLE"],
+                             trivial_zero_null=status_counts["TRIVIAL"]),
+                strengths=select([a for a in assessments if strength_eligible(a) and a["family"] != "integrity"]),
                 weaknesses=select([a for a in assessments if a["status"] == "NEEDS_REVIEW"], worst=True),
                 assessments=assessments, numeric=numeric, categorical=categorical, dates=dates,
                 cardinality=cardinality, populations=populations,
                 accounts_per_person=dict(source=ratios[0], generated=ratios[1]), rule_outcomes=outcomes)
+    result["null_rate_audit"] = null_audit
     supplemental = sampling_fidelity(metrics)
     if supplemental is not None:
         result["dependency_fidelity"] = supplemental
@@ -324,14 +334,21 @@ def post_pilot_screening(metrics, report):
         add('categorical_conditional.'+key,label,'categorical_conditional',number(row.get('conditional_tvd_pct')),'conditional_tvd_pct',
             row={'source_sample_size':row.get('source_n'),'generated_sample_size':row.get('generated_n')})
 
-    combined=[*report['assessments'],*assessments]
+    # Full-cohort missingness findings are separate from the fixed eight-variable
+    # core denominator. Avoid counting the same null comparison twice.
+    combined=[*[a for a in report['assessments'] if a['family'] != 'nulls'], *assessments,
+              *report['null_rate_audit']['rows']]
     thresholds={**THRESHOLDS,**SCREENING_THRESHOLDS}
     def select(status,worst=False):
         # Zero-reference native-unit departures are separate alerts, not ranked
         # against percentage/correlation distances through an invented divisor.
         eligible=[a for a in combined if a['status']==status and a['family']!='integrity'
-                  and a['policy'] and thresholds[a['policy']]['acceptable']>0]
-        eligible.sort(key=lambda a:((-1 if worst else 1)*a['score']/thresholds[a['policy']]['acceptable'],a['key']))
+                  and a['policy'] and thresholds[a['policy']]['acceptable']>0
+                  and (status != 'STRONG' or strength_eligible(a))]
+        # Within missingness, partial observed/missing populations take priority
+        # over all-null fields. Both retain their honest assessment in details.
+        eligible.sort(key=lambda a:(a.get('all_null_match',False) if not worst else False,
+                                   (-1 if worst else 1)*a['score']/thresholds[a['policy']]['acceptable'],a['key']))
         chosen=[]; counts={}
         for cap in ((2,) if worst else (1,2)):
             for a in eligible:
