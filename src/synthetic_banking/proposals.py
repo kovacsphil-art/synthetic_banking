@@ -302,6 +302,24 @@ def build_model_request(spark):
     numeric_context = json.dumps(numeric_evidence, allow_nan=False)
 
     pilot_instructions = ""
+    if request["scope_name"] == "ACCOUNT_CORE" and (categorical_evidence or numeric_evidence):
+        pilot_instructions = (
+            "\n\nPhysical identifiers for existing measured sampling implementations:\n"
+            "For this first-phase sampling pilot, assess all three candidates below. Return one proposal "
+            "for each sufficiently evidenced candidate; do not stop after the first candidate. "
+            "Restrict this pilot's proposals to these three targets and omit any unsupported candidate.\n"
+            "Statistical feature aliases are not physical generation targets. When the supplied evidence "
+            "supports a candidate, use these exact table, column, type and parent identifiers:\n"
+            "- target_table TKQ_ACCOUNT; target_column CLIENT_PRODUCT_CD; rule_type CONDITIONAL; "
+            "parent_columns [TKQ_ACCOUNT.ACCOUNT_TYPE_CD].\n"
+            "- target_table TKQ_ACCOUNT; target_column TSYS_PRODUCT_CD; rule_type CONDITIONAL; "
+            "parent_columns [TKQ_ACCOUNT.CLIENT_PRODUCT_CD].\n"
+            "- target_table TKQ_ACCOUNT_BALANCE; target_column CURRENT_BALANCE_AMT; rule_type CORRELATED; "
+            "parent_columns [TKQ_ACCOUNT.CREDIT_LIMIT_AMT].\n"
+            "Do not substitute feature aliases such as current_balance_amount or credit_limit_amount. "
+            "These are optional candidates, not evidence or automatic approvals. Omit unsupported candidates. "
+            "Measured SOURCE probabilities and conditional quantiles remain the only statistical inputs."
+        )
     if request["scope_name"] == "BALANCE_PILOT":
         pilot_instructions = (
             "\n\nBalance pilot scope:\n"

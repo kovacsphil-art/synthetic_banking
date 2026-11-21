@@ -37,9 +37,11 @@ def configured_sql(text):
 
     This receives static SQL from source code, never proposed_rule/model text.
     """
-    text = (text.replace("workspace.synthetic_profile", PROFILE_SCHEMA)
-            .replace("workspace.synthetic_generated", GENERATED_SCHEMA)
-            .replace("workspace.default", STAGING_SCHEMA)
-            .replace("workspace.", CATALOG + ".")
-            .replace("USE CATALOG workspace", f"USE CATALOG {CATALOG}"))
+    schemas = {"synthetic_profile": PROFILE_SCHEMA, "synthetic_generated": GENERATED_SCHEMA, "default": STAGING_SCHEMA}
+    # Match whole identifiers so an already configured name such as
+    # synthetic_generated_phase1_test is not expanded a second time.
+    text = re.sub(r"(?<![\w.])workspace\.(synthetic_profile|synthetic_generated|default)\b",
+                  lambda match: schemas[match.group(1)], text)
+    text = re.sub(r"(?<![\w.])workspace\.", lambda _: CATALOG + ".", text)
+    text = re.sub(r"\bUSE CATALOG workspace\b", lambda _: f"USE CATALOG {CATALOG}", text)
     return re.sub(r"(?<![\w.])synthetic_profile\b", PROFILE_SCHEMA, text)

@@ -73,7 +73,9 @@ def load_generation_profiles(spark, requested_source_run_id="", *, pilot_batch_i
                          ("categorical_conditional_stats", "categorical_conditional_profile"),
                          ("numeric_dependency_stats", "numeric_dependency_profile")):
         if spark.catalog.tableExists(f"{PROFILE_SCHEMA}.{table}"):
-            rows = load(table).filter(F.col("profile_type") == "SOURCE").toPandas().to_dict("records")
+            # Bounded aggregate rows: preserve Spark NULL bounds as None. A pandas
+            # round-trip converts nullable numeric interval bounds into NaN.
+            rows = [row.asDict() for row in load(table).filter(F.col("profile_type") == "SOURCE").collect()]
             setattr(result, field, tuple(rows))
     print(f"Profiles loaded for SOURCE run {source_run_id}.")
     for label, value in (("Numeric", numeric), ("Categorical", categories), ("Dates", dates), ("Quality", result.column_quality),

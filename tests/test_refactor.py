@@ -29,6 +29,24 @@ except ImportError:
 FIXTURES = Path(__file__).parent / "fixtures"
 
 
+class ConfigurationTests(unittest.TestCase):
+    def test_custom_schema_substitution_is_idempotent(self):
+        import synthetic_banking.config as config
+        with patch.multiple(config, CATALOG="bankworkspace", PROFILE_SCHEMA="bankworkspace.synthetic_profile_test",
+                            GENERATED_SCHEMA="bankworkspace.synthetic_generated_phase1_test", STAGING_SCHEMA="bankworkspace.default_test"):
+            sql = "USE CATALOG workspace; SELECT * FROM workspace.synthetic_generated.T JOIN workspace.synthetic_profile.P JOIN workspace.default.S JOIN synthetic_profile.V"
+            expected = "USE CATALOG bankworkspace; SELECT * FROM bankworkspace.synthetic_generated_phase1_test.T JOIN bankworkspace.synthetic_profile_test.P JOIN bankworkspace.default_test.S JOIN bankworkspace.synthetic_profile_test.V"
+            self.assertEqual(config.configured_sql(sql), expected)
+            self.assertEqual(config.configured_sql(expected), expected)
+            self.assertEqual(config.configured_sql("SELECT * FROM workspace.synthetic_generated_archive.T"),
+                             "SELECT * FROM bankworkspace.synthetic_generated_archive.T")
+
+    def test_default_names_retain_existing_sql(self):
+        from synthetic_banking.config import configured_sql
+        sql = "USE CATALOG workspace; SELECT * FROM workspace.synthetic_generated.T JOIN workspace.synthetic_profile.P JOIN workspace.default.S"
+        self.assertEqual(configured_sql(sql), sql)
+
+
 class RunSpark:
     def __init__(self):
         self.db = sqlite3.connect(":memory:")
@@ -185,6 +203,9 @@ class ProposalExtractionTests(unittest.TestCase):
             build_model_request(spark)
         self.assertEqual(saved[0][:3], ("source-A", "batch-A", "ACCOUNT_CORE"))
         self.assertIn("conditional_numeric_rank_v1", saved[0][3])
+        self.assertIn("target_table TKQ_ACCOUNT_BALANCE; target_column CURRENT_BALANCE_AMT", saved[0][3])
+        self.assertIn("Do not substitute feature aliases", saved[0][3])
+        self.assertIn("assess all three candidates", saved[0][3])
         sql, args = next((q,a) for q,a in queries if "SELECT p.scope" in q)
         self.assertEqual(args, {"source_run_id": "source-A"})
         self.assertIn("p.profile_type = 'SOURCE'", sql)
@@ -332,6 +353,8 @@ class ExtractedGenerationTests(unittest.TestCase):
                 if self.where != other.where: raise AssertionError("Mixed profile runs")
             def select(self, *args): return self
             def toPandas(self): return pd.DataFrame()
+            def collect(self):
+                return [SimpleNamespace(asDict=lambda: {"lower_bound": None, "upper_bound": None})] if self.name.endswith("numeric_dependency_profile") else []
         def table(name):
             frame = Frame(name)
             reads.append(frame)
@@ -343,6 +366,8 @@ class ExtractedGenerationTests(unittest.TestCase):
                 "synthetic_banking.profiles.load_customer_relationship_profile", return_value={}) as relationships, redirect_stdout(StringIO()):
             result = load_generation_profiles(spark, "source-old")
         self.assertEqual(result.source_run_id, "source-old")
+        self.assertIsNone(result.numeric_dependency_stats[0]["lower_bound"])
+        self.assertIsNone(result.numeric_dependency_stats[0]["upper_bound"])
         relationships.assert_called_once_with(spark, "source-old")
         self.assertEqual({frame.name.rsplit(".", 1)[1] for frame in reads}, {
             "column_quality", "numeric_profile", "category_profile", "date_profile",
