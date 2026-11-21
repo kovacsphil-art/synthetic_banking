@@ -1052,6 +1052,16 @@ td {
 .exec-heading { margin-bottom: 3rem; }
 .exec-heading h2 { margin-bottom: 1.5rem; }
 .exec-heading > p:last-child { max-width: 760px; font-size: 1.05rem; }
+.application-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 2.5rem 4rem; }
+.application-grid article { border-top: 2px solid var(--line); padding-top: 1.2rem; min-width: 0; }
+.application-grid h3 { font-size: 1.25rem; margin-bottom: 1.2rem; }
+.application-grid dl { display: grid; gap: 1rem; margin: 0; }
+.application-grid dt { font-size: .875rem; font-weight: 600; color: var(--muted); margin-bottom: .3rem; }
+.application-grid dd { margin: 0; line-height: 1.65; max-width: 55ch; }
+.application-grid dl > div:last-child { border-left: 2px solid var(--red); padding-left: 1rem; }
+.application-grid dl > div:last-child dt { color: var(--red-dark); }
+.business-applications > .measurement-note { margin-top: 2rem; }
+@media (max-width:760px) { .application-grid { grid-template-columns: minmax(0,1fr); gap: 2rem; } }
 .exec-page .eyebrow { font-size: .73rem; letter-spacing: .1em; }
 .exec-page .measurement-note { font-size: .82rem; max-width: 880px; margin-top: 1rem; }
 .pipeline-help { font-size: .9rem; color: var(--muted); margin-bottom: 1.25rem; max-width: 85ch; }

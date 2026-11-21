@@ -133,11 +133,23 @@ test('both pages offer the same named routes between the three exploration exper
 test('first-time reading path puts measured findings before detailed methodology and demo browsing',()=>{
   const html=fs.readFileSync(require.resolve('../docs/index.html'),'utf8');
   const sections=[...html.matchAll(/<section id="([^"]+)"/g)].map(m=>m[1]);
-  assert.deepEqual(sections,['overview','process','validation','evidence','control','generation','explore-records','download-dataset','priorities']);
+  assert.deepEqual(sections,['overview','applications','process','validation','evidence','control','generation','explore-records','download-dataset','priorities']);
   const hero=html.split('<section id="overview"')[1].split('<section id="process"')[0];
   assert.match(hero,/SOURCE means the fabricated development baseline/);assert.match(hero,/href="#process">See how SAGE works/);
   assert.match(html,/AI sees statistical summaries, never individual banking records/);
   assert.match(html,/AI-generated text is never executed/);
+});
+
+test('business applications explain four potential uses without implying validated organizational outcomes',()=>{
+  const html=fs.readFileSync(require.resolve('../docs/index.html'),'utf8');
+  const section=html.split('<section id="applications"')[1].split('<section id="process"')[0];
+  assert.equal((section.match(/<article>/g)||[]).length,4);
+  for(const label of ['Problem','SAGE’s role','Potential benefit'])assert.equal((section.match(new RegExp('<dt>'+label+'</dt>','g'))||[]).length,4);
+  for(const title of ['Test analytical dashboards','Develop data pipelines','Check banking relationships','Build applications and demonstrations'])assert.ok(section.includes('<h3>'+title+'</h3>'));
+  assert.match(section,/not been validated as organizational deployments/);
+  assert.match(section,/fabricated development baseline/);assert.match(section,/privacy clearance/);
+  assert.match(section,/aria-labelledby="applications-title"/);
+  assert.doesNotMatch(section,/<script|\bcertified\b|regulatory compliance|proven savings/i);
 });
 
 test('report navigation prioritizes summary and keeps every evidence destination in a native disclosure',()=>{
