@@ -105,6 +105,22 @@ class DependencySamplerTests(unittest.TestCase):
         for x,y in (([0,5000],[200,7000]),([1000,5000],[200,9000]),([1000,np.inf],[200,7000])):
             with self.assertRaises(DependencyEvidenceError):conditional_numeric_rank_v1(SOURCE,x,y,numeric_evidence(),42)
 
+    def test_rank_coupling_preserves_raw_mean_but_downstream_cap_changes_saved_marginal(self):
+        rng = np.random.default_rng(42)
+        limits = rng.uniform(500, 5000, 20000)
+        raw = rng.uniform(100, 8000, len(limits))
+        coupled, _ = conditional_numeric_rank_v1(SOURCE, limits, raw, numeric_evidence(), 42)
+        np.testing.assert_array_equal(np.sort(raw), np.sort(coupled))
+        self.assertAlmostEqual(raw.mean(), coupled.mean(), places=9)
+        independent_final = np.minimum(raw, 1.25 * limits)
+        coupled_final = np.minimum(coupled, 1.25 * limits)
+        independent_loss = (raw - independent_final).mean()
+        coupled_loss = (coupled - coupled_final).mean()
+        self.assertLess(coupled_loss, independent_loss)
+        self.assertGreater(coupled_final.mean(), independent_final.mean())
+        self.assertAlmostEqual(coupled_final.mean() - independent_final.mean(),
+                               independent_loss - coupled_loss, places=9)
+
     def test_registry_checks_approvals_provenance_and_conflicts(self):
         summaries,cells=categorical_evidence(); profiles=SimpleNamespace(categorical_relationship_stats=summaries,categorical_conditional_stats=cells,numeric_dependency_stats=numeric_evidence())
         for changes,reason in ((dict(approval_status="PENDING"),"not_approved"),(dict(approval_status="REJECTED"),"not_approved"),

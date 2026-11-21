@@ -33,6 +33,29 @@ test("post-pilot mean/tail screens and privacy findings remain separate and visi
   assert.equal(renderValidation(document(),normalizeValidation(unchanged)).textContent,node.textContent);
 });
 
+test('mean investigation distinguishes method diagnostics from live results and keeps calibration inactive',()=>{
+  const report=structuredClone(postFixture),node=renderValidation(document(),normalizeValidation(report));
+  const explanation=all(node).find(n=>n.tagName==='DETAILS'&&n.children[0].textContent==='Why the balance mean can worsen while percentiles improve');
+  assert.ok(explanation);assert.match(explanation.textContent,/preserves their raw values and mean/);
+  assert.match(explanation.textContent,/cap at 125%/);assert.match(explanation.textContent,/separate from the live measurements/);
+  assert.match(explanation.textContent,/No calibration has been activated/);
+  assert.doesNotMatch(explanation.textContent,/3,145|159\.09|27\.06|1,107|343|5\.45/);
+  assert.deepEqual(report,postFixture);
+});
+
+test('privacy interpretation uses current aggregate flags without turning demo eligibility into clearance',()=>{
+  const report=structuredClone(postFixture);report.privacy.near_matches.flagged_rows=7;
+  report.privacy.near_matches.flagged_fraction=7/report.privacy.near_matches.evaluated_rows;
+  const node=renderValidation(document(),normalizeValidation(report));
+  const privacy=all(node).find(n=>n.id==='privacy');
+  assert.match(privacy.textContent,/7 \/ 200 \(3\.5%\)/);
+  assert.match(privacy.textContent,/not confirmed disclosures/);assert.match(privacy.textContent,/not an estimated probability/);
+  assert.match(privacy.textContent,/exact fabricated-origin verification/);
+  assert.match(privacy.textContent,/does not change the privacy assessment/);
+  assert.match(privacy.textContent,/Do not relax thresholds/);
+  assert.equal(report.privacy.row_level_downloads_enabled,false);assert.equal(report.privacy.status,'REVIEW_REQUIRED');
+});
+
 test("privacy never becomes clearance through missing evidence or altered labels",()=>{
   for(const mutate of [r=>r.privacy.row_level_downloads_enabled=true,r=>r.privacy.status="PASS",r=>r.privacy.near_matches.variables[0]="PRIVATE_PERSON",
     r=>r.privacy.near_matches.flagged_fraction=.99,r=>r.privacy.categorical_patterns[0].label="PRIVATE_PATTERN",r=>r.privacy.policy.near_date_days=-1,

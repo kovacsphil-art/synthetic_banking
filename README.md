@@ -20,6 +20,8 @@ Notebook 03 uses the selected SOURCE statistics and predefined Python implementa
 
 **Post-pilot state:** all eight live tasks succeeded: 10,000 customers, 17,313 accounts, three reviewed rules applied, no skipped rules, and 100% account/balance coverage. Correlation and account-product fidelity improved, while balance mean fidelity worsened. Privacy remains **REVIEW_REQUIRED** (14 near matches and eight SOURCE-rare category matches); general privacy clearance remains blocked. Separately verified fabricated DEMO_ONLY downloads are now available. SOURCE is fabricated development data, not production banking data. The [post-pilot review](docs/post-pilot-review.md) explains the mean regression, the inactive calibration candidate and its trade-offs, privacy findings, and provisional validation criteria. The Validation Report loads the measured mean/tail and separate privacy summaries automatically; integrity PASS does not imply statistical acceptance or privacy clearance.
 
+The [November 21 follow-up](docs/post-pilot-review.md#follow-up-review--november-21-2026) reproduces the mean/cap decomposition against the same SOURCE settings and checks the latest published aggregates. Rank coupling preserves raw balances, while reduced downstream clipping exposes an existing interpolation mean bias. Balance-only calibration remains inactive because it worsens available-credit mean fidelity. The report now explains this interaction and why rare near matches in fabricated data remain review signals rather than confirmed disclosures; no generator or privacy policy changed.
+
 ## How to Run
 
 1. Open the repo in Databricks and configure compute, permissions, and source paths using the [Notebook 01 prerequisites](notebooks/01_Stat%20extraction%20_v1.ipynb).
