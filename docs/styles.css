@@ -1384,6 +1384,8 @@ td {
 @media (max-width:360px) { .exec-page .viz-axis { font-size: 40px; } }
 /* Executive reading path: findings first, detail on request. */
 .exec-page .report-nav { display: block; overflow: visible; white-space: normal; padding: .5rem 0 1rem; }
+/* A scripted section anchor announces context; control focus indicators remain visible. */
+.exec-page .report-section[tabindex="-1"]:focus { outline: none; }
 .report-primary-links, .report-evidence-links > div { display: flex; flex-wrap: wrap; gap: .3rem 1.8rem; }
 .report-primary-links a { font-weight: 600; }
 .report-evidence-links { margin-top: .4rem; border-top: 1px solid var(--line); }
