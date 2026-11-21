@@ -15,6 +15,27 @@ function bindReport(m,report){
   if(report.validation?.status!=='PASS'||!d||d.dataset_version!==m.dataset_version||d.release_mode!=='DEMO_ONLY'||d.preview_sha256!==m.preview_sha256||report.privacy?.status!==m.privacy_status)throw new Error('Report/demo mismatch');
   for(const asset of m.assets.slice(2))if(!report.generation?.table_rows?.some(r=>r.table===asset.key&&r.status==='AVAILABLE'&&r.value===asset.rows))throw new Error('Report/demo counts mismatch');
 }
+function matchesAsset(m,release,asset,expected){
+  if(asset.state!=='uploaded'||asset.size!==expected.bytes||asset.digest!=='sha256:'+expected.sha256)return false;
+  if(asset.browser_download_url===downloads.assetUrl(m,expected.file))return true;
+  // GitHub uses private untagged URLs until a new draft tag is published.
+  const prefix='https://github.com/'+REPO+'/releases/download/';
+  if(!release.draft||typeof asset.browser_download_url!=='string'||!asset.browser_download_url.startsWith(prefix))return false;
+  const parts=asset.browser_download_url.slice(prefix.length).split('/');
+  return parts.length===2&&/^untagged-[a-z0-9]+$/.test(parts[0])&&parts[1]===expected.file;
+}
+async function findRelease(api,prefix,version){
+  const published=await api('GET',prefix+'/tags/'+version);if(published)return published;
+  // A draft without a created Git tag can be absent from GET /tags/{tag}.
+  for(let page=1;page<=10;page++){
+    const releases=await api('GET',prefix+'?per_page=100&page='+page);
+    if(!Array.isArray(releases))throw new Error('Release listing unavailable');
+    const matches=releases.filter(r=>r.tag_name===version);
+    if(matches.length>1)throw new Error('Ambiguous draft Release');
+    if(matches.length)return matches[0];
+    if(releases.length<100)return null;
+  }throw new Error('Release lookup budget exceeded');
+}
 async function publishDemo({folder,docs,commit,api=github}){
   const raw=fs.readFileSync(path.join(folder,'dataset-downloads.json'));
   if(raw.length>16384)throw new Error('Oversize manifest');
@@ -31,22 +52,23 @@ async function publishDemo({folder,docs,commit,api=github}){
     if(hash.digest('hex')!==asset.sha256)throw new Error('Asset hash mismatch');
   }
   const prefix='repos/'+REPO+'/releases';
-  let release=await api('GET',prefix+'/tags/'+m.dataset_version);
+  let release=await findRelease(api,prefix,m.dataset_version);
   if(!release)release=await api('POST',prefix,{tag_name:m.dataset_version,target_commitish:commit,
     name:'SAGE fabricated demonstration dataset '+m.dataset_version,
     body:'DEMO_ONLY: illustrative synthetic records generated exclusively from verified fabricated development inputs. Not actual customers or production-representative banking data. Privacy screening remains '+m.privacy_status+'. Read the included dictionary and metadata.',
     draft:true,prerelease:false,make_latest:'false'});
-  if(!Number.isSafeInteger(release.id)||release.id<=0||release.tag_name!==m.dataset_version||release.prerelease!==false||!Array.isArray(release.assets))throw new Error('Unexpected Release');
+  if(!Number.isSafeInteger(release.id)||release.id<=0||release.tag_name!==m.dataset_version||typeof release.draft!=='boolean'||release.prerelease!==false||!Array.isArray(release.assets))throw new Error('Unexpected Release');
   if(release.assets.some(a=>!m.assets.some(b=>b.file===a.name)))throw new Error('Unexpected Release asset');
   for(const asset of m.assets){const existing=release.assets.filter(a=>a.name===asset.file);
     if(existing.length>1)throw new Error('Duplicate Release asset');
-    if(existing.length){const a=existing[0];if(a.state!=='uploaded'||a.size!==asset.bytes||a.digest!=='sha256:'+asset.sha256||a.browser_download_url!==downloads.assetUrl(m,asset.file))throw new Error('Existing immutable asset differs');}
+    if(existing.length){if(!matchesAsset(m,release,existing[0],asset))throw new Error('Existing immutable asset differs');}
     else{if(!release.draft)throw new Error('Published Release is incomplete');
       await api('POST','https://uploads.github.com/repos/'+REPO+'/releases/'+release.id+'/assets?name='+encodeURIComponent(asset.file),null,path.join(folder,asset.file));}
   }
   release=await api('GET',prefix+'/'+release.id);
   // Verify the whole draft before making any of its assets public.
-  downloads.validateRelease(m,{...release,draft:false,published_at:release.published_at||m.verified_at});
+  if(!release||release.tag_name!==m.dataset_version||release.prerelease!==false||!Array.isArray(release.assets)||release.assets.length!==8||
+    !m.assets.every(expected=>release.assets.filter(a=>a.name===expected.file).length===1&&matchesAsset(m,release,release.assets.find(a=>a.name===expected.file),expected)))throw new Error('Incomplete draft assets');
   if(release.draft)release=await api('PATCH',prefix+'/'+release.id,{draft:false,make_latest:'false'});
   const urls=downloads.validateRelease(m,release);
   const published={...m,publication_status:'PUBLISHED',publication_checked_at:new Date().toISOString(),download_urls:urls};

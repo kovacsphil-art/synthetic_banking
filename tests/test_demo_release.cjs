@@ -16,10 +16,12 @@ function fixture(){
   fs.writeFileSync(path.join(docs,'dataset-downloads.json'),'previous-valid-downloads');fs.writeFileSync(path.join(docs,'demo-preview.json'),'previous-valid-preview');
   let release=null;const calls=[];
   async function api(method,url,body,file){calls.push({method,url,body,file});
+    if(method==='GET'&&url.includes('?per_page='))return release?[release]:[];
+    if(method==='GET'&&url.includes('/tags/')&&release?.draft)return null;
     if(method==='GET')return release;
     if(method==='POST'&&!file){release={id:12,tag_name:body.tag_name,draft:true,prerelease:false,published_at:null,assets:[]};return release;}
-    if(file){const expected=m.assets.find(a=>a.file===path.basename(file));release.assets.push({name:expected.file,size:expected.bytes,digest:'sha256:'+expected.sha256,state:'uploaded',browser_download_url:downloads.assetUrl(m,expected.file)});return release.assets.at(-1);}
-    if(method==='PATCH'){release.draft=false;release.published_at=new Date().toISOString();return release;}
+    if(file){const expected=m.assets.find(a=>a.file===path.basename(file));release.assets.push({name:expected.file,size:expected.bytes,digest:'sha256:'+expected.sha256,state:'uploaded',browser_download_url:'https://github.com/'+downloads.REPOSITORY+'/releases/download/untagged-123abc/'+expected.file});return release.assets.at(-1);}
+    if(method==='PATCH'){release.draft=false;release.published_at=new Date().toISOString();for(const a of release.assets)a.browser_download_url=downloads.assetUrl(m,a.name);return release;}
     throw Error('Unexpected API call');
   }
   return {root,folder,docs,m,report,calls,api,release:()=>release,options:()=>({folder,docs,commit:'a'.repeat(40),api}),cleanup:()=>fs.rmSync(root,{recursive:true,force:true})};
@@ -44,6 +46,7 @@ test('interrupted upload retains previous downloads and a private draft; repair 
     await assert.rejects(publishDemo({...f.options(),api}));assert.equal(f.release().draft,true);assert.equal(f.release().assets.length,2);
     assert.equal(fs.readFileSync(path.join(f.docs,'dataset-downloads.json'),'utf8'),'previous-valid-downloads');
     await publishDemo(f.options());assert.equal(f.release().draft,false);assert.equal(f.release().assets.length,8);
+    assert.ok(f.calls.some(c=>c.method==='GET'&&c.url.includes('?per_page=')));
   }finally{f.cleanup();}
 });
 test('existing valid published release is reused without overwrite; changed assets are never replaced',async()=>{
@@ -54,5 +57,13 @@ test('existing valid published release is reused without overwrite; changed asse
     f.release().assets[0].digest='sha256:'+'f'.repeat(64);previousCalls=f.calls.length;
     const previous=fs.readFileSync(path.join(f.docs,'dataset-downloads.json'));await assert.rejects(publishDemo(f.options()));
     assert.ok(f.calls.slice(previousCalls).every(c=>c.method==='GET'));assert.deepEqual(fs.readFileSync(path.join(f.docs,'dataset-downloads.json')),previous);
+  }finally{f.cleanup();}
+});
+test('private draft URLs never permit a foreign host and all digests remain mandatory',async()=>{
+  const f=fixture();try{
+    const api=async(...args)=>{const r=await f.api(...args);if(args[0]==='GET'&&args[1].endsWith('/12'))r.assets[0].browser_download_url='https://private.invalid/file.zip';return r;};
+    await assert.rejects(publishDemo({...f.options(),api}));assert.equal(f.release().draft,true);
+    assert.equal(f.calls.filter(c=>c.method==='PATCH').length,0);
+    assert.equal(fs.readFileSync(path.join(f.docs,'dataset-downloads.json'),'utf8'),'previous-valid-downloads');
   }finally{f.cleanup();}
 });
