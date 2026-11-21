@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       pipeline_run_id:
-        description: 'Successful Databricks job run ID (blank selects latest successful run)'
+        description: 'Successful Databricks job run ID (blank selects latest successful validation)'
         required: false
         type: string
 
@@ -33,8 +33,19 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
       - name: Install reporting transport and schema validator
         run: python -m pip install databricks-sdk==0.72.0 jsonschema==4.23.0
+      - name: Check deployment safeguards and frontend interactions
+        env:
+          PYTHONPATH: .:src
+        run: |
+          python -B -m unittest discover -s tests -p 'test_publication.py' -v
+          python -B -m unittest discover -s tests -p 'test_pages_staging.py' -v
+          python -B -m unittest discover -s tests -p 'test_workflow_wiring.py' -v
+          node --test tests/test_results.cjs tests/test_validation_page.cjs tests/test_validation_explorer.cjs tests/test_executive_showcase.cjs tests/test_records.cjs tests/test_downloads.cjs tests/test_demo_release.cjs
       - name: Retrieve report from a successful pipeline execution
         id: report
         env:
@@ -58,6 +69,16 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           SAGE_PUBLISH_DEMO_DATASETS: ${{ vars.SAGE_PUBLISH_DEMO_DATASETS }}
         run: node scripts/publish_demo_release.cjs
+      - name: Stage and check the exact public artifact
+        if: steps.report.outputs.ready == 'true'
+        env:
+          DEMO_READY: ${{ steps.report.outputs.demo_ready }}
+        run: python scripts/stage_showcase.py
+      - name: Check staged browser contract
+        if: steps.report.outputs.ready == 'true'
+        run: |
+          node -e "require('./_site/results.js').normalizeReport(require('./_site/latest-pipeline.json'))"
+          node -e "const r=require('./_site/latest-pipeline.json'); const v=require('./_site/validation.js').normalizeValidation(r); if(r.schema_version==='2.0' && r.validation_report.status==='AVAILABLE' && !v) process.exit(1)"
       - name: Commit only verified public reporting metadata and bounded preview
         if: steps.report.outputs.ready == 'true'
         run: |
@@ -71,17 +92,6 @@ jobs:
             git commit -m "Update sanitized showcase results"
             git push
           fi
-      - name: Stage only public website files
-        if: steps.report.outputs.ready == 'true'
-        run: |
-          mkdir _site
-          cp docs/index.html docs/styles.css docs/results.js docs/validation.html docs/validation.js docs/validation-config.js docs/executive-viz.js docs/showcase.js docs/latest-pipeline.json _site/
-          cp docs/records.js docs/records-config.js _site/
-          cp docs/downloads.js _site/
-          if [ '${{ steps.report.outputs.demo_ready }}' = 'true' ]; then
-            cp docs/demo-preview.json docs/dataset-downloads.json _site/
-          fi
-          touch _site/.nojekyll
       - uses: actions/upload-pages-artifact@v3
         if: steps.report.outputs.ready == 'true'
         with:

@@ -3,6 +3,7 @@
 from copy import deepcopy
 from io import BytesIO
 import json
+import hashlib
 import importlib.util
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -22,9 +23,10 @@ class PublicationTests(unittest.TestCase):
         self.report = json.loads((ROOT / "docs/reporting/example.json").read_text())
         state = dict(life_cycle_state="TERMINATED", result_state="SUCCESS")
         self.run = dict(job_id=10, run_id=20, state=state, tasks=[
-            dict(task_key=name, run_id=index + 100, state=state.copy()) for index, name in enumerate(sorted(TASKS))])
+            dict(task_key=name, run_id=index + 100, end_time=2000, state=state.copy()) for index, name in enumerate(sorted(TASKS))])
         self.path = "/Volumes/public/reports/showcase/runs/20/latest-pipeline.json"
-        self.output = dict(notebook_output=dict(result=json.dumps(dict(report_path=self.path, schema_version="2.0"))))
+        self.output = dict(notebook_output=dict(result=json.dumps(dict(report_path=self.path, schema_version="2.0",
+            report_sha256=hashlib.sha256(json.dumps(self.report).encode()).hexdigest()))))
 
     def client(self):
         self.downloads = []
@@ -63,6 +65,54 @@ class PublicationTests(unittest.TestCase):
         self.assertIsNone(retrieve(self.client(), 10, "/Volumes/public/reports/showcase"))
         self.assertEqual(self.downloads, [])
         self.assertEqual(self.outputs, [])
+
+    def test_latest_selection_uses_validation_completion_not_run_start_or_reporting_repair(self):
+        client = self.client()
+        older_start = deepcopy(self.run)
+        older_start.update(run_id=19, start_time=100, end_time=9000)
+        newer_start = deepcopy(self.run)
+        newer_start.update(run_id=20, start_time=200, end_time=10000)
+        for task in older_start['tasks']:
+            task['end_time'] = 8000
+        for task in newer_start['tasks']:
+            task['end_time'] = 7000
+        # Newest-started/newest-reporting run is not the latest validated run.
+        runs = {19:older_start,20:newer_start}
+        client.jobs.list_runs = lambda **kw: [obj(newer_start),obj(older_start)]
+        client.jobs.get_run = lambda **kw: obj(runs[kw['run_id']])
+        self.path = '/Volumes/public/reports/showcase/runs/19/latest-pipeline.json'
+        receipt=json.loads(self.output['notebook_output']['result']);receipt['report_path']=self.path
+        self.output['notebook_output']['result']=json.dumps(receipt)
+        report,run,_ = retrieve(client,10,'/Volumes/public/reports/showcase',with_receipt=True)
+        self.assertEqual(run['run_id'],19);self.assertEqual(report,self.report)
+        self.assertEqual(self.downloads,[self.path]);self.assertEqual(len(self.outputs),1)
+
+    def test_automatic_selection_skips_incomplete_successes_but_cannot_guess_missing_validation_time(self):
+        client=self.client();incomplete=deepcopy(self.run);incomplete['run_id']=21;incomplete['tasks'].pop()
+        client.jobs.list_runs=lambda **kw:[obj(incomplete),obj(self.run)]
+        client.jobs.get_run=lambda **kw:obj(incomplete if kw['run_id']==21 else self.run)
+        self.assertEqual(retrieve(client,10,'/Volumes/public/reports/showcase'),self.report)
+        next(t for t in self.run['tasks'] if t['task_key']=='validate').pop('end_time')
+        self.downloads.clear();self.outputs.clear()
+        with self.assertRaises(ValueError):retrieve(client,10,'/Volumes/public/reports/showcase')
+        self.assertEqual(self.downloads,[]);self.assertEqual(self.outputs,[])
+
+    def test_missing_or_invalid_checksums_stop_before_downloading_and_changed_bytes_fail(self):
+        original=json.loads(self.output['notebook_output']['result'])
+        for checksum in (None,'','not-a-checksum'):
+            self.output['notebook_output']['result']=json.dumps({**original,'report_sha256':checksum})
+            with self.assertRaises(ValueError):retrieve(self.client(),10,'/Volumes/public/reports/showcase',20)
+            self.assertEqual(self.downloads,[])
+        self.output['notebook_output']['result']=json.dumps({**original,'report_sha256':'0'*64})
+        with self.assertRaisesRegex(ValueError,'checksum'):retrieve(self.client(),10,'/Volumes/public/reports/showcase',20)
+
+    def test_invalid_explicit_ids_cannot_fall_back_to_automatic_selection(self):
+        for run_id in (0,-1,True,'20'):
+            client=self.client();client.jobs.list_runs=lambda **kw:self.fail('Invalid explicit IDs cannot select latest')
+            with self.assertRaises(ValueError):retrieve(client,10,'/Volumes/public/reports/showcase',run_id)
+            self.assertEqual(self.downloads,[])
+        self.run['run_id']=21
+        with self.assertRaises(ValueError):retrieve(self.client(),10,'/Volumes/public/reports/showcase',20)
 
     def test_postpilot_public_contract_is_closed_and_retains_review_state(self):
         report = json.loads((ROOT / "docs/reporting/example-postpilot.json").read_text())

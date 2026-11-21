@@ -49,10 +49,12 @@ class WorkflowWiringTests(unittest.TestCase):
         self.assertIn('SAGE_PUBLISH_DEMO_DATASETS: ${{ vars.SAGE_PUBLISH_DEMO_DATASETS }}',text)
         self.assertIn("if: steps.report.outputs.demo_ready == 'true'",text)
         self.assertLess(text.index('- name: Check webpage contract'),text.index('- name: Publish only this execution'))
-        staging=text.split('- name: Stage only public website files')[1]
+        staging=text.split('- name: Stage and check the exact public artifact')[1].split('- name: Check staged browser contract')[0]
         self.assertIn("steps.report.outputs.demo_ready",staging)
+        self.assertIn('python scripts/stage_showcase.py',staging)
         self.assertNotRegex(staging,r'cp .*\.(csv|zip)')
-        commit=text.split('- name: Commit only verified public')[1].split('- name: Stage only public')[0]
+        self.assertLess(text.index('- name: Stage and check'),text.index('- name: Commit only verified public'))
+        commit=text.split('- name: Commit only verified public')[1].split('- uses: actions/upload-pages-artifact')[0]
         self.assertIn('git add -- docs/latest-pipeline.json',commit)
         self.assertIn('git add -- docs/dataset-downloads.json docs/demo-preview.json',commit)
         self.assertNotIn('git add .',commit)

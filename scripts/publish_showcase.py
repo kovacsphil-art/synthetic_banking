@@ -92,6 +92,8 @@ def report_path(run, output, job_id, base_dir):
     if output.get("error") or not output.get("notebook_output") or output["notebook_output"].get("truncated"):
         raise ValueError("Reporting task has no complete success receipt.")
     receipt = json.loads(output["notebook_output"]["result"])
+    if not isinstance(receipt, dict) or not isinstance(receipt.get("report_sha256"), str) or not re.fullmatch(r"[0-9a-f]{64}", receipt["report_sha256"]):
+        raise ValueError("A checksum-bound reporting receipt is required; repair reporting with the current notebook.")
     base = PurePosixPath(base_dir)
     if (not str(base).startswith("/Volumes/") or ".." in base.parts
             or len(base.parts) < 5 or receipt.get("schema_version") not in ("1.0", "2.0")):
@@ -102,16 +104,45 @@ def report_path(run, output, job_id, base_dir):
     return expected
 
 
+def latest_validated_run(client, job_id):
+    """Select by final successful validation, including repairs of older jobs.
+
+    List all retained completed summaries; retrieve metadata only for successes.
+    No artifact/log/row reads occur until one complete pipeline is selected.
+    """
+    selected, selected_rank = None, None
+    for candidate in client.jobs.list_runs(job_id=job_id, completed_only=True):
+        summary = candidate.as_dict()
+        if not successful(summary):
+            continue
+        run = client.jobs.get_run(run_id=candidate.run_id).as_dict()
+        if run.get("job_id") != job_id or run.get("run_id") != candidate.run_id:
+            raise ValueError("Run listing returned a different job.")
+        try:
+            tasks = validated_tasks(run, job_id)
+        except ValueError:
+            # A SUCCESS label alone does not make an incomplete/old task graph eligible.
+            continue
+        completed = next(t for t in tasks if t["task_key"] == "validate").get("end_time")
+        if type(completed) is not int or completed <= 0 or type(run.get("run_id")) is not int or run["run_id"] <= 0:
+            raise ValueError("Successful validation has no unambiguous completion metadata.")
+        rank = (completed, run["run_id"])
+        if selected_rank is None or rank > selected_rank:
+            selected, selected_rank = run, rank
+    return selected
+
+
 def retrieve(client, job_id, base_dir, run_id=None, with_receipt=False):
-    if run_id:
+    if type(job_id) is not int or job_id <= 0:
+        raise ValueError("A positive configured job ID is required.")
+    if run_id is not None:
+        if type(run_id) is not int or run_id <= 0:
+            raise ValueError("An explicit run ID must be a positive integer.")
         run = client.jobs.get_run(run_id=run_id).as_dict()
+        if run.get("run_id") != run_id:
+            raise ValueError("The returned run differs from the requested execution.")
     else:
-        # Newest-started successful execution; repaired failed runs appear here too.
-        run = None
-        for candidate in client.jobs.list_runs(job_id=job_id, completed_only=True):
-            if successful(candidate.as_dict()):
-                run = client.jobs.get_run(run_id=candidate.run_id).as_dict()
-                break
+        run = latest_validated_run(client, job_id)
         if run is None:
             return None
     # Validate before reading any notebook output or file.
@@ -128,7 +159,7 @@ def retrieve(client, job_id, base_dir, run_id=None, with_receipt=False):
     receipt = json.loads(output["notebook_output"]["result"])
     if report["schema_version"] != receipt["schema_version"]:
         raise ValueError("Report and execution receipt versions differ.")
-    if receipt.get('report_sha256') is not None and hashlib.sha256(raw).hexdigest() != receipt['report_sha256']:
+    if hashlib.sha256(raw).hexdigest() != receipt['report_sha256']:
         raise ValueError('Report checksum differs from its execution receipt.')
     if 'demo_dataset' in report and (receipt.get('demo_export_status') != 'VERIFIED_DEMO_ONLY' or
             not receipt.get('report_sha256') or 'demo_export_verification' not in {t['task_key'] for t in tasks}):
