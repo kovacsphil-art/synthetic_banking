@@ -27,4 +27,10 @@ Reference principles: [Don Norman, The Design of Everyday Things](https://jnd.or
 
 ## Remaining limits
 
+### Variable-first validation summary
+
+The Validation Report now leads with selected-variable outcomes, with separate secondary scopes for additional statistical checks and all-field missingness. Core check counts, pass definitions, non-comparability explanations and trivial-zero exclusions use native disclosures. Privacy REVIEW_REQUIRED stays a separate assessment. Findings use interpretation → SOURCE/synthetic values → potential business consequence, with technical details available on demand. The overview reuses a compact version of the same variable-first component.
+
+The three primary counts were checked within the initial viewport at desktop and 390 × 844 mobile dimensions. Native disclosures work with Enter, table filters remain reversible, and wide evidence tables remain keyboard-focusable scroll regions. Automated checks reconcile the current three scopes, verify data-driven rendering and confirm that rendering leaves the report unchanged. This is interface verification, not evidence from a stakeholder comprehension study.
+
 Wide data tables intentionally need horizontal scrolling on phones. The explorer shows only 15 saved rows and selected columns per table; linked records may fall outside that preview. The public validation contract covers selected variables and measured points, rather than full distribution detail. Release API outages or rate limits can temporarily disable downloads. Testing here covers the available Chromium browser and automated interaction checks, not a full browser/device matrix, assistive-technology audit or stakeholder usability study.

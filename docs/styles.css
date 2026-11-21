@@ -1410,6 +1410,44 @@ td {
 }
 @media (max-width:360px) { .exec-page .viz-axis { font-size: 40px; } }
 /* Executive reading path: findings first, detail on request. */
+.validation-page .exec-report-intro { padding-block: 1.8rem .7rem; }
+.validation-page .exec-report-intro h1 { font-size: clamp(2.2rem,4vw,3.4rem); line-height: 1.08; margin-bottom: .8rem; }
+.validation-page .exec-report-intro p { margin-bottom: .65rem; }
+.validation-page #summary { padding-top: 1.5rem; }
+.validation-page #summary > h2 { font-size: clamp(1.45rem,2.5vw,2rem); margin-bottom: 1.1rem; }
+.validation-brief .core-outcome { padding-bottom: 1.2rem; }
+.validation-takeaway { font-size: clamp(1.05rem,1.7vw,1.3rem); color: var(--ink); max-width: 72ch; line-height: 1.55; }
+.variable-outcomes { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 2rem; margin: 1.5rem 0 1rem; }
+.variable-outcomes > div { border-top: 2px solid var(--line); padding-top: .75rem; }
+.variable-outcomes dt { font-size: .95rem; font-weight: 600; margin-bottom: .3rem; }
+.variable-outcomes dd { font-size: clamp(2rem,4vw,3rem); line-height: 1.1; margin: 0; font-variant-numeric: tabular-nums; }
+.variable-outcomes .outcome-review { border-color: var(--red); color: var(--red-dark); }
+.variable-outcomes .outcome-incomplete { color: var(--muted); }
+.variable-outcome-bar { display: flex; height: .45rem; gap: .2rem; max-width: 48rem; }
+.variable-outcome-bar span { flex-basis: 0; background: #303238; }
+.variable-outcome-bar .outcome-review { background: var(--red); }
+.variable-outcome-bar .outcome-incomplete { background: #bfc2c7; }
+.privacy-separation { border-block: 1px solid var(--line); padding-block: .9rem; margin: .7rem 0 1.8rem; display: flex; flex-wrap: wrap; align-items: baseline; gap: .4rem 1.5rem; }
+.privacy-separation p { margin: 0; font-size: .9rem; }
+.privacy-separation a { font-size: .9rem; }
+.secondary-scopes { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 2.5rem; }
+.validation-scope { min-width: 0; padding-top: .6rem; }
+.validation-scope h3 { font-size: 1.2rem; margin-bottom: .7rem; }
+.validation-scope > a { display: inline-flex; align-items: center; min-height: 44px; margin-top: .65rem; font-size: .95rem; }
+.scope-takeaway { color: var(--ink); line-height: 1.55; max-width: 54ch; }
+.validation-brief .report-details { margin-top: .9rem; }
+.validation-brief .report-details p { max-width: 75ch; }
+.exec-page .finding-list .finding-scope { font-size: .8rem; color: var(--muted); margin-top: .5rem; }
+.exec-page .finding-list .finding-values { font-size: .95rem; color: var(--ink); font-variant-numeric: tabular-nums; line-height: 1.65; }
+.exec-page .finding-list .finding-meaning { font-size: .95rem; line-height: 1.6; }
+.exec-page .finding-list .report-details { margin-top: .65rem; }
+@media(max-width:650px) {
+ .secondary-scopes { grid-template-columns: 1fr; gap: 1.5rem; }
+ .variable-outcomes { gap: .8rem; }
+ .variable-outcomes dt { font-size: .875rem; min-height: 2.8em; }
+ .privacy-separation { display: block; }
+ .privacy-separation p { margin-block: .5rem; }
+}
 .exec-page .report-nav { display: block; overflow: visible; white-space: normal; padding: .5rem 0 1rem; }
 /* A scripted section anchor announces context; control focus indicators remain visible. */
 .exec-page .report-section[tabindex="-1"]:focus { outline: none; }
@@ -1431,3 +1469,23 @@ td {
   .exec-page .exec-heading { margin-bottom: 2rem; }
 }
 @media (prefers-reduced-motion:reduce) { .exec-page *, .exec-page *::before, .exec-page *::after { transition: none; animation: none; scroll-behavior: auto; } }
+.validation-page .report-main { padding-top: .5rem; }
+.validation-page .exec-report-intro { padding-block: 1rem .5rem; }
+.validation-page .report-nav { display: grid; grid-template-columns: 1fr auto; align-items: start; gap: 1rem; padding-block: .35rem; }
+.validation-page .report-evidence-links { margin: 0; border: 0; max-width: 16rem; }
+.validation-page .report-evidence-links > summary { max-width: none; }
+.validation-page .report-evidence-links > div { flex-direction: column; gap: 0; }
+.validation-page .report-toolbar { padding-top: .2rem; }
+.validation-page .report-toolbar button { min-height: 44px; padding: .4rem .8rem; font-size: .875rem; }
+.validation-page .validation-takeaway { max-width: none; }
+.validation-page .core-outcome > .eyebrow { margin-bottom: .45rem; }
+.validation-page .core-outcome .report-details { padding-top: .5rem; margin-top: .65rem; }
+@media(max-width:650px) {
+ .validation-page .report-nav { grid-template-columns: 1fr; gap: 0; }
+ .validation-page .exec-header { padding-block: .65rem; gap: .5rem; }
+ .validation-page .exec-brand { font-size: 1.65rem; }
+ .validation-page .exec-header nav a { font-size: .875rem; }
+ .validation-page .report-toolbar { flex-wrap: nowrap; gap: .75rem; }
+ .validation-page .report-toolbar .results-notice { flex: 1; min-width: 0; font-size: .875rem; line-height: 1.4; }
+ .validation-page .report-toolbar button { flex: 0 1 44%; max-width: 45%; min-width: 0; white-space: normal; font-size: .875rem; line-height: 1.4; }
+}

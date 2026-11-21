@@ -1,6 +1,6 @@
 "use strict";
 const test=require("node:test"),assert=require("node:assert/strict"),fs=require("node:fs"),path=require("node:path");
-const {normalizeValidation,renderValidation,mountValidation,classifyNull,nullSummary,normalizeNullAudit}=require("../docs/validation.js");
+const {normalizeValidation,renderValidation,mountValidation,classifyNull,nullSummary,normalizeNullAudit,executiveSummary,scopeCounts,findingCopy}=require("../docs/validation.js");
 const nullConfig=require('../docs/validation-config.js').null_rates;
 const fixture=JSON.parse(fs.readFileSync(path.join(__dirname,"../docs/reporting/example.json"),"utf8"));
 
@@ -33,9 +33,9 @@ const postFixture=JSON.parse(fs.readFileSync(path.join(__dirname,"../docs/report
 test("post-pilot mean/tail screens and privacy findings remain separate and visible",()=>{
   const r=structuredClone(postFixture),node=renderValidation(document(),normalizeValidation(r));
   assert.match(node.textContent,/Numeric mean screening/);assert.match(node.textContent,/P01 \/ P05 \/ P99 tail screening/);
-  assert.match(node.textContent,/Balance mean needs review/);assert.match(node.textContent,/REVIEW_REQUIRED/);
+  assert.match(node.textContent,/Current balance has a higher average/);assert.match(node.textContent,/REVIEW_REQUIRED/);
   assert.match(node.textContent,/SOURCE-rare pattern matches/);assert.match(node.textContent,/General dataset release blocked/);
-  assert.match(node.textContent,/Fabricated demo downloads require separate verification/);
+  assert.match(node.textContent,/DEMO_ONLY eligibility separately requires exact fabricated-origin verification/);
   assert.match(node.textContent,/Additional provisional screens/);assert.match(node.textContent,/Mandatory integrity requirements/);
   assert.equal(all(node).filter(n=>n.className?.includes("mean-series")).length,8);
   assert.ok(!all(node).some(n=>n.tagName==="A"&&/\.zip|\.csv|\.parquet/.test(n.attributes.href||"")));
@@ -100,7 +100,7 @@ test("optional sampling fidelity renders safely without changing headline classi
 
 test("measured classifications, raw percentiles, populations and dependencies are displayed",()=>{
   const view=normalizeValidation(clone()),node=renderValidation(document(),view),text=node.textContent;
-  assert.match(text,/Differences need review/);assert.match(text,/30% total variation/);
+  assert.match(text,/selected variables meet every core tolerance/);assert.match(text,/30% total variation/);
   assert.match(text,/SOURCE P25/);assert.match(text,/Strong match/);assert.match(text,/Needs review/);
   assert.match(text,/Credit limit \/ balance correlation/);assert.match(text,/Accounts per person/);
   assert.match(text,/Other cross-table referential integrity/);assert.match(text,/Unavailable/);
@@ -256,13 +256,63 @@ test('missingness details retain every observation and support reversible native
   const root=renderValidation(document(),view),select=all(root).find(n=>n.attributes['aria-label']==='Null-rate table'),toggle=all(root).find(n=>n.attributes['aria-label']==='Hide trivial zero-null matches');
   const grid=()=>all(root).find(n=>n.tagName==='TABLE'&&n.children[0].textContent==='Null rates · exact counts across six tables');
   const count=()=>grid().children[2].children.length;
-  assert.equal(count(),nullConfig.fields.length);assert.match(grid().textContent,/0\.0001%/);assert.match(root.textContent,/entirely-null agreement/i);
+  assert.equal(toggle.checked,true);assert.equal(count(),nullConfig.fields.length-1);assert.match(grid().textContent,/0\.0001%/);assert.match(root.textContent,/entirely-null agreement/i);
+  toggle.checked=false;toggle.events.change();assert.equal(count(),nullConfig.fields.length);
   toggle.checked=true;toggle.events.change();assert.equal(count(),nullConfig.fields.length-1);
   select.value='PERSON';select.events.change();assert.equal(count(),nullConfig.fields.filter(([t,c])=>t==='PERSON'&&c!=='BIRTH_DT').length);
   toggle.checked=false;toggle.events.change();assert.equal(count(),nullConfig.fields.filter(([t])=>t==='PERSON').length);
   select.value='all';select.events.change();assert.equal(count(),nullConfig.fields.length);
   const noMatches=normalizeValidation(clone());noMatches.v.null_rate_audit=nullAudit({'null_field.PERSON.BIRTH_DT':{source_count:0,source_n:100,generated_count:0,generated_n:200}});
   assert.match(renderValidation(document(),noMatches).textContent,/No qualifying meaningful null-rate strengths/);
+});
+
+test('summary leads with variable outcomes and separates the three reporting scopes',()=>{
+  const report=JSON.parse(fs.readFileSync(path.join(__dirname,'../docs/latest-pipeline.json'),'utf8'));
+  const original=structuredClone(report),view=normalizeValidation(report),counts=scopeCounts(view.v),root=executiveSummary(document(),view);
+  const scope=name=>all(root).find(n=>n.attributes['aria-label']===name),core=scope('Core variable validation');
+  const outcomes=core.children.find(n=>n.className==='variable-outcomes');
+  assert.deepEqual(all(outcomes).filter(n=>n.tagName==='DD').map(n=>n.textContent),[
+    String(counts.core.variables_within_tolerance),String(counts.core.variables_requiring_review),String(counts.core.variables_incomplete)]);
+  assert.equal(counts.core.variables_within_tolerance+counts.core.variables_requiring_review+counts.core.variables_incomplete,counts.core.variables_total);
+  assert.ok(core.textContent.includes(counts.core.variables_total+' selected variables'));
+  const coreDetails=core.children.find(n=>n.tagName==='DETAILS');assert.ok(coreDetails);assert.ok(!coreDetails.open);
+  assert.match(coreDetails.textContent,/measured evidence/);assert.match(coreDetails.textContent,/neither a pass nor a measured failure/);
+  assert.equal(counts.additional.within+counts.additional.review+counts.additional.unavailable,counts.additional.total);
+  const additional=scope('Additional statistical checks');assert.ok(additional.textContent.includes(counts.additional.total+' additional checks'));
+  assert.match(additional.textContent,/not additional variables/);
+  const n=counts.missingness;assert.equal(n.meaningful_matches+n.requiring_review,n.eligible_nontrivial);
+  assert.equal(n.eligible_nontrivial+n.trivial_zero_null+n.unavailable,n.variables_total);
+  const missing=scope('Full-dataset missingness audit');assert.ok(missing.textContent.includes(n.meaningful_matches+' of '+n.eligible_nontrivial+' nontrivial comparisons'));
+  assert.ok(missing.children.find(n=>n.tagName==='DETAILS').textContent.includes(n.trivial_zero_null+' zero-null observations'));
+  const privacy=scope('Separate privacy assessment');assert.match(privacy.textContent,/REVIEW_REQUIRED/);assert.match(privacy.textContent,/Statistical similarity does not establish privacy clearance/);
+  assert.ok(!all(outcomes).some(n=>n.textContent.includes('%')));assert.deepEqual(report,original);
+});
+
+test('summary numbers follow supplied JSON and unavailable scopes never imply success',()=>{
+  const view=normalizeValidation(clone());
+  Object.assign(view.v.summary,{variables_total:12,variables_within_tolerance:7,variables_requiring_review:2,variables_incomplete:3});
+  const root=executiveSummary(document(),view);assert.match(root.textContent,/7 of 12 selected variables/);
+  const outcomes=all(root).find(n=>n.className==='variable-outcomes');assert.deepEqual(all(outcomes).filter(n=>n.tagName==='DD').map(n=>n.textContent),['7','2','3']);
+  delete view.v.post_pilot;delete view.v.null_rate_audit;
+  const pending=executiveSummary(document(),view);assert.match(pending.textContent,/Additional statistical checks are unavailable/);assert.match(pending.textContent,/null-rate audit unavailable/);
+  assert.doesNotMatch(pending.textContent,/0 of 0|100% accurate|overall accuracy percentage/);
+  const compact=executiveSummary(document(),view,{compact:true});assert.ok(!all(compact).some(n=>n.attributes['aria-label']==='Additional statistical checks'));
+});
+
+test('business findings lead with interpretation then preserve measured values and context',()=>{
+  const report=JSON.parse(fs.readFileSync(path.join(__dirname,'../docs/latest-pipeline.json'),'utf8')),view=normalizeValidation(report);
+  const a={key:'null_field.PERSON.DOMICILE_TRANSIT_NUM',column:'DOMICILE_TRANSIT_NUM',family:'nulls',label:'Customer home-branch codes',policy:'proportion_pp',status:'NEEDS_REVIEW',source:0,generated:1,score:100};
+  const copy=findingCopy(a,view.v);assert.equal(copy.title,'Customer home-branch codes are absent from the synthetic cohort');
+  assert.equal(copy.source,'0% missing');assert.equal(copy.synthetic,'100% missing');assert.match(copy.why,/customer segmentation by home branch/);
+  const available={key:'numeric.available_credit',label:'Available credit',family:'numeric',policy:'numeric_iqr_pct',status:'NEEDS_REVIEW',score:50,source:200,generated:200};
+  const range=findingCopy(available,{numeric:[{key:'available_credit',percentiles:[{name:'P50',source:200,generated:200,difference:0},{name:'P95',source:400,generated:500,difference:100}]}]});
+  assert.match(range.title,/gaps at key points/);assert.match(range.source,/high-end point \(P95\)/);assert.match(range.why,/available spending capacity/);
+  const birth=findingCopy(view.v.assessments.find(a=>a.key==='date.birth'),view.v);
+  assert.match(birth.title,/age mix/);assert.match(birth.source,/not published/);assert.match(birth.why,/time-based segments/);
+  const rendered=renderValidation(document(),view),panel=all(rendered).find(n=>n.id==='findings');
+  const first=all(panel).find(n=>n.tagName==='LI');assert.equal(first.children[0].tagName,'STRONG');
+  assert.equal(first.children[1].className,'finding-scope');assert.equal(first.children[2].className,'finding-values');
+  assert.equal(first.children[3].className,'finding-meaning');assert.equal(first.children[4].tagName,'DETAILS');assert.ok(!first.children[4].open);
 });
 
 test("sparse conditional evidence keeps rates and counts without a passing label",()=>{

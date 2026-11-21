@@ -49,7 +49,7 @@ test('expanded findings retain their measured ranking and have distinct disclosu
     const panel=root.children[i],lists=all(panel).filter(n=>n.tagName==='OL');
     assert.equal(lists[0].attributes.start,'1');
     if(view.v[key].length>3){assert.equal(lists[1].attributes.start,'4');assert.equal(lists[1].style.counterReset,'findings 3');}
-    const summary=all(panel).find(n=>n.tagName==='SUMMARY');
+    const summary=panel.children.find(n=>n.tagName==='DETAILS')?.children[0];
     if(summary)assert.equal(summary.textContent,key==='strengths'?'More measured strengths':'More measured discrepancies');
   }
 });
