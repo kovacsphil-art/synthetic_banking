@@ -64,7 +64,8 @@
       try{manifest=normalizeManifest(JSON.parse(await readText(await fetcher(local('dataset-downloads.json'),options),MAX_BYTES)));}catch(_){return {status:'unavailable'};}
       let raw;
       try{raw=await readText(await fetcher(local('demo-preview.json'),options),catalog.max_bytes);}catch(_){return {status:'preview_unavailable'};}
-      try{await validatePreview(manifest,raw,crypto);}catch(_){return {status:'outdated'};}
+      let preview;
+      try{preview=await validatePreview(manifest,raw,crypto);}catch(_){return {status:'outdated'};}
       // The current report must explicitly identify this exact demo cohort.
       let report;
       try{report=JSON.parse(await readText(await fetcher(local('latest-pipeline.json'),options),1024*1024));}
@@ -72,13 +73,20 @@
       if(report.validation?.status!=='PASS'||report.demo_dataset?.release_mode!=='DEMO_ONLY'||
         report.demo_dataset?.dataset_version!==manifest.dataset_version||report.demo_dataset?.preview_sha256!==manifest.preview_sha256||
         report.privacy?.status!==manifest.privacy_status||!manifest.assets.slice(2).every(a=>report.generation?.table_rows?.some(r=>r.table===a.key&&r.status==='AVAILABLE'&&r.value===a.rows)))return {status:'outdated'};
-      if(manifest.publication_status==='UNPUBLISHED')return {status:'unpublished',manifest};
       if(manifest.publication_status==='WITHDRAWN')return {status:'withdrawn',manifest};
-      try{return {status:'ready',manifest,urls:await verifyRelease(manifest,{fetcher,signal:controller.signal})};}
-      catch(_){return {status:'release_unavailable',manifest};}
+      if(manifest.publication_status==='UNPUBLISHED')return {status:'unpublished',manifest,preview};
+      try{return {status:'ready',manifest,preview,urls:await verifyRelease(manifest,{fetcher,signal:controller.signal})};}
+      catch(_){return {status:'release_unavailable',manifest,preview};}
     })();
     try{return await Promise.race([work,new Promise(resolve=>{timer=setTimeout(()=>{controller.abort();resolve({status:'unavailable'});},timeoutMs);})]);}
     finally{clearTimeout(timer);}
+  }
+  // Share only in-flight checks between the preview and download sections.
+  // A retry always rechecks the manifest, preview fingerprint and Release.
+  const pending=new WeakMap();
+  function getDownloadState(doc,options={}){
+    if(!pending.has(doc))pending.set(doc,loadDownloadState(doc,options).finally(()=>pending.delete(doc)));
+    return pending.get(doc);
   }
   const fmt=new Intl.NumberFormat('en',{maximumFractionDigits:1});
   function size(bytes){return Number.isSafeInteger(bytes)?bytes>=1e6?fmt.format(bytes/1e6)+' MB':bytes>=1000?fmt.format(bytes/1000)+' KB':bytes+' B':'Size unavailable';}
@@ -91,14 +99,26 @@
     withdrawn:['Downloads withdrawn','Downloads for this demo version have been withdrawn.'],
     release_unavailable:['Downloads temporarily unavailable','The versioned Release files could not be confirmed. A file may be missing, changed, or temporarily inaccessible. Recheck availability.'],
     ready:['Demo downloads available','The published Release files match the verified demo export and this preview.']};
+  function downloadControl(doc,state,key,label,statusId,cls='button button-secondary'){
+    const item=state.manifest?.assets.find(a=>a.key===key),url=state.status==='ready'&&item&&state.urls?.[key];
+    const available=url&&url===assetUrl(state.manifest,item.file),control=el(doc,available?'a':'button',label,cls);
+    if(available){control.setAttribute('href',url);control.setAttribute('download',item.file);control.setAttribute('rel','noopener noreferrer');}
+    else{control.type='button';control.disabled=true;control.setAttribute('aria-describedby',statusId);}
+    if(Object.hasOwn(catalog.tables,key))control.setAttribute('aria-label','Download '+catalog.tables[key].label+' CSV');
+    return control;
+  }
+  function renderRecordDownloads(doc,state,name){
+    const root=el(doc,'div',undefined,'record-downloads'),status=el(doc,'p',undefined,'record-download-note');status.id='record-download-status';
+    const actions=el(doc,'div',undefined,'record-download-actions'),item=state.manifest?.assets.find(a=>a.key===name);
+    actions.append(downloadControl(doc,state,name,'Download selected CSV'+(item?' · '+size(item.bytes):''),status.id,'button button-primary'),
+      downloadControl(doc,state,'ZIP','Download all six tables (ZIP)',status.id));
+    status.textContent=state.status==='ready'?'Both downloads use the same verified DEMO_ONLY version as these records.':(STATES[state.status]||STATES.unavailable).join('. ');
+    root.append(actions,status);return root;
+  }
   function renderDownloads(doc,state){
-    const root=el(doc,'div'),[title,note]=STATES[state.status]||STATES.unavailable,m=state.manifest,ready=state.status==='ready';root.dataset.downloadState=state.status;
+    const root=el(doc,'div'),[title,note]=STATES[state.status]||STATES.unavailable,m=state.manifest;root.dataset.downloadState=state.status;
     const heading=el(doc,'p',title,'download-status');heading.id='dataset-download-status';heading.setAttribute('role','status');heading.setAttribute('aria-live','polite');root.append(heading,el(doc,'p',note,'download-note'));
-    function control(key,label,cls){const item=m?.assets.find(a=>a.key===key),url=ready&&state.urls?.[key];
-      const node=el(doc,url?'a':'button',label,cls||'button button-secondary');
-      if(url){node.setAttribute('href',url);node.setAttribute('download',item.file);node.setAttribute('rel','noopener noreferrer');}
-      else{node.type='button';node.disabled=true;node.setAttribute('aria-describedby',heading.id);}
-      if(Object.hasOwn(catalog.tables,key))node.setAttribute('aria-label','Download '+catalog.tables[key].label+' CSV');return node;}
+    const control=(key,label,cls)=>downloadControl(doc,state,key,label,heading.id,cls);
     if(m){root.append(el(doc,'p','DEMO_ONLY · '+m.dataset_version+' · Privacy screening: '+m.privacy_status+'. Demo eligibility is separate from the standard privacy release status in the Validation Report. This is not formal anonymization certification.','download-context'));}
     const bundle=el(doc,'div',undefined,'download-bundle'),zip=m?.assets.find(a=>a.key==='ZIP'),dictionary=m?.assets.find(a=>a.key==='DICTIONARY');
     bundle.append(el(doc,'div',undefined,'download-bundle-copy'));
@@ -117,10 +137,10 @@
   async function mountDownloads(doc,options={}){
     const root=doc.getElementById('dataset-downloads');if(!root)return;
     async function refresh(){root.setAttribute('aria-busy','true');root.replaceChildren(renderDownloads(doc,{status:'loading'}));
-      const state=await loadDownloadState(doc,options);const view=renderDownloads(doc,state),button=el(doc,'button','Recheck availability','button button-secondary');button.type='button';button.addEventListener('click',refresh);view.append(button);root.replaceChildren(view);root.setAttribute('aria-busy','false');}
+      const state=await getDownloadState(doc,options);const view=renderDownloads(doc,state),button=el(doc,'button','Recheck availability','button button-secondary');button.type='button';button.addEventListener('click',refresh);view.append(button);root.replaceChildren(view);root.setAttribute('aria-busy','false');}
     await refresh();
   }
-  const api={REPOSITORY,ASSETS,normalizeManifest,assetUrl,releaseUrl,validateRelease,validatePreview,verifyRelease,loadDownloadState,renderDownloads,mountDownloads};
+  const api={REPOSITORY,ASSETS,normalizeManifest,assetUrl,releaseUrl,validateRelease,validatePreview,verifyRelease,loadDownloadState,getDownloadState,renderDownloads,renderRecordDownloads,mountDownloads};
   if(node)module.exports=api;else window.SageDownloads=api;
-  if(typeof document!=='undefined')mountDownloads(document);
+  if(typeof document!=='undefined'){mountDownloads(document);records.mountRecords(document);}
 })();

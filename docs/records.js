@@ -39,7 +39,7 @@
     if(kind==="date")return dateFormat.format(new Date(value.endsWith("Z")||value.includes("+")?value:value.includes("T")?value+"Z":value+"T00:00:00Z"));
     return value;
   }
-  function renderTable(doc,table){
+  function renderTable(doc,table,downloads=null){
     const spec=CONFIG.tables[table.name],root=el(doc,"div",undefined,"record-view");
     const heading=el(doc,"h3",spec.label);heading.id="record-table-title";
     root.append(heading,el(doc,"p",table.name,"record-context"),el(doc,"p",spec.description,"record-purpose"));
@@ -47,19 +47,20 @@
     for(const [label,value] of [["Records in full table",nf.format(table.total_rows)],["Columns in full table",table.total_columns],["Columns shown",table.columns.length]]){
       const group=el(doc,"div");group.append(el(doc,"dt",label),el(doc,"dd",String(value)));metrics.append(group);
     }
-    root.append(metrics,el(doc,"p",spec.relationship,"record-relationship"));
+    root.append(metrics,el(doc,"p",spec.relationship,"record-relationship"),el(doc,"p","Highlighted identifiers are synthetic. They identify fabricated records and connect related tables; the relationship note above explains which keys to match.","record-key-legend"));
     const guide=el(doc,"details",undefined,"record-guide");guide.append(el(doc,"summary","Column guide · "+table.columns.length+" shown"));
     const definitions=el(doc,"dl");
-    for(const c of spec.columns){const group=el(doc,"div"),term=el(doc,"dt",c.label),desc=el(doc,"dd",c.description);desc.append(el(doc,"code",c.key));group.append(term,desc);definitions.append(group);}
+    for(const [i,c] of spec.columns.entries()){const group=el(doc,"div"),term=el(doc,"dt",c.label),desc=el(doc,"dd",c.description);desc.id="record-column-"+i;desc.append(el(doc,"code",c.key));group.append(term,desc);definitions.append(group);}
     guide.append(definitions);root.append(guide);
+    if(downloads)root.append(downloads);
     if(!table.rows.length){root.append(el(doc,"p","No records in this demo table.","results-notice"));return root;}
     const help=el(doc,"p","Scroll horizontally to see every preview column. On a keyboard, focus the table area and use the arrow keys.","record-scroll-help");help.id="record-scroll-help";
     const wrap=el(doc,"div",undefined,"record-scroll");wrap.tabIndex=0;wrap.setAttribute("role","region");wrap.setAttribute("aria-labelledby",heading.id);wrap.setAttribute("aria-describedby",help.id);
     const grid=el(doc,"table",undefined,"record-table");grid.append(el(doc,"caption",spec.label+" · first "+table.rows.length+" records · selected columns"));
     const head=el(doc,"thead"),header=el(doc,"tr");
-    spec.columns.forEach(c=>{const th=el(doc,"th",c.label);th.setAttribute("scope","col");th.setAttribute("title",c.description+" ("+c.key+")");header.append(th);});head.append(header);
+    spec.columns.forEach((c,i)=>{const th=el(doc,"th",c.label,c.kind.endsWith("_id")?"record-key-heading":"");th.setAttribute("scope","col");th.setAttribute("title",c.description+" ("+c.key+")");th.setAttribute("aria-describedby","record-column-"+i);header.append(th);});head.append(header);
     const body=el(doc,"tbody");
-    for(const values of table.rows){const row=el(doc,"tr");values.forEach((value,i)=>{const td=el(doc,i===0?"th":"td",display(value,spec.columns[i].kind),value===null?"record-null":spec.columns[i].kind.endsWith("_id")?"record-id":"");if(i===0)td.setAttribute("scope","row");if(value!==null)td.setAttribute("title",String(value));row.append(td);});body.append(row);}
+    for(const values of table.rows){const row=el(doc,"tr");values.forEach((value,i)=>{const isId=spec.columns[i].kind.endsWith("_id"),td=el(doc,i===0?"th":"td",undefined,value===null?"record-null":isId?"record-id":"");if(isId)td.append(el(doc,"span",display(value,spec.columns[i].kind),"record-id-value"));else td.textContent=display(value,spec.columns[i].kind);if(i===0)td.setAttribute("scope","row");if(value!==null)td.setAttribute("title",String(value));row.append(td);});body.append(row);}
     grid.append(head,body);wrap.append(grid);root.append(help,wrap,
       el(doc,"p","This shows selected columns from the first "+table.rows.length+" records in export key order. Linked records can fall outside the preview. Not recorded means a saved null value.","record-footnote"));
     return root;
@@ -86,27 +87,28 @@
       return await Promise.race([request,new Promise((_,reject)=>{timer=setTimeout(()=>{controller.abort();reject(new Error("Preview timed out"));},timeoutMs);})]);
     }finally{clearTimeout(timer);}
   }
-  async function mountRecords(doc,{fetcher=globalThis.fetch,location=globalThis.location,timeoutMs=6000}={}){
+  async function mountRecords(doc,options={}){
     const root=doc.getElementById("records-explorer");if(!root)return;
-    const status=el(doc,"p","Loading demo preview…","record-status");status.setAttribute("role","status");status.setAttribute("aria-live","polite");
+    const downloads=typeof module!=="undefined"&&module.exports?require('./downloads.js'):window.SageDownloads;
+    const status=el(doc,"p","Verifying demo preview…","record-status");status.setAttribute("role","status");status.setAttribute("aria-live","polite");
     const controls=el(doc,"div",undefined,"record-controls"),label=el(doc,"label","Choose a table"),select=el(doc,"select");select.id="record-table-select";label.setAttribute("for",select.id);
     for(const [name,spec] of Object.entries(CONFIG.tables)){const option=el(doc,"option",spec.label+" — "+name);option.value=name;select.append(option);}
     select.value="PERSON";select.disabled=true;
     const button=el(doc,"button","Retry preview","button button-secondary");button.type="button";button.hidden=true;
     controls.append(label,select,button);const context=el(doc,"p",undefined,"record-context"),body=el(doc,"div");root.replaceChildren(status,controls,context,body);
-    let preview=null;
-    function draw(){if(!preview)return;const table=preview.tables.find(t=>t.name===select.value);body.replaceChildren(renderTable(doc,table));status.textContent=CONFIG.tables[table.name].label+": showing "+(table.rows.length?"rows 1–"+table.rows.length:"0 rows")+" of "+nf.format(table.total_rows)+" records.";}
+    let preview=null,state=null;
+    function draw(){if(!preview)return;const table=preview.tables.find(t=>t.name===select.value);body.replaceChildren(renderTable(doc,table,downloads.renderRecordDownloads(doc,state,table.name)));status.textContent=CONFIG.tables[table.name].label+": showing "+(table.rows.length?"rows 1–"+table.rows.length:"0 rows")+" of "+nf.format(table.total_rows)+" records.";}
     select.addEventListener("change",draw);
     async function refresh(){
-      root.setAttribute("aria-busy","true");select.disabled=true;button.disabled=true;status.textContent="Loading demo preview…";body.replaceChildren();context.textContent="";preview=null;
-      try{preview=await loadPreview(doc,fetcher,location,root.dataset.previewUrl||"demo-preview.json",timeoutMs);select.disabled=false;button.hidden=true;
-        context.textContent="Demo dataset "+preview.dataset_version+" · Exported "+dateFormat.format(new Date(preview.generated_at))+" UTC · Privacy screening: "+preview.privacy_status+". Preview only; see Download Synthetic Dataset for availability.";draw();
-      }catch(_){status.textContent="Demo preview unavailable";button.hidden=false;body.append(el(doc,"p","The project overview and Validation Report remain available. No substitute records are shown. Retry after a verified demo preview has been supplied.","results-notice"));
+      root.setAttribute("aria-busy","true");select.disabled=true;button.disabled=true;status.textContent="Verifying demo preview…";body.replaceChildren();context.textContent="";preview=null;
+      try{state=await downloads.getDownloadState(doc,options);if(!state.preview)throw new Error('Verified preview unavailable');preview=state.preview;select.disabled=false;button.hidden=true;
+        context.textContent="DEMO_ONLY · "+preview.dataset_version+" · Exported "+dateFormat.format(new Date(preview.generated_at))+" UTC · Privacy screening: "+preview.privacy_status+". Demo eligibility is separate from standard privacy clearance.";draw();
+      }catch(_){status.textContent="Demo preview unavailable";button.hidden=false;body.append(el(doc,"p","A matching verified DEMO_ONLY manifest and preview are required. The export may be missing, out of date or withdrawn. The project overview and Validation Report remain available; no substitute records or dataset links are shown.","results-notice"));
       }finally{button.disabled=false;root.setAttribute("aria-busy","false");}
     }
     button.addEventListener("click",refresh);await refresh();
   }
   const api={normalizePreview,renderTable,loadPreview,mountRecords};
   if(typeof module!=="undefined"&&module.exports)module.exports=api;else window.SageRecords=api;
-  if(typeof document!=="undefined")mountRecords(document);
+  // downloads.js starts both views after the shared verification API is ready.
 })();
