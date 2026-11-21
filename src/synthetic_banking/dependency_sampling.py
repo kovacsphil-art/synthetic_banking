@@ -166,3 +166,42 @@ def conditional_numeric_rank_v1(source, parent_values, child_values, evidence, s
     output = original.copy()
     output[eligible] = coupled
     return output, n
+
+
+def mean_matched_quantile_candidate(values, probabilities, quantiles, source_mean):
+    """Offline candidate: match an inverse-CDF mean while retaining every knot.
+
+    Within each quantile interval replace linear t by t**exponent. The implied
+    population mean is A + B/(exponent+1). This function is deliberately NOT in
+    the active registry: final caps and other derived amounts need joint review.
+    It draws no random numbers, extrapolates no tails, and retains NaN masks.
+    """
+    p, q = np.asarray(probabilities, dtype=float), np.asarray(quantiles, dtype=float)
+    x = np.asarray(values, dtype=float)
+    target = _number(source_mean)
+    if (p.ndim != 1 or q.shape != p.shape or len(p) < 2 or x.ndim != 1
+            or not np.all(np.isfinite(p)) or not np.all(np.isfinite(q))
+            or p[0] != 0 or p[-1] != 1 or np.any(np.diff(p) <= 0) or np.any(np.diff(q) < 0)):
+        raise ValueError("Use finite ordered quantiles and increasing probabilities spanning zero to one.")
+    finite = np.isfinite(x)
+    if np.any(np.isinf(x)) or np.any(x[finite] < q[0]) or np.any(x[finite] > q[-1]):
+        raise ValueError("Candidate values must remain within the measured quantile support.")
+    widths = np.diff(p)
+    lower, span = float(np.dot(widths, q[:-1])), float(np.dot(widths, np.diff(q)))
+    if span == 0:
+        if target != q[0]:
+            raise ValueError("The measured mean is inconsistent with constant quantiles.")
+        exponent = 1.
+    elif not lower < target < lower + span:
+        raise ValueError("The measured mean is outside the feasible quantile-interval bounds.")
+    else:
+        exponent = span/(target-lower)-1
+    if not math.isfinite(exponent) or exponent <= 0:
+        raise ValueError("The fitted interpolation exponent must be finite and positive.")
+    indices = np.clip(np.searchsorted(q, x[finite], side="right")-1, 0, len(q)-2)
+    a, b = q[indices], q[indices+1]
+    t = np.divide(x[finite]-a, b-a, out=np.zeros_like(a), where=b>a)
+    output = x.copy()
+    output[finite] = a+(b-a)*np.clip(t, 0, 1)**exponent
+    return output, dict(exponent=exponent, implied_linear_mean=lower+span/2,
+                        target_mean=target, implied_calibrated_mean=lower+span/(exponent+1))
