@@ -3,28 +3,28 @@
   "release_mode": "DEMO_ONLY",
   "baseline": "FABRICATED_DEVELOPMENT",
   "verification": "VERIFIED_DEMO_ONLY",
-  "dataset_version": "sage-demo-v1.1",
-  "generation_date": "2026-11-21T00:06:18.449782+00:00",
-  "exported_at": "2026-11-21T01:49:07.598308+00:00",
-  "verified_at": "2026-11-21T02:09:22.430456+00:00",
+  "dataset_version": "sage-demo-v23531186251808934832001379991",
+  "generation_date": "2026-11-21T02:43:07.911194+00:00",
+  "exported_at": "2026-11-21T02:58:12.572231+00:00",
+  "verified_at": "2026-11-21T02:59:18.043104+00:00",
   "privacy_status": "REVIEW_REQUIRED",
-  "preview_sha256": "8f9d150433be7f57f6acdcaa7fdcfd18cd963dfe576076428935adbe59e2235f",
+  "preview_sha256": "bae60b85bc10bffa1296a217a995aeb8d026588199a83a07f9ac87bc9e76774b",
   "repository": "kovacsphil-art/synthetic_banking",
-  "publication_status": "UNPUBLISHED",
-  "publication_checked_at": null,
+  "publication_status": "PUBLISHED",
+  "publication_checked_at": "2026-11-21T03:06:09.567Z",
   "assets": [
     {
       "key": "ZIP",
       "file": "SAGE_DEMO_ONLY.zip",
-      "bytes": 9631148,
-      "sha256": "d604a73f955bf48d05e81728ec25b5821155a0a66e9ec8b7b863c76677a3b06d",
+      "bytes": 9631178,
+      "sha256": "27cff65f24533b081e2cafb7122e223940f61e0b7c7607375666d8220ee37946",
       "rows": null
     },
     {
       "key": "DICTIONARY",
       "file": "data_dictionary.md",
-      "bytes": 23548,
-      "sha256": "b8f6b58b3d41867d1771f1ecdae082ff4f030eaa7b61702d71a5286d2dc7bb92",
+      "bytes": 23580,
+      "sha256": "e96f5795c52886a2a7f99f8efe57539ea8c3a5b8aa7c83481e79c87a831be0bd",
       "rows": null
     },
     {
@@ -69,5 +69,15 @@
       "sha256": "2bb573d732ba90e23f408a8dd153d0030cf1d1104846503da36b9b3fdd72b896",
       "rows": 30000
     }
-  ]
+  ],
+  "download_urls": {
+    "ZIP": "https://github.com/kovacsphil-art/synthetic_banking/releases/download/sage-demo-v23531186251808934832001379991/SAGE_DEMO_ONLY.zip",
+    "DICTIONARY": "https://github.com/kovacsphil-art/synthetic_banking/releases/download/sage-demo-v23531186251808934832001379991/data_dictionary.md",
+    "PERSON": "https://github.com/kovacsphil-art/synthetic_banking/releases/download/sage-demo-v23531186251808934832001379991/PERSON.csv",
+    "CUSTOMER_ACCOUNT_REL": "https://github.com/kovacsphil-art/synthetic_banking/releases/download/sage-demo-v23531186251808934832001379991/CUSTOMER_ACCOUNT_REL.csv",
+    "CUSTOMER_RELATIONSHIP": "https://github.com/kovacsphil-art/synthetic_banking/releases/download/sage-demo-v23531186251808934832001379991/CUSTOMER_RELATIONSHIP.csv",
+    "TKQ_ACCOUNT": "https://github.com/kovacsphil-art/synthetic_banking/releases/download/sage-demo-v23531186251808934832001379991/TKQ_ACCOUNT.csv",
+    "TKQ_ACCOUNT_BALANCE": "https://github.com/kovacsphil-art/synthetic_banking/releases/download/sage-demo-v23531186251808934832001379991/TKQ_ACCOUNT_BALANCE.csv",
+    "TRADELINES": "https://github.com/kovacsphil-art/synthetic_banking/releases/download/sage-demo-v23531186251808934832001379991/TRADELINES.csv"
+  }
 }

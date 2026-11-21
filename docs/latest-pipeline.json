@@ -1,6 +1,6 @@
 {
   "schema_version": "2.0",
-  "pipeline_completed_at": "2026-11-21T00:15:32.845306Z",
+  "pipeline_completed_at": "2026-11-21T02:53:27.979941Z",
   "generation": {
     "total_rows": {
       "status": "AVAILABLE",
@@ -1918,5 +1918,10 @@
         "complete_case_coverage": 1.0
       }
     ]
+  },
+  "demo_dataset": {
+    "dataset_version": "sage-demo-v23531186251808934832001379991",
+    "release_mode": "DEMO_ONLY",
+    "preview_sha256": "bae60b85bc10bffa1296a217a995aeb8d026588199a83a07f9ac87bc9e76774b"
   }
 }
