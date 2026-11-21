@@ -1,14 +1,37 @@
 /* Public SAGE overview: one sanitized report, with a clear unavailable state. */
 (() => {
   "use strict";
-  function setupPipeline(doc) {
-    const stages=[...doc.querySelectorAll(".pipeline-stage")];
-    function set(stage,open){stage.dataset.open=String(open);stage.querySelector("button").setAttribute("aria-expanded",String(open));}
-    function closeAll(){stages.forEach(s=>{set(s,false);s.dataset.pinned="false";});}
-    for(const stage of stages){const button=stage.querySelector("button");stage.addEventListener("pointerenter",()=>{closeAll();stage.dataset.dismissed="false";set(stage,true);});stage.addEventListener("pointerleave",()=>{if(!stage.contains(doc.activeElement))set(stage,false);});button.addEventListener("focus",()=>{closeAll();stage.dataset.dismissed="false";set(stage,true);});stage.addEventListener("focusout",e=>{if(!stage.contains(e.relatedTarget))set(stage,false);});button.addEventListener("click",()=>{const open=stage.dataset.pinned!=="true";closeAll();stages.forEach(s=>s.dataset.pinned="false");stage.dataset.pinned=String(open);stage.dataset.dismissed=String(!open);set(stage,open);});}
-    doc.addEventListener("keydown",e=>{if(e.key==="Escape"){closeAll();stages.forEach(s=>{s.dataset.dismissed="true";s.dataset.pinned="false";});}});
-    // Click outside always restores the uncluttered process view.
-    doc.addEventListener("click",e=>{if(!stages.some(s=>s.contains(e.target)))closeAll();});
+  function setupPipeline(doc,{isMobile=()=>globalThis.matchMedia?.('(max-width: 650px)').matches||false}={}) {
+    const explorer=doc.getElementById('pipeline-explorer'),panel=doc.getElementById('pipeline-detail');
+    if(!explorer||!panel)return;
+    const overview=doc.getElementById('pipeline-overview'),status=doc.getElementById('pipeline-status'),reset=doc.getElementById('pipeline-reset');
+    const stages=[...explorer.querySelectorAll('.pipeline-stage')].map(stage=>({stage,button:stage.querySelector('button'),more:stage.querySelector('.stage-more'),detail:doc.getElementById(stage.dataset.detail)}));
+    if(!stages.length||!overview||!status||!reset||stages.some(s=>!s.button||!s.detail||!s.more))return;
+    let pinned=null,preview=null,last=null,restoringFocus=false;
+    function render(){
+      const current=preview||pinned;overview.hidden=!!current;reset.hidden=!current;
+      for(const s of stages){const active=s===current;s.stage.dataset.open=String(active);s.stage.dataset.pinned=String(s===pinned);
+        s.button.setAttribute('aria-expanded',String(active));s.detail.hidden=!active;s.more.textContent=s===pinned?'Selected':active?'Preview':'Explore';}
+      status.textContent=current?'Stage '+String(stages.indexOf(current)+1).padStart(2,'0')+' of '+String(stages.length).padStart(2,'0')+' · '+current.stage.dataset.title+' · '+(current===pinned?'Selected':'Preview'):'The complete process · Explore any stage';
+      if(current)last=current;
+    }
+    function clear(returnFocus=false){pinned=null;preview=null;render();
+      if(returnFocus&&last){restoringFocus=true;last.button.focus();restoringFocus=false;}}
+    for(const s of stages){s.button.disabled=false;
+      s.stage.addEventListener('pointerenter',e=>{if(e.pointerType==='touch')return;preview=s;render();});
+      s.button.addEventListener('focus',()=>{if(!restoringFocus){preview=s;render();}});
+      s.button.addEventListener('click',()=>{if(pinned===s){clear();return;}pinned=s;preview=null;render();
+        // Tap brings the explanation into view; hover and focus never move the page.
+        if(isMobile())panel.scrollIntoView({block:'nearest',behavior:'auto'});});
+      s.button.addEventListener('keydown',e=>{
+        const index=stages.indexOf(s),keys={ArrowRight:(index+1)%stages.length,ArrowDown:(index+1)%stages.length,ArrowLeft:(index+stages.length-1)%stages.length,ArrowUp:(index+stages.length-1)%stages.length,Home:0,End:stages.length-1};
+        if(Object.hasOwn(keys,e.key)){e.preventDefault();stages[keys[e.key]].button.focus();}
+      });
+    }
+    explorer.addEventListener('pointerleave',()=>{if(!panel.contains(doc.activeElement)){preview=stages.find(s=>s.button===doc.activeElement)||null;render();}});
+    explorer.addEventListener('focusout',e=>{if(!explorer.contains(e.relatedTarget)){preview=null;render();}});
+    explorer.addEventListener('keydown',e=>{if(e.key==='Escape'&&(preview||pinned)){e.preventDefault();clear(panel.contains(doc.activeElement));}});
+    reset.addEventListener('click',()=>clear(true));render();
   }
   async function mountShowcase(doc,{fetcher=globalThis.fetch,location=globalThis.location,timeoutMs=10000}={}) {
     const root=doc.getElementById("executive-results");if(!root)return;

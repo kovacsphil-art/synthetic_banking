@@ -10,8 +10,11 @@ class Node {
   replaceChildren(...nodes){this.children=nodes;this._text="";}
   setAttribute(k,v){this.attributes[k]=String(v);}
   addEventListener(k,v){this.events[k]=v;}
-  querySelector(selector){return all(this).find(n=>n.tagName===selector.toUpperCase());}
+  querySelectorAll(selector){return all(this).filter(n=>selector.startsWith('.')?n.className===selector.slice(1):n.tagName===selector.toUpperCase());}
+  querySelector(selector){return this.querySelectorAll(selector)[0];}
   contains(other){return all(this).includes(other);}
+  focus(){this.ownerDocument.activeElement=this;this.events.focus?.();}
+  scrollIntoView(options){this.scrolled=options;}
 }
 function all(n){return [n,...n.children.flatMap(all)];}
 function document(){const d={baseURI:"https://example.invalid/index.html",events:{},addEventListener(k,v){this.events[k]=v;}};d.createElement=t=>new Node(d,t);d.createElementNS=(_,t)=>new Node(d,t);return d;}
@@ -51,12 +54,46 @@ test("cardinality selector draws only published bins and leaves missing distribu
 test("malformed chart values, public labels and headline counts are rejected",()=>{
   for(const mutate of [r=>r.validation_report.numeric[0].label="PRIVATE_VALUE",r=>r.validation_report.numeric[0].percentiles[0].source="PRIVATE_VALUE",r=>r.validation_report.summary.variables_total=999,r=>r.validation_report.numeric[0].status="UNAVAILABLE"]){const r=clone();mutate(r);assert.throws(()=>validation.normalizeValidation(r),/Invalid/);}
 });
-test("pipeline supports focus, first tap, second tap, Escape and outside dismissal",()=>{
-  const doc=document(),stages=Array.from({length:7},()=>{const s=new Node(doc,"li");s.append(new Node(doc,"button"));return s;});doc.querySelectorAll=()=>stages;setupPipeline(doc);
-  const stage=stages[2],button=stage.children[0];doc.activeElement=button;button.events.focus();assert.equal(button.attributes["aria-expanded"],"true");
-  button.events.click();assert.equal(button.attributes["aria-expanded"],"true");button.events.click();assert.equal(button.attributes["aria-expanded"],"false");
-  button.events.focus();doc.events.keydown({key:"Escape"});assert.equal(button.attributes["aria-expanded"],"false");
-  button.events.click();assert.equal(button.attributes["aria-expanded"],"true");doc.events.click({target:new Node(doc,"p")});assert.equal(button.attributes["aria-expanded"],"false");
+function pipeline(isMobile=false){
+  const doc=document(),ids={},make=(id,tag='div')=>{const node=new Node(doc,tag);ids[id]=node;return node;};
+  const explorer=make('pipeline-explorer'),panel=make('pipeline-detail'),overview=make('pipeline-overview'),status=make('pipeline-status','p'),reset=make('pipeline-reset','button');
+  const stages=Array.from({length:7},(_,i)=>{const stage=new Node(doc,'li');stage.className='pipeline-stage';stage.dataset.detail='detail-'+i;stage.dataset.title='Stage '+i;
+    const button=new Node(doc,'button'),more=new Node(doc,'span');more.className='stage-more';stage.append(button,more);explorer.append(stage);panel.append(make('detail-'+i,'article'));return {stage,button,more,detail:ids['detail-'+i]};});
+  panel.append(status,reset,overview);explorer.append(panel);doc.getElementById=id=>ids[id];setupPipeline(doc,{isMobile:()=>isMobile});
+  return {doc,explorer,panel,overview,status,reset,stages};
+}
+test('hover previews one stage without moving the page; leaving restores the overview',()=>{
+  const p=pipeline(),s=p.stages[2];assert.equal(p.overview.hidden,false);assert.ok(p.stages.every(s=>s.detail.hidden));
+  s.stage.events.pointerenter({pointerType:'mouse'});assert.equal(s.button.attributes['aria-expanded'],'true');assert.equal(s.detail.hidden,false);assert.equal(p.overview.hidden,true);assert.match(p.status.textContent,/Preview/);
+  assert.equal(p.panel.scrolled,undefined);p.explorer.events.pointerleave();assert.equal(s.detail.hidden,true);assert.equal(p.overview.hidden,false);
+});
+test('click keeps a stage selected through pointer leave and outside focus; second click clears',()=>{
+  const p=pipeline(),s=p.stages[2];s.button.focus();s.button.events.click();assert.equal(s.more.textContent,'Selected');
+  p.explorer.events.pointerleave();assert.equal(s.detail.hidden,false);p.explorer.events.focusout({relatedTarget:new Node(p.doc,'p')});assert.equal(s.detail.hidden,false);
+  const other=p.stages[4];other.stage.events.pointerenter({pointerType:'mouse'});assert.equal(other.detail.hidden,false);assert.equal(s.detail.hidden,true);
+  p.explorer.events.pointerleave();assert.equal(s.detail.hidden,false);assert.equal(other.detail.hidden,true);
+  s.button.events.click();assert.equal(p.overview.hidden,false);assert.ok(p.stages.every(s=>s.button.attributes['aria-expanded']==='false'));
+});
+test('keyboard previews, arrows, Home/End, Escape and Back to stages keep focus predictable',()=>{
+  const p=pipeline(),s=p.stages[2];s.button.focus();assert.equal(s.detail.hidden,false);
+  const key=k=>({key:k,preventDefault(){this.prevented=true;}});
+  s.button.events.keydown(key('ArrowRight'));assert.equal(p.doc.activeElement,p.stages[3].button);
+  p.stages[3].button.events.keydown(key('End'));assert.equal(p.doc.activeElement,p.stages[6].button);
+  p.stages[6].button.events.keydown(key('Home'));assert.equal(p.doc.activeElement,p.stages[0].button);
+  p.explorer.events.keydown(key('Escape'));assert.equal(p.overview.hidden,false);assert.equal(p.doc.activeElement,p.stages[0].button);
+  s.button.focus();s.button.events.click();p.reset.focus();p.reset.events.click();assert.equal(p.doc.activeElement,s.button);assert.equal(s.detail.hidden,true);assert.equal(p.reset.hidden,true);
+});
+test('touch has no hover dependency; selecting scrolls to details and leaves all seven stages available',()=>{
+  const p=pipeline(true),s=p.stages[4];s.stage.events.pointerenter({pointerType:'touch'});assert.equal(p.overview.hidden,false);
+  s.button.events.click();assert.equal(s.detail.hidden,false);assert.deepEqual(p.panel.scrolled,{block:'nearest',behavior:'auto'});
+  assert.equal(p.stages.length,7);assert.ok(p.stages.every(s=>!s.stage.hidden&&!s.button.disabled));
+  s.button.events.click();assert.equal(p.overview.hidden,false);
+});
+test('pipeline content supplies four business-facing facts for every existing stage',()=>{
+  const html=fs.readFileSync(require.resolve('../docs/index.html'),'utf8'),section=html.split('id="pipeline-explorer"')[1].split('<section id="evidence"')[0];
+  assert.equal((section.match(/class="stage-detail"/g)||[]).length,7);assert.doesNotMatch(section,/role="tooltip"/);
+  for(const label of ['Purpose','Inputs','Outputs','Business value'])assert.equal((section.match(new RegExp('<dt>'+label+'</dt>','g'))||[]).length,7);
+  for(const id of ['source','profile','ai','review','generate','validate','report'])assert.match(section,new RegExp('aria-controls="stage-'+id+'"'));
 });
 test("overview loads real aggregate fields and fails safely without exposing payloads",async()=>{
   const doc=document(),ids={};for(const name of ["executive-results","hero-status","distribution-preview","hero-customers","hero-accounts","hero-rules"])ids[name]=new Node(doc,"div");doc.getElementById=id=>ids[id];

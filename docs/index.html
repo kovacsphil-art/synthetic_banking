@@ -4,10 +4,10 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="SAGE: AI-assisted synthetic banking data, controlled by review and tested against measured source statistics.">
 <meta name="theme-color" content="#c8102e"><title>SAGE — Synthetic data. Measured confidence.</title>
-<link rel="stylesheet" href="styles.css?v=downloads-1">
+<link rel="stylesheet" href="styles.css?v=pipeline-2">
 <script src="records-config.js?v=records-4" defer></script><script src="records.js?v=downloads-1" defer></script>
   <script src="downloads.js?v=downloads-3" defer></script>
-<script src="validation-config.js?v=post-pilot-2" defer></script><script src="executive-viz.js?v=post-pilot-2" defer></script><script src="results.js?v=post-pilot-2" defer></script><script src="validation.js?v=post-pilot-2" defer></script><script src="showcase.js?v=post-pilot-2" defer></script>
+<script src="validation-config.js?v=post-pilot-2" defer></script><script src="executive-viz.js?v=post-pilot-2" defer></script><script src="results.js?v=post-pilot-2" defer></script><script src="validation.js?v=post-pilot-2" defer></script><script src="showcase.js?v=pipeline-2" defer></script>
 </head>
 <body class="exec-page">
 <a class="skip-link" href="#main">Skip to content</a>
@@ -22,16 +22,66 @@
 </section>
 <section id="process" class="exec-section section-soft"><div class="container">
 <div class="exec-heading"><p class="eyebrow">01 / The process · Methodology</p><h2>One connected process.<br>Control at every handoff.</h2><p>Measure first, review AI proposals, generate new records, then compare the result with the same original baseline.</p></div>
-<p class="pipeline-help">Explore a stage: hover, focus with Tab, or tap. Press Escape to dismiss its explanation.</p>
-<ol class="exec-pipeline">
-<li class="pipeline-stage"><button type="button" aria-describedby="stage-source" aria-expanded="false"><span class="stage-number">01</span><strong>Source Data</strong><span>Establish the baseline</span><span class="stage-more">Explore +</span></button><div id="stage-source" class="stage-tip" role="tooltip">The selected original tables establish one completed baseline. Their statistical profile anchors every later comparison.</div></li>
-<li class="pipeline-stage"><button type="button" aria-describedby="stage-profile" aria-expanded="false"><span class="stage-number">02</span><strong>Statistical Profiling</strong><span>Measure the structure</span><span class="stage-more">Explore +</span></button><div id="stage-profile" class="stage-tip" role="tooltip">Original records are summarized into distributions, missingness and relationships. These aggregates guide generation without copying records.</div></li>
-<li class="pipeline-stage stage-accent"><button type="button" aria-describedby="stage-ai" aria-expanded="false"><span class="stage-number">03</span><strong>AI Dependency Discovery</strong><span>Propose relationships</span><span class="stage-more">Explore +</span></button><div id="stage-ai" class="stage-tip" role="tooltip">The AI model receives aggregate evidence and proposes relationships worth preserving. Row-level banking records are not supplied to it.</div></li>
-<li class="pipeline-stage stage-accent"><button type="button" aria-describedby="stage-review" aria-expanded="false"><span class="stage-number">04</span><strong>Controlled Rule Review</strong><span>Approve known logic</span><span class="stage-more">Explore +</span></button><div id="stage-review" class="stage-tip" role="tooltip">A reviewer approves individual proposals. Only eligible approvals with a matching predefined implementation can affect generation; unsupported proposals are skipped.</div></li>
-<li class="pipeline-stage"><button type="button" aria-describedby="stage-generate" aria-expanded="false"><span class="stage-number">05</span><strong>Synthetic Generation</strong><span>Create a new population</span><span class="stage-more">Explore +</span></button><div id="stage-generate" class="stage-tip" role="tooltip">Measured profiles and eligible reviewed rules guide new identifiers and linked records. An execution audit records which proposals actually affected the dataset.</div></li>
-<li class="pipeline-stage"><button type="button" aria-describedby="stage-validate" aria-expanded="false"><span class="stage-number">06</span><strong>Validation</strong><span>Expose strengths &amp; gaps</span><span class="stage-more">Explore +</span></button><div id="stage-validate" class="stage-tip" role="tooltip">Generated records are re-profiled and compared with the pinned original baseline. Structural checks and separate privacy screens distinguish fidelity from release suitability.</div></li>
-<li class="pipeline-stage"><button type="button" aria-describedby="stage-report" aria-expanded="false"><span class="stage-number">07</span><strong>Reporting</strong><span>Publish safe aggregates</span><span class="stage-more">Explore +</span></button><div id="stage-report" class="stage-tip" role="tooltip">A successfully validated execution produces a sanitized aggregate report for this site. Failed runs retain the last valid public report. A separate, explicitly enabled DEMO_ONLY gate can publish verified fabricated records as versioned downloads; the preview uses only a small selection.</div></li>
-</ol></div></section>
+<div id="pipeline-explorer" class="pipeline-explorer">
+<p id="pipeline-help" class="pipeline-help">Hover or focus to preview. Click or tap to keep a stage selected. Use Tab or arrow keys to explore; Escape to reset.</p>
+<ol class="exec-pipeline" aria-label="SAGE pipeline stages" aria-describedby="pipeline-help">
+<li class="pipeline-stage" data-detail="stage-source" data-title="Source Data"><button id="stage-source-button" type="button" aria-controls="stage-source" aria-expanded="false" disabled><span class="stage-number">01</span><strong>Source Data</strong><span class="stage-summary">Establish the baseline</span><span class="stage-more" aria-hidden="true">Explore</span></button></li>
+<li class="pipeline-stage" data-detail="stage-profile" data-title="Statistical Profiling"><button id="stage-profile-button" type="button" aria-controls="stage-profile" aria-expanded="false" disabled><span class="stage-number">02</span><strong>Statistical Profiling</strong><span class="stage-summary">Measure the structure</span><span class="stage-more" aria-hidden="true">Explore</span></button></li>
+<li class="pipeline-stage stage-accent" data-detail="stage-ai" data-title="AI Dependency Discovery"><button id="stage-ai-button" type="button" aria-controls="stage-ai" aria-expanded="false" disabled><span class="stage-number">03</span><strong>AI Dependency Discovery</strong><span class="stage-summary">Propose relationships</span><span class="stage-more" aria-hidden="true">Explore</span></button></li>
+<li class="pipeline-stage stage-accent" data-detail="stage-review" data-title="Controlled Rule Review"><button id="stage-review-button" type="button" aria-controls="stage-review" aria-expanded="false" disabled><span class="stage-number">04</span><strong>Controlled Rule Review</strong><span class="stage-summary">Approve known logic</span><span class="stage-more" aria-hidden="true">Explore</span></button></li>
+<li class="pipeline-stage" data-detail="stage-generate" data-title="Synthetic Generation"><button id="stage-generate-button" type="button" aria-controls="stage-generate" aria-expanded="false" disabled><span class="stage-number">05</span><strong>Synthetic Generation</strong><span class="stage-summary">Create a new population</span><span class="stage-more" aria-hidden="true">Explore</span></button></li>
+<li class="pipeline-stage" data-detail="stage-validate" data-title="Validation"><button id="stage-validate-button" type="button" aria-controls="stage-validate" aria-expanded="false" disabled><span class="stage-number">06</span><strong>Validation</strong><span class="stage-summary">Expose strengths &amp; gaps</span><span class="stage-more" aria-hidden="true">Explore</span></button></li>
+<li class="pipeline-stage" data-detail="stage-report" data-title="Reporting"><button id="stage-report-button" type="button" aria-controls="stage-report" aria-expanded="false" disabled><span class="stage-number">07</span><strong>Reporting</strong><span class="stage-summary">Publish safe aggregates</span><span class="stage-more" aria-hidden="true">Explore</span></button></li>
+</ol>
+<div id="pipeline-detail" class="pipeline-detail" role="region" aria-label="Pipeline stage briefing">
+<div class="pipeline-detail-toolbar"><p id="pipeline-status" class="pipeline-status" role="status" aria-live="polite" aria-atomic="true">The complete process · Explore any stage</p><button id="pipeline-reset" class="pipeline-reset" type="button" hidden>Back to stages</button></div>
+<div id="pipeline-overview" class="pipeline-overview"><h3>From evidence to a population you can assess.</h3><p>Each stage has a clear handoff. Explore its purpose, what it receives, what it produces and why it matters.</p><p class="pipeline-takeaway">Measured evidence guides generation. Human review controls dependencies. Validation makes the result visible.</p></div>
+<article id="stage-source" class="stage-detail" aria-labelledby="stage-source-title" hidden><h3 id="stage-source-title">Source Data</h3><dl class="stage-facts">
+<div><dt>Purpose</dt><dd>Establish the original population that SAGE aims to reproduce.</dd></div>
+<div><dt>Inputs</dt><dd>The six linked tables of fabricated development records.</dd></div>
+<div><dt>Outputs</dt><dd>One agreed SOURCE baseline for measurement and comparison.</dd></div>
+<div><dt>Business value</dt><dd>Keeps every result anchored to the same reference population.</dd></div>
+</dl></article>
+<article id="stage-profile" class="stage-detail" aria-labelledby="stage-profile-title" hidden><h3 id="stage-profile-title">Statistical Profiling</h3><dl class="stage-facts">
+<div><dt>Purpose</dt><dd>Measure the patterns a useful synthetic population should preserve.</dd></div>
+<div><dt>Inputs</dt><dd>The selected SOURCE baseline.</dd></div>
+<div><dt>Outputs</dt><dd>Summaries of distributions, missingness, dates and relationships.</dd></div>
+<div><dt>Business value</dt><dd>Turns a complex population into measurable generation targets.</dd></div>
+</dl></article>
+<article id="stage-ai" class="stage-detail" aria-labelledby="stage-ai-title" hidden><h3 id="stage-ai-title">AI Dependency Discovery</h3><dl class="stage-facts">
+<div><dt>Purpose</dt><dd>Identify candidate relationships that may need to be generated together.</dd></div>
+<div><dt>Inputs</dt><dd>Aggregate statistical evidence, without individual banking records.</dd></div>
+<div><dt>Outputs</dt><dd>Dependency proposals for human review.</dd></div>
+<div><dt>Business value</dt><dd>Helps prioritize relationships that independent sampling could miss.</dd></div>
+</dl></article>
+<article id="stage-review" class="stage-detail" aria-labelledby="stage-review-title" hidden><h3 id="stage-review-title">Controlled Rule Review</h3><dl class="stage-facts">
+<div><dt>Purpose</dt><dd>Decide which proposed dependencies are suitable for controlled use.</dd></div>
+<div><dt>Inputs</dt><dd>Candidate proposals and their supporting measured evidence.</dd></div>
+<div><dt>Outputs</dt><dd>Reviewed decisions. Supported approvals may influence generation through predefined logic.</dd></div>
+<div><dt>Business value</dt><dd>Maintains human accountability. Approval alone does not mean a rule was applied.</dd></div>
+</dl></article>
+<article id="stage-generate" class="stage-detail" aria-labelledby="stage-generate-title" hidden><h3 id="stage-generate-title">Synthetic Generation</h3><dl class="stage-facts">
+<div><dt>Purpose</dt><dd>Create a new, linked population with its own synthetic identifiers.</dd></div>
+<div><dt>Inputs</dt><dd>The SOURCE statistical profile and eligible reviewed dependencies.</dd></div>
+<div><dt>Outputs</dt><dd>Six related synthetic tables and a record of applied rules.</dd></div>
+<div><dt>Business value</dt><dd>Provides consistent data for demonstration, testing and analysis while preserving measured patterns.</dd></div>
+</dl></article>
+<article id="stage-validate" class="stage-detail" aria-labelledby="stage-validate-title" hidden><h3 id="stage-validate-title">Validation</h3><dl class="stage-facts">
+<div><dt>Purpose</dt><dd>Assess how closely the new population matches the original baseline.</dd></div>
+<div><dt>Inputs</dt><dd>The generated cohort and the same SOURCE reference.</dd></div>
+<div><dt>Outputs</dt><dd>Measured strengths, discrepancies, structural checks and a separate privacy assessment.</dd></div>
+<div><dt>Business value</dt><dd>Makes limitations visible before stakeholders decide how the data can be used.</dd></div>
+</dl></article>
+<article id="stage-report" class="stage-detail" aria-labelledby="stage-report-title" hidden><h3 id="stage-report-title">Reporting</h3><dl class="stage-facts">
+<div><dt>Purpose</dt><dd>Make the evidence accessible to stakeholders.</dd></div>
+<div><dt>Inputs</dt><dd>Validated comparisons and separate demo-export verification.</dd></div>
+<div><dt>Outputs</dt><dd>An aggregate Validation Report; verified DEMO_ONLY previews and downloads when enabled.</dd></div>
+<div><dt>Business value</dt><dd>Supports informed review while keeping unverified datasets out of public distribution.</dd></div>
+</dl></article>
+</div>
+<noscript><p class="pipeline-help">Interactive stage details need JavaScript. The complete process and methodology remain visible on this page.</p></noscript>
+</div>
+</div></section>
 <section id="evidence" class="container exec-section">
 <div class="exec-heading"><p class="eyebrow">02 / Statistical profiling</p><h2>The original is a statistical reference,<br>not a set of records to copy.</h2><p>SAGE measures the characteristics that a useful synthetic population should reproduce, then tests how closely generation carries them through.</p></div>
 <ul class="profile-characteristics"><li>Distributions</li><li>Category proportions</li><li>Missingness</li><li>Relationships</li><li>Records per entity</li><li>Temporal patterns</li></ul>
