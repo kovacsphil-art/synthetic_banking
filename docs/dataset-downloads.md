@@ -2,11 +2,11 @@
 
 The overview provides one complete-ZIP control, six individual CSV controls, and a dictionary control. File sizes, table descriptions and full record counts come from a **verified DEMO_ONLY export**, independently from the aggregate Validation Report. The disclaimer identifies illustrative synthetic records derived from fabricated development inputs, not actual customers or production-representative banking data.
 
-**Current state: verified export, UNPUBLISHED.** The prepared manifest describes `sage-demo-v1.1`: 93,059 records, a 9,631,148-byte ZIP and a 23,548-byte dictionary. All buttons are disabled because no files have been published for this feature. No Release was created, no assets uploaded, and no Git push or Pages deployment performed. Privacy remains REVIEW_REQUIRED. General privacy clearance and production-data release guards are unchanged.
+**Current state: verified DEMO_ONLY export, PUBLISHED.** The [live showcase](https://kovacsphil-art.github.io/synthetic_banking/#download-dataset) offers all six CSVs, a 9,631,178-byte ZIP and a 23,580-byte dictionary for `sage-demo-v23531186251808934832001379991`. Its 93,059 records include 10,000 customers and 17,313 accounts. Public downloads, checksums, all preview values and cross-table references were verified: zero orphans and 100% account/balance snapshot coverage. Privacy remains REVIEW_REQUIRED; general production-data release guards are unchanged.
 
 ## Automated workflow
 
-The main job can now prepare these same files automatically after validation, and GitHub Actions can publish a completely verified draft Release when both explicit opt-ins are enabled. The current local artifacts remain unpublished. See [enable/trigger, lineage and independent disable controls](automated-demo-publication.md). The manual preparation below remains available.
+The main job can now prepare these same files automatically after validation, and GitHub Actions can publish a completely verified draft Release when both explicit opt-ins are enabled. The first nine-task integration and public Release/Pages deployment have completed successfully. See [enable/trigger, lineage and independent disable controls](automated-demo-publication.md). The manual preparation below remains available.
 
 ## How links are resolved
 

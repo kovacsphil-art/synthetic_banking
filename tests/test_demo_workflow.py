@@ -14,6 +14,8 @@ from scripts.publish_showcase import ROOT, retrieve_demo
 
 def fixture(folder):
     manifest=json.loads((ROOT/'docs/dataset-downloads.json').read_text())
+    manifest.update(publication_status='UNPUBLISHED',publication_checked_at=None)
+    manifest.pop('download_urls',None)
     preview=b'{"fabricated_test_only":true}\n'
     manifest['preview_sha256']=hashlib.sha256(preview).hexdigest()
     (folder/'demo-preview.json').write_bytes(preview)

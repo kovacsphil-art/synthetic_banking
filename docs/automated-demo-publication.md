@@ -1,5 +1,15 @@
 # Automated fabricated demo exports
 
+**Live integration verified.** All nine Databricks tasks succeeded using the reviewed fabricated SOURCE/batch. [GitHub Actions publication](https://github.com/kovacsphil-art/synthetic_banking/actions/runs/44859302829) published the complete [versioned Release](https://github.com/kovacsphil-art/synthetic_banking/releases/tag/sage-demo-v23531186251808934832001379991) and deployed [Pages downloads](https://kovacsphil-art.github.io/synthetic_banking/#download-dataset).
+
+- All six public CSVs, ZIP and dictionary returned successfully and matched checksums.
+- Counts: PERSON 10,000; CUSTOMER_ACCOUNT_REL 17,313; CUSTOMER_RELATIONSHIP 1,120; TKQ_ACCOUNT 17,313; TKQ_ACCOUNT_BALANCE 17,313; TRADELINES 30,000.
+- Every preview cell matched its CSV; all references were valid and account/balance snapshot coverage was 100%.
+- Privacy remained REVIEW_REQUIRED. Generation and standard privacy/Validation Report code were unchanged.
+- The [incomplete-run guard check](https://github.com/kovacsphil-art/synthetic_banking/actions/runs/44858023691) failed intentionally before publication and left the previous Pages deployment unchanged. A real draft-URL upload failure also skipped deployment; repair reused the same verified assets. No partial dataset became public.
+
+The GitHub publication variable is enabled and existing secrets/permissions are sufficient. For future demo cohorts, select `demo_release_mode=DEMO_ONLY` and complete ordinary rule review; no manual Release upload is required. Keep DISABLED for aggregate-only runs. Rotate the existing Databricks OAuth secret before expiry.
+
 The main job now has **nine tasks**. Existing modeling, approval, privacy and fidelity logic is unchanged:
 
 ```text
@@ -63,13 +73,13 @@ After Release verification, Actions writes the eight canonical HTTPS asset links
 ## Failure, repair and disable controls
 
 - Failed validation, replay, export, copies or reporting leaves the job unsuccessful; Actions cannot select it. Existing public Downloads and Pages remain intact.
-- Failed/partial uploads stay in a private draft; no new manifest is committed or site deployed. Retry resumes matching uploaded assets. A conflicting/starter/changed asset requires investigation; no automatic overwrite or deletion is attempted.
+- Failed/partial uploads stay in a private draft; no new manifest is committed or site deployed. Retry resumes matching uploaded assets. GitHub may use private `untagged-…` URLs and omit drafts from lookup by tag until publication. The publisher finds the exact draft by repository listing and still verifies all names, sizes and SHA-256 digests; final public URLs must be canonical. A conflicting/starter/changed asset requires investigation; no automatic overwrite or deletion is attempted.
 - A failure after a complete Release becomes public but before Git push/Pages can leave a **complete verified new Release** without a new site. The previous site remains intact; rerun Actions to reuse that Release and finish. Public Release creation and Pages deployment are not one atomic transaction.
 - Set **`demo_release_mode=DISABLED`** to skip new export work while continuing profiling, generation, privacy, validation and reporting.
 - Set **`SAGE_PUBLISH_DEMO_DATASETS=false`** (or remove it) to stop dataset retrieval/uploads and omit demo preview/download metadata from subsequent Pages builds. Aggregate reporting/publication continues. A successful aggregate-only run also omits these files. This intentional disable differs from a failed attempt, which leaves the prior deployment unchanged.
 - These switches do not delete or revoke existing public Releases, tags or cached downloads. To withdraw already public files, manage those Releases explicitly and redeploy the disabled site. Public bytes already downloaded cannot be recalled.
 
-No running job or GitHub setting is changed automatically by editing this repository. Deploy/configure explicitly, then test one opt-in run and one disabled run. Existing eight-task successful executions remain readable for aggregate publication during migration, but cannot qualify a demo export.
+Editing repository files alone does not deploy Databricks settings. The initial deployment and opt-in publication above are complete; redeploy explicitly after workflow/module changes and test both opt-in and disabled paths. Existing eight-task successful executions remain readable for aggregate publication during migration, but cannot qualify a demo export.
 
 ## Required GitHub permissions
 
