@@ -8,7 +8,7 @@ SAGE is a Databricks prototype that measures a **fabricated development populati
 
 ## 1. Prerequisites and configuration
 
-Keep the complete project together: `notebooks/`, `src/`, `scripts/`, `docs/`, `resources/` and `databricks.yml`. Git is optional for interactive notebooks; upload the same folder structure if needed. The bundle deploys workspace files and notebook/module discovery finds the sibling `src/` directory; no Python package build is required.
+Keep the complete project together: `notebooks/`, `src/`, `scripts/`, `schemas/`, `docs/`, `resources/` and `databricks.yml`. Git is optional for interactive notebooks; upload the same folder structure if needed. The bundle deploys workspace files and notebook/module discovery finds the sibling `src/` directory; no Python package build is required.
 
 | Where | Required |
 | --- | --- |
@@ -17,7 +17,7 @@ Keep the complete project together: `notebooks/`, `src/`, `scripts/`, `docs/`, `
 | Local development | Python 3.10+ (3.12 matches publication CI), SQLite 3.39+ for all SQL-adapter tests, Node.js 18+ (22 matches CI), `requirements-dev.txt` |
 | Deployment only | Current Databricks CLI with bundle support and workspace authentication. Python's legacy `databricks-cli` package is not the bundle CLI. |
 | GitHub publisher | Actions installs `databricks-sdk==0.72.0`, `jsonschema==4.23.0` and Node 22 itself; these transport credentials/libraries are not needed by interactive notebooks. |
-| Fabricated inputs | Separately supplied **schema-only** `RCAR_source_column_list.xlsx`; it is not included in Git. Six table sheets must have the exact `Source Column` / `Data type` headings expected by the existing fake-record script. Do not upload customer records. |
+| Fabricated inputs | Bundled **schema-only** [RCAR_source_column_list.xlsx](../schemas/RCAR_source_column_list.xlsx), reconstructed from the reviewed demo policy. Upload it to the input Volume. Its six table sheets have the exact `Source Column` / `Data type` headings expected by the unchanged fake-record script. Do not add customer records or extra sheets. |
 
 Configure once, before starting fresh notebook sessions:
 
@@ -59,7 +59,7 @@ CREATE VOLUME IF NOT EXISTS workspace.default.showcase_reports;
 
 Use your configured catalog/schema instead when different, and grant the scoped permissions above. These commands provision storage; they neither upload a workbook nor establish fabricated provenance.
 
-1. Provision the development input Volume and upload the schema-only workbook to `SOURCE_DIR/RCAR_source_column_list.xlsx`. Obtain the reviewed workbook from the project owner; a new installation cannot recreate the approved demo schema from this repository alone.
+1. Provision the development input Volume and upload the bundled [schemas/RCAR_source_column_list.xlsx](../schemas/RCAR_source_column_list.xlsx) to `SOURCE_DIR/RCAR_source_column_list.xlsx` (default `/Volumes/workspace/default/scotia/RCAR_source_column_list.xlsx`). It contains 219 field-name/type pairs across six sheets, with no customer records. The generated-only `_UTILIZATION_RATE` helper is omitted. See [schema provenance and format](../schemas/README.md). This supplies the development schema; existing SOURCE runs still require the unchanged exact-replay checks.
 2. Open **`notebooks/00_Create_Fabricated_SOURCE.py` in Databricks** and run from the top. It calls the unchanged `scripts/Scotia Fake Records.py` with the policy's population/seed and config's directory, validates its links, and writes six Parquet files. It reports counts only. This replaces same-named files; keep the Volume dedicated to this baseline.
 3. Confirm these files exist (Notebook 01 also fails early if any is missing):
 
@@ -176,7 +176,7 @@ To preview the dynamic website locally, serve **only docs/**: `.\.venv\Scripts\p
 | Missing numpy/pandas/jsonschema, skipped tests | Install `requirements-dev.txt` into that interpreter; run `pip check` and setup check. Node is separate. Do not install a local pyspark package to imitate Databricks. |
 | `Keep notebooks/, src/ ... together` / ModuleNotFoundError | Upload/deploy the complete project, not isolated notebooks. Start from top after module/config edits; restart Python to clear cached imports. |
 | SOURCE preflight missing files / cannot list directory | Check config's SOURCE_DIR, six exact filenames and run-as READ VOLUME. Create/upload fabricated inputs first; never substitute generated tables as SOURCE. |
-| Workbook missing / sheet or column KeyError | Obtain the schema-only workbook from project owner; use exact six logical table sheets and two expected headings. No workbook is bundled. |
+| Workbook missing / sheet or column KeyError | Upload the bundled `schemas/RCAR_source_column_list.xlsx` to `SOURCE_DIR`; retain its six logical table sheets and `Source Column` / `Data type` headings. The local Git path is not the Databricks Volume path. |
 | Permission denied / schema not found / replacement denied | Check job run-as identity, catalog managed storage, precreated staging schema/Volumes, USE privileges and object ownership. A CLI deployment grant does not grant data access. |
 | `ai_query` unavailable / endpoint permission error | Check chosen compute, regional availability, MODEL_ENDPOINT and query/EXECUTE access with admin. Do not put row records in prompts as a workaround. |
 | Bundle requires cluster_id | Use `-t free` for serverless or configure `BUNDLE_VAR_cluster_id` with `-t dev`. Never print authentication config. |
@@ -192,3 +192,5 @@ To preview the dynamic website locally, serve **only docs/**: `.\.venv\Scripts\p
 Local tests cannot establish these. In a dedicated Databricks test destination, verify: workbook/input creation; SOURCE completion with saved snapshots; actual model response/proposal storage; individual review and repair; same-ID handoffs; six Delta writes and audits; GENERATED completion; integrity/fidelity/privacy outputs; reporting Volume receipt; optional replay/ZIP/preview verification; and Pages retrieval/deployment with repository secrets. Confirm a rejected/incomplete run cannot replace the last public report. Do not start a smoke test against shared live output tables.
 
 **Setup verification — November 21, 2026:** a fresh isolated Windows Python 3.12.14 environment installed the local requirements (NumPy 2.5.5, pandas 3.1.1, PyArrow 26.0.1, openpyxl 3.1.5, jsonschema 4.23.0). `pip check`, the setup checker, all 264 Python tests and 87 frontend tests passed with no skipped tests. A temporary schema-only fabricated workbook exercised the new setup wrapper and all six Parquet outputs, including link validation; temporary records were removed. Read-only bundle validation of target `free` also passed using existing authentication. No job was deployed/run and no live table or publication was changed during this setup review. A new installation still needs the authenticated acceptance checklist above.
+
+**Bundled schema verification — November 27, 2026:** the supplied six-sheet workbook matches all 219 reviewed SOURCE field definitions and contains no formulas, macros or external links. The existing setup wrapper used that shipped workbook to create all six temporary fabricated Parquet inputs and validate their relationships. The setup checker, 273 Python tests and 101 frontend tests passed. This removes the separate workbook handoff; live Databricks/Volume execution was not rerun, and existing pinned generations still require exact replay.

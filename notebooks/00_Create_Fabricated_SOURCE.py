@@ -3,7 +3,8 @@
 # MAGIC # Create the fabricated development baseline (one-time setup)
 # MAGIC Run in a dedicated development Volume before the pipeline. This overwrites
 # MAGIC the six RCAR_synthetic_*.parquet files in config.py's SOURCE_DIR. Upload the
-# MAGIC schema-only RCAR_source_column_list.xlsx workbook there first. It is not in Git.
+# MAGIC schema-only schemas/RCAR_source_column_list.xlsx workbook there first.
+# MAGIC The bundled workbook contains field names/types only, not customer records.
 # MAGIC This calls the existing reviewed generator with its policy seed/population;
 # MAGIC it does not profile data or authorize public distribution. See docs/setup.md.
 

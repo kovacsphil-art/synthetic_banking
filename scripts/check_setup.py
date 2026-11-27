@@ -17,6 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 PACKAGES = ("numpy", "pandas", "openpyxl", "pyarrow", "jsonschema")
 REQUIRED = (
     "README.md", "requirements-dev.txt", "docs/setup.md", "notebooks/00_Create_Fabricated_SOURCE.py",
+    "schemas/RCAR_source_column_list.xlsx",
     "src/synthetic_banking/config.py", "src/synthetic_banking/demo_export_policy.json",
     "scripts/Scotia Fake Records.py", "databricks.yml",
     "resources/synthetic_pipeline.job.yml", "resources/demo_dataset_export.job.yml",

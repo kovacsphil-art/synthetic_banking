@@ -10,6 +10,7 @@ import shutil
 from tempfile import TemporaryDirectory
 import unittest
 from unittest.mock import patch
+from zipfile import ZipFile
 
 from scripts.check_setup import ROOT, REQUIRED, check_layout, check_notebooks, check_demo_generator, check_packages, check_node
 
@@ -65,6 +66,27 @@ class SetupTests(unittest.TestCase):
         with patch("scripts.check_setup.shutil.which", return_value=None):
             self.assertFalse(check_node().passed)
 
+    @unittest.skipUnless(importlib.util.find_spec("openpyxl"), "Install requirements-dev.txt for workbook checks")
+    def test_bundled_workbook_is_schema_only_and_matches_reviewed_policy(self):
+        from openpyxl import load_workbook
+        policy = json.loads((ROOT / "src/synthetic_banking/demo_export_policy.json").read_text())
+        path = ROOT / "schemas/RCAR_source_column_list.xlsx"
+        workbook = load_workbook(path, read_only=True, data_only=False)
+        try:
+            self.assertEqual(set(workbook.sheetnames), set(policy["columns"]))
+            for sheet in workbook:
+                rows = list(sheet.iter_rows(values_only=True))
+                expected = [(column, data_type) for column, data_type in policy["columns"][sheet.title].items()
+                            if column != "_UTILIZATION_RATE"]
+                self.assertEqual(rows, [("Source Column", "Data type"), *expected])
+                self.assertTrue(all(cell.data_type != "f" for row in sheet for cell in row))
+                self.assertEqual(sheet.sheet_state, "visible")
+        finally:
+            workbook.close()
+        with ZipFile(path) as archive:
+            self.assertFalse(any("externallinks/" in name.lower() or "vbaproject" in name.lower()
+                                 for name in archive.namelist()))
+
     @unittest.skipUnless(all(importlib.util.find_spec(n) for n in ("pandas", "openpyxl", "pyarrow")),
                          "Install requirements-dev.txt for the fabricated setup smoke test")
     def test_source_setup_wrapper_writes_six_linked_fabricated_inputs_at_configured_path(self):
@@ -72,13 +94,8 @@ class SetupTests(unittest.TestCase):
         policy = json.loads((ROOT / "src/synthetic_banking/demo_export_policy.json").read_text())
         with TemporaryDirectory() as directory:
             workbook = Path(directory) / "RCAR_source_column_list.xlsx"
-            # Schema-only temporary workbook: no real source workbook or rows.
-            with pd.ExcelWriter(workbook, engine="openpyxl") as writer:
-                for table, columns in policy["columns"].items():
-                    columns = {c: t for c, t in columns.items() if c != "_UTILIZATION_RATE"}
-                    pd.DataFrame({"Source Column": list(columns), "Data type": list(columns.values())}).to_excel(
-                        writer, sheet_name=table, index=False,
-                    )
+            # Exercise the shipped schema, not a separately reconstructed test workbook.
+            shutil.copyfile(ROOT / "schemas/RCAR_source_column_list.xlsx", workbook)
             output = StringIO()
             with patch("synthetic_banking.config.SOURCE_DIR", directory), redirect_stdout(output):
                 result = runpy.run_path(str(ROOT / "notebooks/00_Create_Fabricated_SOURCE.py"))

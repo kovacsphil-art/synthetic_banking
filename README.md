@@ -29,7 +29,7 @@ The [null-rate audit](docs/null-rate-audit.md) now separates trivial exact-zero 
 **Start with the [first-time setup guide](docs/setup.md)** for prerequisites, scoped permissions, configuration, fabricated inputs, automated execution, review/repair, output locations and troubleshooting. Stakeholders can view the published showcase without installing anything.
 
 1. Configure `src/synthetic_banking/config.py`, compute and development Volumes; keep the complete project folders together.
-2. Supply the separate schema-only workbook; run [00_Create_Fabricated_SOURCE.py](notebooks/00_Create_Fabricated_SOURCE.py) once to create the six initial fake Parquet inputs.
+2. Upload the bundled [schema-only workbook](schemas/RCAR_source_column_list.xlsx) to `SOURCE_DIR`; run [00_Create_Fabricated_SOURCE.py](notebooks/00_Create_Fabricated_SOURCE.py) once to create the six initial fake Parquet inputs.
 3. Deploy the bundle and start `synthetic_pipeline`. Its first tasks run Notebook 01 as SOURCE, then Notebook 02 for that exact SOURCE run.
 4. Review each proposal in the stopped batch. Approve or reject individually, then repair from `approval_check` through downstream tasks. No automatic approval.
 5. The job generates six Delta tables, screens privacy, profiles GENERATED and validates against the pinned SOURCE. Inspect individual fidelity metrics and actual rule applications.
@@ -95,7 +95,7 @@ Public dataset distribution additionally requires GitHub Actions variable `SAGE_
 
 ### Optional setup for fake SOURCE inputs
 
-Run [00_Create_Fabricated_SOURCE.py](notebooks/00_Create_Fabricated_SOURCE.py) once before SOURCE profiling to create the six input Parquet files. It calls the unchanged [Scotia Fake Records.py](scripts/Scotia%20Fake%20Records.py) using `config.py`'s `SOURCE_DIR` and the reviewed demo policy's population/seed. The schema-only workbook `RCAR_source_column_list.xlsx` is required separately in that directory; it is not in Git.
+Run [00_Create_Fabricated_SOURCE.py](notebooks/00_Create_Fabricated_SOURCE.py) once before SOURCE profiling to create the six input Parquet files. It calls the unchanged [Scotia Fake Records.py](scripts/Scotia%20Fake%20Records.py) using `config.py`'s `SOURCE_DIR` and the reviewed demo policy's population/seed. The [schema-only workbook](schemas/RCAR_source_column_list.xlsx) is bundled under `schemas/`. Upload it to `SOURCE_DIR/RCAR_source_column_list.xlsx` before running Notebook 00. It contains only six table schemas (219 field names/types), reconstructed from the existing reviewed demo policy; no customer records are included. See the [schema notes](schemas/README.md).
 
 Use a dedicated writable development Volume: setup replaces same-named `RCAR_synthetic_*.parquet` files. The existing script uses NumPy, pandas, openpyxl and PyArrow. Keep its bytes unchanged because DEMO_ONLY replay verifies its fingerprint; do not edit hard-coded paths in the original script to configure a new installation. The setup wrapper supplies paths without changing its formulas or sampling.
 
